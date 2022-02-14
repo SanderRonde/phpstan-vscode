@@ -1,0 +1,41 @@
+name: 'Format, lint and check for code errors'
+
+on:
+    push:
+        paths-ignore:
+            - '**.md'
+    schedule:
+        - cron: '0 0 1 * *'
+    create:
+        tags:
+            - '*'
+
+jobs:
+    lint-and-tsc:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v2.3.1
+
+            - name: Node
+              uses: actions/setup-node@v2
+              with:
+                  node-version: 14
+
+            - name: Install
+              run: yarn
+
+            - name: Format
+              run: yarn prettier --check src/
+
+            - name: Lint
+              run: yarn lint
+
+            - name: TypeScript
+              run: yarn compile && tsc -p ./scripts
+
+            - name: Validate package.json
+              run: yarn _generate-package --validate
+
+            - name: Check if package was just generated
+              run: yarn generate-package && git diff --exit-code
