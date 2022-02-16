@@ -6,11 +6,7 @@
 	],
 	"parserOptions": {
 		"tsconfigRootDir": "./src",
-		"project": [
-			"./tsconfig.json",
-			"./views/activityBar/review/html/src/tsconfig.json",
-			"../scripts/tsconfig.json"
-		],
+		"project": ["./tsconfig.json"],
 		"createDefaultProgram": true
 	},
 	"rules": {
