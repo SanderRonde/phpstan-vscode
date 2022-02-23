@@ -10,20 +10,92 @@
 		"Other"
 	],
 	"activationEvents": [
-		"*"
+		"onLanguage:php",
+		"onCommand:cmd.phpstan.scanFileForErrors"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
-		"commands": [],
-		"keybindings": [],
+		"configuration": [
+			{
+				"type": "object",
+				"title": "PHPStan configuration",
+				"properties": {
+					"phpstan.binPath": {
+						"type": "string",
+						"default": "vendor/bin/phpstan",
+						"description": "Path to the PHPStan binary"
+					},
+					"phpstan.configFile": {
+						"type": "string",
+						"default": null,
+						"description": "Path to the config file"
+					},
+					"phpstan.rootDir": {
+						"type": "string",
+						"default": null,
+						"description": "Path to the root directory"
+					},
+					"phpstan.options": {
+						"type": "array",
+						"default": [],
+						"description": "Extra commandline options to be passed to PHPStan"
+					},
+					"phpstan.enableStatusBar": {
+						"type": "boolean",
+						"default": true,
+						"description": "Show the status bar while scanning"
+					},
+					"phpstan.memoryLimit": {
+						"type": "string",
+						"default": "1G",
+						"description": "Memory limit to use"
+					},
+					"phpstan.whenToRun": {
+						"type": "string",
+						"enum": [
+							"onSave",
+							"onContentChange",
+							"never"
+						],
+						"description": "When to run PHPStan",
+						"enumDescriptions": [
+							"Run on save",
+							"Run on content change (while you type)",
+							"Never run"
+						],
+						"default": "onSave"
+					}
+				}
+			}
+		],
+		"commands": [
+			{
+				"command": "phpstan.scanFileForErrors",
+				"title": "Scan current file for errors"
+			},
+			{
+				"command": "cmd.phpstan.scanFileForErrors",
+				"title": "PHPStan: Scan current file for errors"
+			}
+		],
 		"menus": {
-			"commandPalette": []
-		}
+			"commandPalette": [
+				{
+					"command": "phpstan.scanFileForErrors",
+					"when": "false"
+				},
+				{
+					"command": "cmd.phpstan.scanFileForErrors",
+					"when": "true"
+				}
+			]
+		},
+		"keybindings": []
 	},
 	"watch": {
-		"generate-package": {
+		"build:debug": {
 			"patterns": [
-				"src/commands"
+				"src"
 			],
 			"extensions": "ts"
 		}
@@ -32,6 +104,7 @@
 		"prepack": "yarn generate-package && yarn prettier --check src/ && yarn lint && yarn compile && yarn run build",
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc -p ./src",
+		"watch": "tsc -p src --noEmit false --watch",
 		"build:main": "esbuild --minify --bundle --outfile=out/extension.js src/extension.ts --platform=node --external:vscode",
 		"build:debug:main": "esbuild --bundle --outfile=out/extension.js src/extension.ts --platform=node --external:vscode --define:process.env.DEV_OVERRIDE=true",
 		"build": "rimraf ./out && yarn run build:main",
@@ -41,13 +114,14 @@
 		"format": "prettier --write src/",
 		"package": "yarn run prepack && yarn vsce package",
 		"package-dev": "yarn prepush && yarn run build:debug && yarn vsce package",
-		"generate-package": "generate-package-json generate --input src/commands/defs.ts -w -p package.json --handler src/commands/commands.ts --validate --prefix Gerrit && prettier --write package.json",
+		"generate-package": "generate-package-json generate --input src/commands/defs.ts -w -p package.json --handler src/commands/commands.ts --validate --prefix PHPStan && prettier --write package.json",
 		"prepush": "yarn generate-package && yarn format-staged && yarn lint --fix && yarn compile"
 	},
 	"devDependencies": {
 		"@types/glob": "^7.2.0",
 		"@types/mocha": "^9.1.0",
 		"@types/node": "^17.0.18",
+		"@types/rimraf": "^3",
 		"@types/vscode": "^1.64.0",
 		"@typescript-eslint/eslint-plugin": "^5.12.0",
 		"@typescript-eslint/parser": "^5.12.0",
@@ -58,16 +132,21 @@
 		"glob": "^7.2.0",
 		"gts": "^3.1.0",
 		"mocha": "^9.2.0",
+		"npm-watch": "^0.11.0",
 		"prettier": "^2.5.1",
 		"prettier-plugin-sort-imports": "^1.5.12",
 		"pretty-quick": "^3.1.3",
+		"rimraf": "^3.0.2",
 		"ts-loader": "^9.2.6",
 		"ts-node": "^10.5.0",
 		"typescript": "^4.5.5",
-		"vscode-generate-package-json": "^1.0.4",
+		"vscode-generate-package-json": "^1.0.5",
 		"vscode-test": "^1.6.1",
 		"webpack": "^5.69.0",
 		"webpack-cli": "^4.9.2"
 	},
-	"packageManager": "yarn@3.1.1"
+	"packageManager": "yarn@3.1.1",
+	"dependencies": {
+		"tmp-promise": "^3.0.3"
+	}
 }

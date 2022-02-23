@@ -1,70 +1,29 @@
-# phpstan-vscode README
+# PHPStan-vscode
 
-This is the README for your extension "phpstan-vscode". After writing up a brief description, we recommend including the following sections.
+Scans for PHPStan errors as you are working on your PHP code.
 
 ## Features
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+Automatically performs static analysis of your code and highlights errors as you type.
 
 ## Extension Settings
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+-   `phpstan.configFile` (**required**) : path to the config file, either relative to `phpstan.rootDir` or absolute
+-   `phpstan.rootDir` - path to the root directory of your PHP project (defaults to `workspaceFolder`)
+-   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
+-   `phpstan.whenToRun` - when to perform the check (defaults to `onSave`). Can be one of:
 
-For example:
+    -   `onSave` - whenever the current file is saved
+    -   `onContentChange` - whenever the content of the current file changes as you type (debounced by 1000ms)
+    -   `never` - never performs the check automatically, allowing you to use the `phpstan.scanFileForErrors` command to check the current file for errors
 
-This extension contributes the following settings:
 
-* `myExtension.enable`: enable/disable this extension
-* `myExtension.thing`: set to `blah` to do something
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
+-   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
+-   `phpstan.options` - array of command line options to pass to PHPStan (defaults to `[]`)
+-   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
-
 ### 1.0.0
 
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
------------------------------------------------------------------------------------------------------------
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-**Note:** You can author your README using Visual Studio Code.  Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux)
-* Toggle preview (`Shift+CMD+V` on macOS or `Shift+Ctrl+V` on Windows and Linux)
-* Press `Ctrl+Space` (Windows, Linux) or `Cmd+Space` (macOS) to see a list of Markdown snippets
-
-### For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Initial release!
