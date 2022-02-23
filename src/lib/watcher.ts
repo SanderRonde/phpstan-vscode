@@ -1,8 +1,8 @@
 import { getConfiguration, WhenToRun } from './config';
 import { ErrorHandler } from './errorHandler';
 import { createDebouncer } from './util';
-import { Disposable } from 'vscode';
 import { PHPStan } from './phpstan';
+import { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
 export class Watcher implements Disposable {
