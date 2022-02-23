@@ -4,11 +4,24 @@
 	"description": "Inline PHPStan support for VSCode",
 	"version": "0.0.1",
 	"engines": {
-		"vscode": "^1.64.0"
+		"vscode": "^1.64.0",
+		"node": ">=14.16.0"
 	},
+	"license": "MIT",
 	"categories": [
-		"Other"
+		"Linters"
 	],
+	"icon": "src/images/phpstan.png",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SanderRonde/phpstan-vscode"
+	},
+	"homepage": "https://github.com/SanderRonde/phpstan-vscode/blob/main/README.md",
+	"bugs": {
+		"url": "https://github.com/SanderRonde/phpstan-vscode/issues",
+		"email": "awsdfgvhbjn@gmail.com"
+	},
+	"publisher": "SanderRonde",
 	"activationEvents": [
 		"onLanguage:php",
 		"onCommand:cmd.phpstan.scanFileForErrors"
