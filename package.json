@@ -77,6 +77,11 @@
 							"Never run"
 						],
 						"default": "onSave"
+					},
+					"phpstan.timeout": {
+						"type": "number",
+						"description": "Timeout in milliseconds. After this time the checking process is canceled",
+						"default": 10000
 					}
 				}
 			}

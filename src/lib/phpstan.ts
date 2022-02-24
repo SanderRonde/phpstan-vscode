@@ -1,9 +1,9 @@
 import { filterBaselineErrorsForFile } from './ignoreFilter';
+import { OperationResult, StatusBar } from './statusBar';
 import { showError, showErrorOnce } from './error-util';
 import { ErrorHandler } from './errorHandler';
 import { getConfiguration } from './config';
 import { EXTENSION_ID } from './constants';
-import { StatusBar } from './statusBar';
 import { spawn } from 'child_process';
 import { Disposable } from 'vscode';
 import * as tmp from 'tmp-promise';
@@ -14,6 +14,7 @@ import * as path from 'path';
 
 export class PHPStan implements Disposable {
 	private _runningOperations: Map<string, PHPStanCheck> = new Map();
+	private _timers: Set<NodeJS.Timeout> = new Set();
 	private readonly _errorHandler: ErrorHandler;
 	private readonly _statusBar: StatusBar;
 	private readonly _context: vscode.ExtensionContext;
@@ -52,9 +53,19 @@ export class PHPStan implements Disposable {
 		this._runningOperations.set(e.fileName, check);
 		this._statusBar.pushOperation(
 			new Promise((resolve) => {
+				let isDone: boolean = false;
 				check.onDone(() => {
-					resolve();
+					isDone = true;
+					resolve(OperationResult.SUCCESS);
 				});
+				const timer = setTimeout(() => {
+					this._timers.delete(timer);
+					if (!isDone) {
+						check.dispose();
+						resolve(OperationResult.KILLED);
+					}
+				}, getConfiguration().get('phpstan.timeout'));
+				this._timers.add(timer);
 			})
 		);
 		return {
@@ -80,6 +91,7 @@ export class PHPStan implements Disposable {
 
 	public dispose(): void {
 		this._runningOperations.forEach((v) => v.dispose());
+		this._timers.forEach((t) => clearTimeout(t));
 	}
 }
 

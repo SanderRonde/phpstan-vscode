@@ -1,6 +1,12 @@
 import { getConfiguration } from './config';
+import { assertUnreachable } from './util';
 import { Disposable } from 'vscode';
 import * as vscode from 'vscode';
+
+export enum OperationResult {
+	SUCCESS,
+	KILLED,
+}
 
 export class StatusBar implements Disposable {
 	private readonly _opTracker: OperationTracker;
@@ -13,7 +19,7 @@ export class StatusBar implements Disposable {
 	public constructor() {
 		this._opTracker = new OperationTracker(
 			() => this._showStatusBar(),
-			() => this._hideStatusBar()
+			(lastResult: OperationResult) => this._hideStatusBar(lastResult)
 		);
 	}
 
@@ -29,14 +35,21 @@ export class StatusBar implements Disposable {
 		this._statusBar.show();
 	}
 
-	private _hideStatusBar(): void {
+	private _hideStatusBar(lastResult: OperationResult): void {
+		if (lastResult === OperationResult.KILLED) {
+			this._statusBar.text = 'PHPStan process killed (timeout)';
+		} else if (lastResult === OperationResult.SUCCESS) {
+			this._statusBar.text = 'PHPStan checking done';
+		} else {
+			assertUnreachable(lastResult);
+		}
 		this._statusBar.text = 'PHPStan checking done';
 		this._hideTimeout = setTimeout(() => {
 			this._statusBar.hide();
 		}, 500);
 	}
 
-	public pushOperation(operation: Promise<void>): void {
+	public pushOperation(operation: Promise<OperationResult>): void {
 		this._opTracker.pushOperation(operation);
 	}
 
@@ -51,19 +64,21 @@ class OperationTracker implements Disposable {
 
 	public constructor(
 		private readonly _onHasOperations: () => void,
-		private readonly _onNoOperations: () => void
+		private readonly _onNoOperations: (lastResult: OperationResult) => void
 	) {}
 
 	private _checkOperations(): void {
+		const lastOperation =
+			this._runningOperations[this._runningOperations.length - 1];
 		this._runningOperations = this._runningOperations.filter(
 			(o) => !o.done
 		);
-		if (this._runningOperations.length === 0) {
-			this._onNoOperations();
+		if (this._runningOperations.length === 0 && lastOperation) {
+			this._onNoOperations(lastOperation.result!);
 		}
 	}
 
-	public pushOperation(operation: Promise<void>): void {
+	public pushOperation(operation: Promise<OperationResult>): void {
 		const hadOperations = this._runningOperations.length > 0;
 		this._runningOperations.push(new Resolvable(operation));
 		void operation.then(() => this._checkOperations());
@@ -79,9 +94,11 @@ class OperationTracker implements Disposable {
 
 class Resolvable {
 	public done: boolean = false;
+	public result: null | OperationResult = null;
 
-	public constructor(promise: Promise<void>) {
-		void promise.then(() => {
+	public constructor(promise: Promise<OperationResult>) {
+		void promise.then((result) => {
+			this.result = result;
 			this.done = true;
 		});
 	}

@@ -19,6 +19,7 @@ interface ConfigSettings {
 	'phpstan.enableStatusBar': boolean;
 	'phpstan.memoryLimit': string;
 	'phpstan.whenToRun': WhenToRun;
+	'phpstan.timeout': number;
 }
 
 interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {

@@ -49,3 +49,11 @@ export function createDebouncer(delay: number): {
 		},
 	};
 }
+
+export function assertUnreachable(x: never): void {
+	if (x) {
+		throw new Error(
+			`Value of type '${typeof x}' was not expected and should be unreachable`
+		);
+	}
+}

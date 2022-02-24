@@ -21,6 +21,7 @@ Automatically performs static analysis of your code and highlights errors as you
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
 -   `phpstan.options` - array of command line options to pass to PHPStan (defaults to `[]`)
 -   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
+-   `phpstan.timeout` - timeout after which the PHPStan process is killed in ms (defaults to 10000ms)
 
 ## Release Notes
 
