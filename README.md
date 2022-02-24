@@ -25,6 +25,15 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.1.1
+
+* Add release notes
+
+### 1.1.0
+
+* Automatically times out after some time
+* Shows result of last operation in statusbar (relevant when killed because of timeout)
+
 ### 1.0.0
 
 Initial release!
