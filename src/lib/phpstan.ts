@@ -229,9 +229,9 @@ class PHPStanCheck implements Disposable {
 		}
 		const extensionConfig = getConfiguration();
 
-		const workspaceRoot = vscode.workspace.getWorkspaceFolder(
-			this._file.uri
-		)?.uri.fsPath;
+		const workspaceRoot =
+			vscode.workspace.getWorkspaceFolder(this._file.uri)?.uri.fsPath ??
+			vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 		const cwd =
 			this._getAbsolutePath(
 				extensionConfig.get('phpstan.rootDir'),
