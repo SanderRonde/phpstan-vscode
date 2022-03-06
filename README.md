@@ -25,6 +25,10 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.1.2
+
+* Add logging panel under output
+
 ### 1.1.1
 
 * Add release notes
