@@ -11,6 +11,7 @@ import * as fs from 'fs/promises';
 import * as vscode from 'vscode';
 import { constants } from 'fs';
 import * as path from 'path';
+import { log } from './log';
 
 export class PHPStan implements Disposable {
 	private _runningOperations: Map<string, PHPStanCheck> = new Map();
@@ -49,6 +50,8 @@ export class PHPStan implements Disposable {
 			this._runningOperations.get(e.fileName)!.dispose();
 		}
 
+		log('Checking file', e.fileName);
+
 		const check = new PHPStanCheck(e);
 		this._runningOperations.set(e.fileName, check);
 		this._statusBar.pushOperation(
@@ -68,10 +71,17 @@ export class PHPStan implements Disposable {
 				this._timers.add(timer);
 			})
 		);
-		return {
+		const returnValue = {
 			errors: await check.check(),
 			configuration: await check.collectConfiguration(),
 		};
+		log(
+			'File check done or file',
+			e.fileName,
+			'errors=',
+			returnValue.errors.map((e) => e.message).join(', ')
+		);
+		return returnValue;
 	}
 
 	public async checkFileAndRegisterErrors(
@@ -159,23 +169,28 @@ class PHPStanCheck implements Disposable {
 			return [];
 		}
 
-		const phpstan = spawn(
-			config.binPath,
-			[
-				'analyse',
-				'-c',
-				config.configFile,
-				'--error-format=raw',
-				'--no-progress',
-				'--no-interaction',
-				`--memory-limit=${config.memoryLimit}`,
-				...config.args,
-				filePath,
-			],
-			{
+		const args = [
+			'analyse',
+			'-c',
+			config.configFile,
+			'--error-format=raw',
+			'--no-progress',
+			'--no-interaction',
+			`--memory-limit=${config.memoryLimit}`,
+			...config.args,
+			filePath,
+		];
+		log(
+			'Spawning PHPStan with the following configuration: ',
+			JSON.stringify({
+				binPath: config.binPath,
+				args,
 				cwd: config.cwd,
-			}
+			})
 		);
+		const phpstan = spawn(config.binPath, args, {
+			cwd: config.cwd,
+		});
 
 		this._disposables.push(
 			new Disposable(() => !phpstan.killed && phpstan.kill())
@@ -194,12 +209,14 @@ class PHPStanCheck implements Disposable {
 
 		return await new Promise<vscode.Diagnostic[]>((resolve) => {
 			phpstan.on('error', () => {
+				log('PHPStan process exited with error, data=', data);
 				resolve([]);
 			});
 			phpstan.on('exit', () => {
 				if (this._cancelled) {
 					return;
 				}
+				log('PHPStan process exited succesfully');
 
 				if (data.includes('Allowed memory size of')) {
 					showError(
@@ -244,7 +261,11 @@ class PHPStanCheck implements Disposable {
 		}
 
 		if (!cwd) {
-			showErrorOnce('PHPStan: failed to get CWD');
+			showErrorOnce(
+				'PHPStan: failed to get CWD',
+				'workspaceRoot=',
+				workspaceRoot ?? 'undefined'
+			);
 			return null;
 		}
 
@@ -386,5 +407,3 @@ class OutputParser {
 		);
 	}
 }
-
-// TODO: filter out baseline errors

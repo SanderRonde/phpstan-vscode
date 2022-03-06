@@ -2,10 +2,11 @@ import { getConfiguration } from './config';
 import { assertUnreachable } from './util';
 import { Disposable } from 'vscode';
 import * as vscode from 'vscode';
+import { log } from './log';
 
 export enum OperationResult {
-	SUCCESS,
-	KILLED,
+	SUCCESS = 'Success',
+	KILLED = 'Killed',
 }
 
 export class StatusBar implements Disposable {
@@ -24,6 +25,7 @@ export class StatusBar implements Disposable {
 	}
 
 	private _showStatusBar(): void {
+		log('Showing status bar');
 		if (!getConfiguration().get('phpstan.enableStatusBar')) {
 			return;
 		}
@@ -36,6 +38,7 @@ export class StatusBar implements Disposable {
 	}
 
 	private _hideStatusBar(lastResult: OperationResult): void {
+		log('Hiding status bar, last operation result =', lastResult);
 		if (lastResult === OperationResult.KILLED) {
 			this._statusBar.text = 'PHPStan process killed (timeout)';
 		} else if (lastResult === OperationResult.SUCCESS) {

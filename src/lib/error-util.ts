@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
+import { log } from './log';
 
 const shownWarnings: Set<string> = new Set();
 
-export function showErrorOnce(message: string): void {
+export function showErrorOnce(message: string, ...extra: string[]): void {
+	log(`Error: ${message}`, ...extra);
 	if (shownWarnings.has(message)) {
 		return;
 	}

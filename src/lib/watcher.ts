@@ -4,6 +4,7 @@ import { createDebouncer } from './util';
 import { PHPStan } from './phpstan';
 import { Disposable } from 'vscode';
 import * as vscode from 'vscode';
+import { log } from './log';
 
 export class Watcher implements Disposable {
 	private _disposables: Disposable[] = [];
@@ -44,9 +45,10 @@ export class Watcher implements Disposable {
 
 		if (current === WhenToRun.ON_SAVE) {
 			this._disposables.push(
-				vscode.workspace.onDidSaveTextDocument(
-					this._onDocumentSave.bind(this)
-				)
+				vscode.workspace.onDidSaveTextDocument((e) => {
+					log('Document saved, checking');
+					void this._onDocumentSave(e);
+				})
 			);
 		} else if (current === WhenToRun.CONTENT_CHANGE) {
 			vscode.workspace.onDidChangeTextDocument((e) => {
@@ -54,6 +56,7 @@ export class Watcher implements Disposable {
 					e.document.uri ===
 					vscode.window.activeTextEditor?.document.uri
 				) {
+					log('Document changed, checking');
 					void this._onDocumentChange(e.document);
 				}
 			});
@@ -61,14 +64,18 @@ export class Watcher implements Disposable {
 
 		if ([WhenToRun.CONTENT_CHANGE, WhenToRun.ON_SAVE].includes(current)) {
 			this._disposables.push(
-				vscode.workspace.onDidOpenTextDocument(
-					this._onDocumentSave.bind(this)
-				)
+				vscode.workspace.onDidOpenTextDocument((e) => {
+					log('Document opened, checking');
+					void this._onDocumentSave(e);
+				})
 			);
 			this._disposables.push(
-				vscode.window.onDidChangeActiveTextEditor(
-					(editor) => editor && this._onDocumentSave(editor.document)
-				)
+				vscode.window.onDidChangeActiveTextEditor((e) => {
+					log('Active editor changed, checking');
+					if (e) {
+						void this._onDocumentSave(e.document);
+					}
+				})
 			);
 		}
 
@@ -78,8 +85,9 @@ export class Watcher implements Disposable {
 			)
 		);
 
-		if (prev === WhenToRun.NEVER) {
+		if (prev !== WhenToRun.NEVER) {
 			vscode.workspace.textDocuments.forEach((doc) => {
+				log('Checking open document');
 				void this._onDocumentSave(doc);
 			});
 		}
@@ -87,6 +95,7 @@ export class Watcher implements Disposable {
 		this._disposables.push(
 			vscode.workspace.onDidChangeConfiguration((e) => {
 				if (e.affectsConfiguration('phpstan.whenToRun')) {
+					log('WhenToRun setting changed, re-registering handlers');
 					this.dispose();
 					this.watch();
 				}
