@@ -82,6 +82,11 @@
 						"type": "number",
 						"description": "Timeout in milliseconds. After this time the checking process is canceled",
 						"default": 10000
+					},
+					"phpstan.suppressTimeoutMessage": {
+						"type": "boolean",
+						"description": "Stop showing an error when the operation times out",
+						"default": false
 					}
 				}
 			}

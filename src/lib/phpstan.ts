@@ -61,13 +61,44 @@ export class PHPStan implements Disposable {
 					isDone = true;
 					resolve(OperationResult.SUCCESS);
 				});
+				const timeout = getConfiguration().get('phpstan.timeout');
 				const timer = setTimeout(() => {
 					this._timers.delete(timer);
 					if (!isDone) {
+						if (
+							!getConfiguration().get(
+								'phpstan.suppressTimeoutMessage'
+							)
+						) {
+							showError(
+								`PHPStan check timed out after ${timeout}ms`,
+								[
+									{
+										title: 'Adjust timeout',
+										callback: async () => {
+											await vscode.commands.executeCommand(
+												'workbench.action.openSettings',
+												'phpstan.timeout'
+											);
+										},
+									},
+									{
+										title: 'Stop showing this message',
+										callback: async () => {
+											await vscode.commands.executeCommand(
+												'workbench.action.openSettings',
+												'phpstan.suppressTimeoutMessage'
+											);
+										},
+									},
+								]
+							);
+						}
+						log(`PHPStan check timed out after ${timeout}ms`);
 						check.dispose();
 						resolve(OperationResult.KILLED);
 					}
-				}, getConfiguration().get('phpstan.timeout'));
+				}, timeout);
 				this._timers.add(timer);
 			})
 		);

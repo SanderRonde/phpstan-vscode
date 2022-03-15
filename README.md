@@ -22,8 +22,14 @@ Automatically performs static analysis of your code and highlights errors as you
 -   `phpstan.options` - array of command line options to pass to PHPStan (defaults to `[]`)
 -   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
 -   `phpstan.timeout` - timeout after which the PHPStan process is killed in ms (defaults to 10000ms)
+-   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
 
 ## Release Notes
+
+### 1.1.3
+
+* Always show error when timing out (thanks to [ljubadr](https://github.com/ljubadr) on github for the suggestion)
+* Add option for turning off these errors
 
 ### 1.1.2
 

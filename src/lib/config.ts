@@ -11,7 +11,7 @@ export enum WhenToRun {
 	NEVER = 'never',
 }
 
-interface ConfigSettings {
+export interface ConfigSettings {
 	'phpstan.binPath': string | null;
 	'phpstan.configFile': string | null;
 	'phpstan.rootDir': string | null;
@@ -20,6 +20,7 @@ interface ConfigSettings {
 	'phpstan.memoryLimit': string;
 	'phpstan.whenToRun': WhenToRun;
 	'phpstan.timeout': number;
+	'phpstan.suppressTimeoutMessage': boolean;
 }
 
 interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {
