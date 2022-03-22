@@ -55,11 +55,15 @@ export class PHPStan implements Disposable {
 		const check = new PHPStanCheck(e);
 		this._runningOperations.set(e.fileName, check);
 		this._statusBar.pushOperation(
-			new Promise((resolve) => {
+			new Promise<OperationResult>((resolve) => {
 				let isDone: boolean = false;
 				check.onDone(() => {
 					isDone = true;
 					resolve(OperationResult.SUCCESS);
+				});
+				check.onCancel(() => {
+					isDone = true;
+					resolve(OperationResult.SUPERCEDED);
 				});
 				const timeout = getConfiguration().get('phpstan.timeout');
 				const timer = setTimeout(() => {
@@ -147,6 +151,7 @@ export interface CheckConfig {
 class PHPStanCheck implements Disposable {
 	private _cancelled: boolean = false;
 	private _onDoneListener: null | (() => void) = null;
+	private _onCancelListener: null | (() => void) = null;
 	private _disposables: Disposable[] = [];
 	private __config: CheckConfig | null = null;
 
@@ -372,8 +377,13 @@ class PHPStanCheck implements Disposable {
 		this._onDoneListener = listener;
 	}
 
+	public onCancel(listener: () => void): void {
+		this._onCancelListener = listener;
+	}
+
 	public dispose(): void {
 		this._cancelled = true;
+		this._onCancelListener?.();
 		Disposable.from(...this._disposables).dispose();
 	}
 }

@@ -7,6 +7,7 @@ import { log } from './log';
 export enum OperationResult {
 	SUCCESS = 'Success',
 	KILLED = 'Killed',
+	SUPERCEDED = 'Superceded',
 }
 
 export class StatusBar implements Disposable {
@@ -43,7 +44,7 @@ export class StatusBar implements Disposable {
 			this._statusBar.text = 'PHPStan process killed (timeout)';
 		} else if (lastResult === OperationResult.SUCCESS) {
 			this._statusBar.text = 'PHPStan checking done';
-		} else {
+		} else if (lastResult !== OperationResult.SUPERCEDED) {
 			assertUnreachable(lastResult);
 		}
 		this._statusBar.text = 'PHPStan checking done';

@@ -26,6 +26,10 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.1.4
+
+* Don't show timeout message every time an operation ends
+
 ### 1.1.3
 
 * Always show error when timing out (thanks to [ljubadr](https://github.com/ljubadr) on github for the suggestion)
