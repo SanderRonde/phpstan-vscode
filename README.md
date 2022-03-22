@@ -26,6 +26,10 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.1.5
+
+* Fix issue that occurred during bundling that somehow caused an error.
+
 ### 1.1.4
 
 * Don't show timeout message every time an operation ends
