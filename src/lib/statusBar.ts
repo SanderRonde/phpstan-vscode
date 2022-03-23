@@ -8,6 +8,7 @@ export enum OperationResult {
 	SUCCESS = 'Success',
 	KILLED = 'Killed',
 	SUPERCEDED = 'Superceded',
+	ERROR = 'Error',
 }
 
 export class StatusBar implements Disposable {
@@ -44,13 +45,18 @@ export class StatusBar implements Disposable {
 			this._statusBar.text = 'PHPStan process killed (timeout)';
 		} else if (lastResult === OperationResult.SUCCESS) {
 			this._statusBar.text = 'PHPStan checking done';
+		} else if (lastResult === OperationResult.ERROR) {
+			this._statusBar.text = 'PHPStan checking errored (see log)';
 		} else if (lastResult !== OperationResult.SUPERCEDED) {
 			assertUnreachable(lastResult);
 		}
 		this._statusBar.text = 'PHPStan checking done';
-		this._hideTimeout = setTimeout(() => {
-			this._statusBar.hide();
-		}, 500);
+		this._hideTimeout = setTimeout(
+			() => {
+				this._statusBar.hide();
+			},
+			lastResult === OperationResult.ERROR ? 2000 : 500
+		);
 	}
 
 	public pushOperation(operation: Promise<OperationResult>): void {

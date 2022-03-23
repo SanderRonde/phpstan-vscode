@@ -37,7 +37,7 @@ export class PHPStan implements Disposable {
 	private async _checkFile(e: vscode.TextDocument): Promise<{
 		errors: vscode.Diagnostic[];
 		configuration: CheckConfig | null;
-	}> {
+	} | null> {
 		if (e.languageId !== 'php') {
 			return {
 				errors: [],
@@ -64,6 +64,10 @@ export class PHPStan implements Disposable {
 				check.onCancel(() => {
 					isDone = true;
 					resolve(OperationResult.SUPERCEDED);
+				});
+				check.onError(() => {
+					isDone = true;
+					resolve(OperationResult.ERROR);
 				});
 				const timeout = getConfiguration().get('phpstan.timeout');
 				const timer = setTimeout(() => {
@@ -106,12 +110,17 @@ export class PHPStan implements Disposable {
 				this._timers.add(timer);
 			})
 		);
+		const checkResult = await check.check();
+		if (!checkResult) {
+			log('File check failed for file', e.fileName);
+			return null;
+		}
 		const returnValue = {
-			errors: await check.check(),
+			errors: checkResult,
 			configuration: await check.collectConfiguration(),
 		};
 		log(
-			'File check done or file',
+			'File check done for file',
 			e.fileName,
 			'errors=',
 			returnValue.errors.map((e) => e.message).join(', ')
@@ -122,7 +131,12 @@ export class PHPStan implements Disposable {
 	public async checkFileAndRegisterErrors(
 		e: vscode.TextDocument
 	): Promise<void> {
-		const { errors, configuration } = await this._checkFile(e);
+		const checkResult = await this._checkFile(e);
+		if (!checkResult) {
+			this._errorHandler.clearForDocument(e);
+			return;
+		}
+		const { errors, configuration } = checkResult;
 		const filteredErrors = !configuration
 			? errors
 			: await filterBaselineErrorsForFile(
@@ -151,6 +165,7 @@ export interface CheckConfig {
 class PHPStanCheck implements Disposable {
 	private _cancelled: boolean = false;
 	private _onDoneListener: null | (() => void) = null;
+	private _onErrorListener: null | (() => void) = null;
 	private _onCancelListener: null | (() => void) = null;
 	private _disposables: Disposable[] = [];
 	private __config: CheckConfig | null = null;
@@ -194,9 +209,12 @@ class PHPStanCheck implements Disposable {
 		return e.fileName;
 	}
 
-	private async _check(): Promise<vscode.Diagnostic[]> {
+	private async _check(): Promise<vscode.Diagnostic[] | null> {
 		const config = await this.collectConfiguration();
-		if (!config || this._cancelled) {
+		if (!config) {
+			return null;
+		}
+		if (this._cancelled) {
 			return [];
 		}
 
@@ -243,10 +261,10 @@ class PHPStanCheck implements Disposable {
 		phpstan.stdout.on('data', onData);
 		phpstan.stderr.on('data', onData);
 
-		return await new Promise<vscode.Diagnostic[]>((resolve) => {
+		return await new Promise<vscode.Diagnostic[] | null>((resolve) => {
 			phpstan.on('error', () => {
 				log('PHPStan process exited with error, data=', data);
-				resolve([]);
+				resolve(null);
 			});
 			phpstan.on('exit', () => {
 				if (this._cancelled) {
@@ -269,7 +287,7 @@ class PHPStanCheck implements Disposable {
 							},
 						]
 					);
-					resolve([]);
+					resolve(null);
 				}
 				resolve(new OutputParser(data, filePath, this._file).parse());
 			});
@@ -345,16 +363,6 @@ class PHPStanCheck implements Disposable {
 			return null;
 		}
 
-		if (!binPath) {
-			showErrorOnce('PHPStan: failed to find binary path');
-			return null;
-		}
-
-		if (!(await this._fileIfExists(binPath))) {
-			showErrorOnce(`PHPStan: failed to find binary at "${binPath}"`);
-			return null;
-		}
-
 		const config = {
 			cwd,
 			configFile,
@@ -366,15 +374,23 @@ class PHPStanCheck implements Disposable {
 		return config;
 	}
 
-	public async check(): Promise<vscode.Diagnostic[]> {
+	public async check(): Promise<vscode.Diagnostic[] | null> {
 		const errors = await this._check();
-		this._onDoneListener?.();
+		if (errors === null) {
+			this._onErrorListener?.();
+		} else {
+			this._onDoneListener?.();
+		}
 		this.dispose();
 		return errors;
 	}
 
 	public onDone(listener: () => void): void {
 		this._onDoneListener = listener;
+	}
+
+	public onError(listener: () => void): void {
+		this._onErrorListener = listener;
 	}
 
 	public onCancel(listener: () => void): void {
