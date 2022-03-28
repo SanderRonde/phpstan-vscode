@@ -13,6 +13,7 @@ export enum WhenToRun {
 
 export interface ConfigSettings {
 	'phpstan.binPath': string | null;
+	'phpstan.binCommand': string[] | null;
 	'phpstan.configFile': string | null;
 	'phpstan.rootDir': string | null;
 	'phpstan.options': string[];

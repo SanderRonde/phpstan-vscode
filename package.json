@@ -38,6 +38,19 @@
 						"default": "vendor/bin/phpstan",
 						"description": "Path to the PHPStan binary"
 					},
+					"phpstan.binCommand": {
+						"type": "array",
+						"examples": [
+							[
+								"phpstan"
+							],
+							[
+								"lando",
+								"phpstan"
+							]
+						],
+						"description": "PHPStan command. Use this instead of \"binPath\" if, for example, the phpstan binary is in your path"
+					},
 					"phpstan.configFile": {
 						"type": "string",
 						"default": null,

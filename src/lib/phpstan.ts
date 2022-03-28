@@ -158,7 +158,7 @@ export class PHPStan implements Disposable {
 export interface CheckConfig {
 	cwd: string;
 	configFile: string;
-	binPath: string;
+	binCmd: string;
 	args: string[];
 	memoryLimit: string;
 }
@@ -238,12 +238,12 @@ class PHPStanCheck implements Disposable {
 		log(
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify({
-				binPath: config.binPath,
+				binCmd: config.binCmd,
 				args,
 				cwd: config.cwd,
 			})
 		);
-		const phpstan = spawn(config.binPath, args, {
+		const phpstan = spawn(config.binCmd, args, {
 			cwd: config.cwd,
 			shell: process.platform === 'win32',
 		});
@@ -270,6 +270,9 @@ class PHPStanCheck implements Disposable {
 					e.message,
 					' data=',
 					data
+				);
+				showError(
+					'PHPStan: process exited with error, see log for details'
 				);
 				resolve(null);
 			});
@@ -330,18 +333,22 @@ class PHPStanCheck implements Disposable {
 			return null;
 		}
 
+		const binCommand = extensionConfig.get('phpstan.binCommand');
 		const defaultBinPath = this._getAbsolutePath(
 			extensionConfig.get('phpstan.binPath'),
 			cwd
 		);
 		const binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
 
-		if (!binPath) {
+		if (!binPath && (!binCommand || binCommand.length === 0)) {
 			showErrorOnce('PHPStan: failed to find binary path');
 			return null;
 		}
 
-		if (!(await this._fileIfExists(binPath))) {
+		if (
+			(!binCommand || binCommand.length === 0) &&
+			!(await this._fileIfExists(binPath))
+		) {
 			showErrorOnce(`PHPStan: failed to find binary at "${binPath}"`);
 			return null;
 		}
@@ -370,11 +377,27 @@ class PHPStanCheck implements Disposable {
 			return null;
 		}
 
+		const { initialArgs, binCmd } = (() => {
+			if (binCommand?.length) {
+				const [binCmd, ...initialArgs] = binCommand;
+				return {
+					binCmd,
+					initialArgs,
+				};
+			}
+			return {
+				binCmd: binPath,
+				initialArgs: [],
+			};
+		})();
 		const config = {
 			cwd,
 			configFile,
-			binPath,
-			args: extensionConfig.get('phpstan.options') ?? [],
+			binCmd,
+			args: [
+				...initialArgs,
+				...(extensionConfig.get('phpstan.options') ?? []),
+			],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
 		};
 		this.__config = config;
