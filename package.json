@@ -56,6 +56,11 @@
 						"default": null,
 						"description": "Path to the config file"
 					},
+					"phpstan.paths": {
+						"type": "object",
+						"default": {},
+						"description": "Path mapping for scanned files. Allows for rewriting paths for for example SSH or Docker."
+					},
 					"phpstan.rootDir": {
 						"type": "string",
 						"default": null,

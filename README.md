@@ -12,6 +12,7 @@ Automatically performs static analysis of your code and highlights errors as you
 -   `phpstan.rootDir` - path to the root directory of your PHP project (defaults to `workspaceFolder`)
 -   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
 -   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. Unset by default.
+-   `phpstan.paths` - path mapping that allows for rewriting paths. Can be useful when developing inside a docker container or over SSH. Unset by default.
 -   `phpstan.whenToRun` - when to perform the check (defaults to `onSave`). Can be one of:
 
     -   `onSave` - whenever the current file is saved

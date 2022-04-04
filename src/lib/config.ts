@@ -22,6 +22,7 @@ export interface ConfigSettings {
 	'phpstan.whenToRun': WhenToRun;
 	'phpstan.timeout': number;
 	'phpstan.suppressTimeoutMessage': boolean;
+	'phpstan.paths': Record<string, string>;
 }
 
 interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {

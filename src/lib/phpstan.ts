@@ -4,6 +4,7 @@ import { showError, showErrorOnce } from './error-util';
 import { ErrorHandler } from './errorHandler';
 import { getConfiguration } from './config';
 import { EXTENSION_ID } from './constants';
+import { assertUnreachable } from './util';
 import { spawn } from 'child_process';
 import { Disposable } from 'vscode';
 import * as tmp from 'tmp-promise';
@@ -12,6 +13,7 @@ import * as vscode from 'vscode';
 import { constants } from 'fs';
 import * as path from 'path';
 import { log } from './log';
+import * as os from 'os';
 
 export class PHPStan implements Disposable {
 	private _runningOperations: Map<string, PHPStanCheck> = new Map();
@@ -34,15 +36,11 @@ export class PHPStan implements Disposable {
 		this._context = context;
 	}
 
-	private async _checkFile(e: vscode.TextDocument): Promise<{
-		errors: vscode.Diagnostic[];
-		configuration: CheckConfig | null;
-	} | null> {
+	private async _checkFile(
+		e: vscode.TextDocument
+	): Promise<CheckResult | ReturnValue> {
 		if (e.languageId !== 'php') {
-			return {
-				errors: [],
-				configuration: null,
-			};
+			return ReturnValue.CANCELED;
 		}
 
 		// Kill current running instances for this file
@@ -111,37 +109,43 @@ export class PHPStan implements Disposable {
 			})
 		);
 		const checkResult = await check.check();
-		if (!checkResult) {
+		if (checkResult === ReturnValue.ERROR) {
 			log('File check failed for file', e.fileName);
-			return null;
+			return checkResult;
 		}
-		const returnValue = {
-			errors: checkResult,
-			configuration: await check.collectConfiguration(),
-		};
+		if (checkResult === ReturnValue.CANCELED) {
+			log('File check canceled for file', e.fileName);
+			return checkResult;
+		}
+		if (typeof checkResult !== 'object') {
+			assertUnreachable(checkResult);
+		}
+
 		log(
 			'File check done for file',
 			e.fileName,
 			'errors=',
-			returnValue.errors.map((e) => e.message).join(', ')
+			checkResult.errors.map((e) => e.message).join(', ')
 		);
-		return returnValue;
+		return checkResult;
 	}
 
 	public async checkFileAndRegisterErrors(
 		e: vscode.TextDocument
 	): Promise<void> {
 		const checkResult = await this._checkFile(e);
-		if (!checkResult) {
+		if (checkResult === ReturnValue.ERROR) {
 			this._errorHandler.clearForDocument(e);
 			log('File check failed for file', e.fileName, 'clearing');
 			return;
+		} else if (checkResult === ReturnValue.CANCELED) {
+			return;
 		}
-		const { errors, configuration } = checkResult;
-		const filteredErrors = !configuration
+		const { errors, config } = checkResult;
+		const filteredErrors = !config
 			? errors
 			: await filterBaselineErrorsForFile(
-					configuration,
+					config,
 					e.fileName,
 					errors,
 					this._context
@@ -155,9 +159,21 @@ export class PHPStan implements Disposable {
 	}
 }
 
+enum ReturnValue {
+	ERROR,
+	CANCELED,
+}
+
+interface CheckResult {
+	config: CheckConfig;
+	errors: vscode.Diagnostic[];
+}
+
 export interface CheckConfig {
 	cwd: string;
+	remoteCwd: string;
 	configFile: string;
+	remoteConfigFile: string;
 	binCmd: string;
 	args: string[];
 	memoryLimit: string;
@@ -199,29 +215,39 @@ class PHPStanCheck implements Disposable {
 		return path.join(cwd, filePath);
 	}
 
-	private async _getFilePath(e: vscode.TextDocument): Promise<string> {
+	private async _getFilePath(
+		e: vscode.TextDocument
+	): Promise<string | ReturnValue.CANCELED> {
+		const mappedPath = this._applyPathMapping(e.fileName);
+
 		if (e.isDirty) {
+			if (mappedPath !== e.fileName) {
+				return ReturnValue.CANCELED;
+			}
 			const tmpFile = await tmp.file();
 			await fs.writeFile(tmpFile.path, e.getText());
 			this._disposables.push(new Disposable(() => tmpFile.cleanup()));
 			return tmpFile.path;
 		}
 
-		return e.fileName;
+		return mappedPath;
 	}
 
-	private async _check(): Promise<vscode.Diagnostic[] | null> {
+	private async _check(): Promise<CheckResult | ReturnValue> {
 		const config = await this.collectConfiguration();
 		if (!config) {
-			return null;
+			return ReturnValue.ERROR;
 		}
 		if (this._cancelled) {
-			return [];
+			return ReturnValue.CANCELED;
 		}
 
 		const filePath = await this._getFilePath(this._file);
 		if (this._cancelled) {
-			return [];
+			return ReturnValue.CANCELED;
+		}
+		if (typeof filePath !== 'string') {
+			return filePath;
 		}
 
 		const args = [
@@ -274,7 +300,7 @@ class PHPStanCheck implements Disposable {
 				showError(
 					'PHPStan: process exited with error, see log for details'
 				);
-				resolve(null);
+				resolve(ReturnValue.ERROR);
 			});
 			phpstan.on('exit', () => {
 				if (this._cancelled) {
@@ -297,14 +323,41 @@ class PHPStanCheck implements Disposable {
 							},
 						]
 					);
-					resolve(null);
+					resolve(ReturnValue.ERROR);
 				}
-				resolve(new OutputParser(data, filePath, this._file).parse());
+				resolve({
+					config,
+					errors: new OutputParser(
+						data,
+						filePath,
+						this._file
+					).parse(),
+				});
 			});
 		});
 	}
 
-	public async collectConfiguration(): Promise<CheckConfig | null> {
+	private _applyPathMapping(filePath: string): string {
+		const pathMapping = getConfiguration().get('phpstan.paths') ?? {};
+		if (Object.keys(pathMapping).length === 0) {
+			return filePath;
+		}
+		const expandedFilePath = filePath.replace(/^~/, os.homedir());
+		for (const [from, to] of Object.entries(pathMapping)) {
+			const expandedFromPath = from.replace(/^~/, os.homedir());
+			if (expandedFilePath.startsWith(expandedFromPath)) {
+				return expandedFilePath.replace(
+					expandedFromPath,
+					to.replace(/^~/, os.homedir())
+				);
+			}
+		}
+		return filePath;
+	}
+
+	public async collectConfiguration(): Promise<
+		CheckConfig | ReturnValue.ERROR
+	> {
 		if (this.__config) {
 			return this.__config;
 		}
@@ -321,7 +374,7 @@ class PHPStanCheck implements Disposable {
 
 		if (cwd && !(await this._fileIfExists(cwd))) {
 			showErrorOnce(`PHPStan: rootDir "${cwd}" does not exist`);
-			return null;
+			return ReturnValue.ERROR;
 		}
 
 		if (!cwd) {
@@ -330,7 +383,7 @@ class PHPStanCheck implements Disposable {
 				'workspaceRoot=',
 				workspaceRoot ?? 'undefined'
 			);
-			return null;
+			return ReturnValue.ERROR;
 		}
 
 		const binCommand = extensionConfig.get('phpstan.binCommand');
@@ -342,7 +395,7 @@ class PHPStanCheck implements Disposable {
 
 		if (!binPath && (!binCommand || binCommand.length === 0)) {
 			showErrorOnce('PHPStan: failed to find binary path');
-			return null;
+			return ReturnValue.ERROR;
 		}
 
 		if (
@@ -350,7 +403,7 @@ class PHPStanCheck implements Disposable {
 			!(await this._fileIfExists(binPath))
 		) {
 			showErrorOnce(`PHPStan: failed to find binary at "${binPath}"`);
-			return null;
+			return ReturnValue.ERROR;
 		}
 
 		const defaultConfigFile = this._getAbsolutePath(
@@ -364,7 +417,7 @@ class PHPStanCheck implements Disposable {
 			showErrorOnce(
 				`PHPStan: failed to find config file at "${defaultConfigFile}"`
 			);
-			return null;
+			return ReturnValue.ERROR;
 		}
 
 		const configFile =
@@ -374,7 +427,7 @@ class PHPStanCheck implements Disposable {
 
 		if (!configFile) {
 			showErrorOnce('PHPStan: failed to find config file');
-			return null;
+			return ReturnValue.ERROR;
 		}
 
 		const { initialArgs, binCmd } = (() => {
@@ -390,9 +443,11 @@ class PHPStanCheck implements Disposable {
 				initialArgs: [],
 			};
 		})();
-		const config = {
+		const config: CheckConfig = {
 			cwd,
+			remoteCwd: this._applyPathMapping(cwd),
 			configFile,
+			remoteConfigFile: this._applyPathMapping(configFile),
 			binCmd,
 			args: [
 				...initialArgs,
@@ -404,12 +459,16 @@ class PHPStanCheck implements Disposable {
 		return config;
 	}
 
-	public async check(): Promise<vscode.Diagnostic[] | null> {
+	public async check(): Promise<CheckResult | ReturnValue> {
 		const errors = await this._check();
-		if (errors === null) {
+		if (errors === ReturnValue.ERROR) {
 			this._onErrorListener?.();
-		} else {
+		} else if (errors === ReturnValue.CANCELED) {
+			this._onCancelListener?.();
+		} else if (typeof errors === 'object') {
 			this._onDoneListener?.();
+		} else {
+			assertUnreachable(errors);
 		}
 		this.dispose();
 		return errors;
