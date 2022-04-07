@@ -419,14 +419,28 @@ class OutputParser {
 				.filter((l) => l.length > 0)
 				.map((line) => {
 					// Parse
-					const [file, lineNumber, ...messageParts] = line.split(':');
+					const match = /^(.*):(\d+):(.*)$/.exec(line);
+					if (!match) {
+						return null;
+					}
+
+					const [, file, lineNumber, message] = match;
 					return {
 						file,
 						lineNumber: parseInt(lineNumber, 10),
-						message: messageParts.join(':'),
+						message,
 					};
 				})
 				// Filter
+				.filter(
+					(
+						result
+					): result is {
+						file: string;
+						lineNumber: number;
+						message: string;
+					} => result !== null
+				)
 				.filter(({ file }) => file.includes(this._filePath))
 				.map((error) => {
 					// Get text range
