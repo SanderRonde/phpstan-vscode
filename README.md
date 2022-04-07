@@ -26,9 +26,13 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.1.7
+
+* Fix extension not working on Windows.
+
 ### 1.1.6
 
-* Show "PHPStan checking errorred" in statusbar if check failed instead of silently failing
+* Show "PHPStan checking errorred" in statusbar if check failed instead of silently failing.
 
 ### 1.1.5
 
