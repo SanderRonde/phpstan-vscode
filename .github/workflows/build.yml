@@ -35,4 +35,4 @@ jobs:
               run: yarn compile
 
             - name: Check if package was just generated
-              run: yarn generate-package && git diff --exit-code
+              run: yarn generate-package && git diff --exit-code package.json
