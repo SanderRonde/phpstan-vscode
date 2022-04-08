@@ -253,7 +253,7 @@ class PHPStanCheck implements Disposable {
 		const args = [
 			'analyse',
 			'-c',
-			config.configFile,
+			config.remoteConfigFile,
 			'--error-format=raw',
 			'--no-progress',
 			'--no-interaction',
@@ -266,12 +266,15 @@ class PHPStanCheck implements Disposable {
 			JSON.stringify({
 				binCmd: config.binCmd,
 				args,
-				cwd: config.cwd,
+				cwd:
+					config.remoteCwd !== config.cwd
+						? `${config.cwd} -> ${config.remoteCwd}`
+						: config.cwd,
 			})
 		);
 		const phpstan = spawn(config.binCmd, args, {
-			cwd: config.cwd,
 			shell: process.platform === 'win32',
+			cwd: config.remoteCwd,
 		});
 
 		this._disposables.push(
