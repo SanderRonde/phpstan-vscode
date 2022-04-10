@@ -175,6 +175,7 @@ export interface CheckConfig {
 	configFile: string;
 	remoteConfigFile: string;
 	binCmd: string;
+	initialArgs: string[];
 	args: string[];
 	memoryLimit: string;
 }
@@ -251,6 +252,7 @@ class PHPStanCheck implements Disposable {
 		}
 
 		const args = [
+			...config.initialArgs,
 			'analyse',
 			'-c',
 			config.remoteConfigFile,
@@ -452,10 +454,8 @@ class PHPStanCheck implements Disposable {
 			configFile,
 			remoteConfigFile: this._applyPathMapping(configFile),
 			binCmd,
-			args: [
-				...initialArgs,
-				...(extensionConfig.get('phpstan.options') ?? []),
-			],
+			initialArgs,
+			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
 		};
 		this.__config = config;
