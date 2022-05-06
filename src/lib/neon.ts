@@ -1,6 +1,17 @@
-type NeonValue = NeonConfig | NeonArray | string | number | boolean | RegExp;
+type NeonValue =
+	| NeonConfig
+	| NeonArray
+	| string
+	| number
+	| boolean
+	| RegExp
+	| InvalidNeonValue;
 interface NeonConfig {
 	[key: string]: NeonValue;
+}
+export interface InvalidNeonValue {
+	readonly invalid: true;
+	source: string;
 }
 type NeonArray = NeonValue[];
 
@@ -10,7 +21,7 @@ interface IndexHolder {
 	index: number;
 }
 
-function parseSpecialValue(value: string): NeonValue {
+function _parseSpecialValue(value: string): NeonValue {
 	if (value === 'true') {
 		return true;
 	}
@@ -27,9 +38,24 @@ function parseSpecialValue(value: string): NeonValue {
 		value = value.slice(1, -1);
 	}
 	if (value.startsWith('#') && value.endsWith('#')) {
-		return new RegExp(value.slice(1, -1).replace(/\\\\/g, '\\'));
+		try {
+			return new RegExp(value.slice(1, -1).replace(/\\\\/g, '\\'));
+		} catch (e) {
+			return new RegExp(value.slice(1, -1).replace(/\\\\/g, '\\'));
+		}
 	}
 	return value;
+}
+
+function parseSpecialValue(value: string): NeonValue {
+	try {
+		return _parseSpecialValue(value);
+	} catch (e) {
+		return {
+			invalid: true,
+			source: value,
+		};
+	}
 }
 
 function parseNeonArray(lines: string[], holder: IndexHolder): NeonArray {

@@ -134,6 +134,7 @@ export class PHPStan implements Disposable {
 		const checkResult = await this._checkFile(e);
 		if (!checkResult) {
 			this._errorHandler.clearForDocument(e);
+			log('File check failed for file', e.fileName, 'clearing');
 			return;
 		}
 		const { errors, configuration } = checkResult;

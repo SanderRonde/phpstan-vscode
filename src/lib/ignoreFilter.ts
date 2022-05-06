@@ -7,12 +7,13 @@
  * those errors that should have been ignored by the ignoreErrors config.
  */
 
+import { InvalidNeonValue, parseNeonFile } from './neon';
 import * as fsPromises from 'fs/promises';
 import { CheckConfig } from './phpstan';
 import { deepObjectJoin } from './util';
-import { parseNeonFile } from './neon';
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { log } from './log';
 import * as fs from 'fs';
 
 class CachedFileReader implements vscode.Disposable {
@@ -114,7 +115,7 @@ async function getPHPStanConfig(
 async function getErrorsToIgnore(
 	checkConfig: CheckConfig,
 	context: vscode.ExtensionContext
-): Promise<PHPStanIgnoreError[]> {
+): Promise<(PHPStanIgnoreError | InvalidNeonValue)[]> {
 	const file = await getPHPStanConfig(checkConfig, context);
 	return file.parameters?.ignoreErrors ?? [];
 }
@@ -170,6 +171,13 @@ export async function filterBaselineErrorsForFile(
 			if (typeof error === 'string' || error instanceof RegExp) {
 				return true;
 			}
+			if (typeof error === 'object' && 'invalid' in error) {
+				log(
+					'Failed to parse "ignoreErrors" value in config. Source string:',
+					error.source
+				);
+				return false;
+			}
 			if (!error.path && !error.path) {
 				return true;
 			}
@@ -183,7 +191,7 @@ export async function filterBaselineErrorsForFile(
 	const finalErrors: vscode.Diagnostic[] = [];
 	// Filter out error that match the message
 	for (const error of errors) {
-		if (!isIgnored(error, matchingErrors)) {
+		if (!isIgnored(error, matchingErrors as PHPStanIgnoreError[])) {
 			finalErrors.push(error);
 		}
 	}
