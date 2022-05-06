@@ -171,7 +171,6 @@ interface CheckResult {
 
 export interface CheckConfig {
 	cwd: string;
-	remoteCwd: string;
 	configFile: string;
 	remoteConfigFile: string;
 	binCmd: string;
@@ -268,15 +267,11 @@ class PHPStanCheck implements Disposable {
 			JSON.stringify({
 				binCmd: config.binCmd,
 				args,
-				cwd:
-					config.remoteCwd !== config.cwd
-						? `${config.cwd} -> ${config.remoteCwd}`
-						: config.cwd,
 			})
 		);
 		const phpstan = spawn(config.binCmd, args, {
 			shell: process.platform === 'win32',
-			cwd: config.remoteCwd,
+			cwd: config.cwd,
 		});
 
 		this._disposables.push(
@@ -294,7 +289,7 @@ class PHPStanCheck implements Disposable {
 		phpstan.stdout.on('data', onData);
 		phpstan.stderr.on('data', onData);
 
-		return await new Promise<vscode.Diagnostic[] | null>((resolve) => {
+		return await new Promise<CheckResult | ReturnValue>((resolve) => {
 			phpstan.on('error', (e) => {
 				log(
 					'PHPStan process exited with error, error=',
@@ -450,7 +445,6 @@ class PHPStanCheck implements Disposable {
 		})();
 		const config: CheckConfig = {
 			cwd,
-			remoteCwd: this._applyPathMapping(cwd),
 			configFile,
 			remoteConfigFile: this._applyPathMapping(configFile),
 			binCmd,
