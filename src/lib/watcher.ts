@@ -38,7 +38,6 @@ export class Watcher implements Disposable {
 	}
 
 	private _watch(prev: WhenToRun, current: WhenToRun): void {
-		console.log('prev=', prev, 'current=', current);
 		if (current === WhenToRun.NEVER) {
 			return;
 		}
