@@ -245,6 +245,7 @@ class PHPStanCheck implements Disposable {
 		);
 		const phpstan = spawn(config.binPath, args, {
 			cwd: config.cwd,
+			shell: process.platform === 'win32',
 		});
 
 		this._disposables.push(
@@ -263,8 +264,13 @@ class PHPStanCheck implements Disposable {
 		phpstan.stderr.on('data', onData);
 
 		return await new Promise<vscode.Diagnostic[] | null>((resolve) => {
-			phpstan.on('error', () => {
-				log('PHPStan process exited with error, data=', data);
+			phpstan.on('error', (e) => {
+				log(
+					'PHPStan process exited with error, error=',
+					e.message,
+					' data=',
+					data
+				);
 				resolve(null);
 			});
 			phpstan.on('exit', () => {
