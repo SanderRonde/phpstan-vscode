@@ -26,9 +26,15 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.2.0
+
+* Improve `.neon` file parsing
+* Don't crash when a single `.neon` value fails to parse
+* Fix extension not working when using workspace is running under Windows
+
 ### 1.1.7
 
-* Fix extension not working on Windows.
+* Fix extension not working when running VSCode on Windows.
 
 ### 1.1.6
 
