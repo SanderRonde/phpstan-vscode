@@ -14,7 +14,13 @@ import * as path from 'path';
 import { log } from './log';
 
 export class PHPStan implements Disposable {
-	private _runningOperations: Map<string, PHPStanCheck> = new Map();
+	private _runningOperations: Map<
+		string,
+		{
+			content: string;
+			check: PHPStanCheck;
+		}
+	> = new Map();
 	private _timers: Set<NodeJS.Timeout> = new Set();
 	private readonly _errorHandler: ErrorHandler;
 	private readonly _statusBar: StatusBar;
@@ -45,15 +51,13 @@ export class PHPStan implements Disposable {
 			};
 		}
 
-		// Kill current running instances for this file
-		if (this._runningOperations.has(e.fileName)) {
-			this._runningOperations.get(e.fileName)!.dispose();
-		}
-
 		log('Checking file', e.fileName);
 
 		const check = new PHPStanCheck(e);
-		this._runningOperations.set(e.fileName, check);
+		this._runningOperations.set(e.fileName, {
+			content: e.getText(),
+			check,
+		});
 		this._statusBar.pushOperation(
 			new Promise<OperationResult>((resolve) => {
 				let isDone: boolean = false;
@@ -131,6 +135,19 @@ export class PHPStan implements Disposable {
 	public async checkFileAndRegisterErrors(
 		e: vscode.TextDocument
 	): Promise<void> {
+		// Kill current running instances for this file
+		if (this._runningOperations.has(e.fileName)) {
+			const previousOperation = this._runningOperations.get(e.fileName)!;
+			if (previousOperation.content === e.getText()) {
+				// Same text, no need to run at all
+				return;
+			}
+			// Kill current running instances for this file
+			if (this._runningOperations.has(e.fileName)) {
+				this._runningOperations.get(e.fileName)!.check.dispose();
+			}
+		}
+
 		const checkResult = await this._checkFile(e);
 		if (!checkResult) {
 			this._errorHandler.clearForDocument(e);
@@ -150,8 +167,10 @@ export class PHPStan implements Disposable {
 	}
 
 	public dispose(): void {
-		this._runningOperations.forEach((v) => v.dispose());
+		this._runningOperations.forEach((v) => v.check.dispose());
 		this._timers.forEach((t) => clearTimeout(t));
+		this._runningOperations.clear();
+		this._timers.clear();
 	}
 }
 
