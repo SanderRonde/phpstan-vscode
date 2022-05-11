@@ -26,6 +26,10 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.2.1
+
+* Don't restart check when re-focusing file. Instead continue current check (unless file changed)
+
 ### 1.2.0
 
 * Improve `.neon` file parsing
