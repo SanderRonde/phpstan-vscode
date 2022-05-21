@@ -26,6 +26,10 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.2.2
+
+* Fix issue where paths with spaces were not being resolved correctly (thanks to Balkoth for opening [this issue](https://github.com/SanderRonde/phpstan-vscode/issues/5))
+
 ### 1.2.1
 
 * Don't restart check when re-focusing file. Instead continue current check (unless file changed)
