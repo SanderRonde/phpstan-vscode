@@ -229,6 +229,13 @@ class PHPStanCheck implements Disposable {
 		return e.fileName;
 	}
 
+	private _quoteFilePath(filePath: string): string {
+		if (!filePath.startsWith('"') && !filePath.endsWith('"')) {
+			return `"${filePath}"`;
+		}
+		return filePath;
+	}
+
 	private async _check(): Promise<vscode.Diagnostic[] | null> {
 		const config = await this.collectConfiguration();
 		if (!config) {
@@ -272,21 +279,29 @@ class PHPStanCheck implements Disposable {
 		);
 
 		let data: string = '';
-		const onData = (dataPart: string | Buffer): void => {
+		let errData: string = '';
+		phpstan.stdout.on('data', (dataPart: string | Buffer): void => {
 			if (dataPart instanceof Buffer) {
 				data += dataPart.toString('utf8');
 			} else {
 				data += dataPart;
 			}
-		};
-		phpstan.stdout.on('data', onData);
-		phpstan.stderr.on('data', onData);
+		});
+		phpstan.stderr.on('data', (dataPart: string | Buffer): void => {
+			if (dataPart instanceof Buffer) {
+				errData += dataPart.toString('utf8');
+			} else {
+				errData += dataPart;
+			}
+		});
 
 		return await new Promise<vscode.Diagnostic[] | null>((resolve) => {
 			phpstan.on('error', (e) => {
 				log(
 					'PHPStan process exited with error, error=',
 					e.message,
+					' errData=',
+					errData,
 					' data=',
 					data
 				);
@@ -296,7 +311,17 @@ class PHPStanCheck implements Disposable {
 				if (this._cancelled) {
 					return;
 				}
-				log('PHPStan process exited succesfully');
+
+				if (errData) {
+					log(
+						'PHPStan process exited successfully but with error message, error=',
+						errData,
+						' data=',
+						data
+					);
+				} else {
+					log('PHPStan process exited succesfully');
+				}
 
 				if (data.includes('Allowed memory size of')) {
 					showError(
@@ -391,8 +416,8 @@ class PHPStanCheck implements Disposable {
 
 		const config = {
 			cwd,
-			configFile,
-			binPath,
+			configFile: this._quoteFilePath(configFile),
+			binPath: this._quoteFilePath(binPath),
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
 		};
