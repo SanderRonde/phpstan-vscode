@@ -230,11 +230,7 @@ class PHPStanCheck implements Disposable {
 	}
 
 	private _quoteFilePath(filePath: string): string {
-		if (
-			process.platform === 'win32' &&
-			!filePath.startsWith('"') &&
-			!filePath.endsWith('"')
-		) {
+		if (!filePath.startsWith('"') && !filePath.endsWith('"')) {
 			return `"${filePath}"`;
 		}
 		return filePath;
@@ -421,7 +417,10 @@ class PHPStanCheck implements Disposable {
 		const config = {
 			cwd,
 			configFile: this._quoteFilePath(configFile),
-			binPath: this._quoteFilePath(binPath),
+			binPath:
+				process.platform === 'win32'
+					? this._quoteFilePath(binPath)
+					: binPath,
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
 		};
