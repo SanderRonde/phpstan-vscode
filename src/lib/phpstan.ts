@@ -230,7 +230,11 @@ class PHPStanCheck implements Disposable {
 	}
 
 	private _quoteFilePath(filePath: string): string {
-		if (!filePath.startsWith('"') && !filePath.endsWith('"')) {
+		if (
+			process.platform === 'win32' &&
+			!filePath.startsWith('"') &&
+			!filePath.endsWith('"')
+		) {
 			return `"${filePath}"`;
 		}
 		return filePath;
