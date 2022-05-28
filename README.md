@@ -26,6 +26,11 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 1.2.4
+
+* Never enable quote paths on non-windows operating systems
+* Add some logging
+
 ### 1.2.3
 
 * Only enable quote paths on windows
