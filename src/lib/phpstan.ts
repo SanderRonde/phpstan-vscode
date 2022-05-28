@@ -45,6 +45,7 @@ export class PHPStan implements Disposable {
 		configuration: CheckConfig | null;
 	} | null> {
 		if (e.languageId !== 'php') {
+			log('Skipping', e.languageId, 'file');
 			return {
 				errors: [],
 				configuration: null,
@@ -140,6 +141,7 @@ export class PHPStan implements Disposable {
 			const previousOperation = this._runningOperations.get(e.fileName)!;
 			if (previousOperation.content === e.getText()) {
 				// Same text, no need to run at all
+				log('File already has pending check');
 				return;
 			}
 			// Kill current running instances for this file
@@ -230,6 +232,9 @@ class PHPStanCheck implements Disposable {
 	}
 
 	private _quoteFilePath(filePath: string): string {
+		if (process.platform !== 'win32') {
+			return filePath;
+		}
 		if (!filePath.startsWith('"') && !filePath.endsWith('"')) {
 			return `"${filePath}"`;
 		}
@@ -417,10 +422,7 @@ class PHPStanCheck implements Disposable {
 		const config = {
 			cwd,
 			configFile: this._quoteFilePath(configFile),
-			binPath:
-				process.platform === 'win32'
-					? this._quoteFilePath(binPath)
-					: binPath,
+			binPath: this._quoteFilePath(binPath),
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
 		};
