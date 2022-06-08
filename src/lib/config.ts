@@ -13,6 +13,7 @@ export enum WhenToRun {
 
 export interface ConfigSettings {
 	'phpstan.binPath': string | null;
+	'phpstan.binCommand': string[] | null;
 	'phpstan.configFile': string | null;
 	'phpstan.rootDir': string | null;
 	'phpstan.options': string[];
@@ -21,6 +22,7 @@ export interface ConfigSettings {
 	'phpstan.whenToRun': WhenToRun;
 	'phpstan.timeout': number;
 	'phpstan.suppressTimeoutMessage': boolean;
+	'phpstan.paths': Record<string, string>;
 }
 
 interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {

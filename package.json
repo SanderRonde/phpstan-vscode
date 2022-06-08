@@ -38,10 +38,28 @@
 						"default": "vendor/bin/phpstan",
 						"description": "Path to the PHPStan binary"
 					},
+					"phpstan.binCommand": {
+						"type": "array",
+						"examples": [
+							[
+								"phpstan"
+							],
+							[
+								"lando",
+								"phpstan"
+							]
+						],
+						"description": "PHPStan command. Use this instead of \"binPath\" if, for example, the phpstan binary is in your path"
+					},
 					"phpstan.configFile": {
 						"type": "string",
 						"default": null,
 						"description": "Path to the config file"
+					},
+					"phpstan.paths": {
+						"type": "object",
+						"default": {},
+						"description": "Path mapping for scanned files. Allows for rewriting paths for for example SSH or Docker."
 					},
 					"phpstan.rootDir": {
 						"type": "string",

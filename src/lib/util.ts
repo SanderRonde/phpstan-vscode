@@ -50,6 +50,9 @@ export function createDebouncer(delay: number): {
 	};
 }
 
+/**
+ * Assert that forces TS to check whether a route is reachable
+ */
 export function assertUnreachable(x: never): void {
 	if (x) {
 		throw new Error(
