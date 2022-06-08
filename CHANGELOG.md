@@ -2,6 +2,6 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
-## [Unreleased]
+## 1.3.0
 
-- Initial release
+-   Ensure the extension works in a docker container as well (thanks to [Grldk](https://github.com/SanderRonde/phpstan-vscode/issues/1))
