@@ -70,8 +70,8 @@ export class Watcher implements Disposable {
 			);
 			this._disposables.push(
 				vscode.window.onDidChangeActiveTextEditor((e) => {
-					log('Active editor changed, checking');
 					if (e) {
+						log('Active editor changed, checking');
 						void this._onDocumentSave(e.document);
 					}
 				})

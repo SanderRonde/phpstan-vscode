@@ -114,6 +114,7 @@ export class PHPStan implements Disposable {
 			})
 		);
 		const checkResult = await check.check();
+		this._runningOperations.delete(e.fileName);
 		if (checkResult === ReturnValue.ERROR) {
 			log('File check failed for file', e.fileName);
 			return checkResult;
@@ -194,7 +195,8 @@ export interface CheckConfig {
 	cwd: string;
 	configFile: string;
 	remoteConfigFile: string;
-	binCmd: string;
+	binCmd: string | null;
+	binPath: string | null;
 	initialArgs: string[];
 	args: string[];
 	memoryLimit: string;
@@ -254,12 +256,12 @@ class PHPStanCheck implements Disposable {
 		return mappedPath;
 	}
 
-	private _quoteFilePath(filePath: string): string {
-		if (process.platform !== 'win32') {
+	private _escapeFilePath(filePath: string): string {
+		if (os.platform() !== 'win32') {
 			return filePath;
 		}
-		if (!filePath.startsWith('"') && !filePath.endsWith('"')) {
-			return `"${filePath}"`;
+		if (filePath.indexOf(' ') !== -1) {
+			filePath = '"' + filePath + '"';
 		}
 		return filePath;
 	}
@@ -285,24 +287,28 @@ class PHPStanCheck implements Disposable {
 			...config.initialArgs,
 			'analyse',
 			'-c',
-			config.remoteConfigFile,
+			this._escapeFilePath(config.remoteConfigFile),
 			'--error-format=raw',
 			'--no-progress',
 			'--no-interaction',
 			`--memory-limit=${config.memoryLimit}`,
 			...config.args,
-			filePath,
+			this._escapeFilePath(filePath),
 		];
+		const binStr = config.binCmd
+			? config.binCmd
+			: this._escapeFilePath(config.binPath!);
 		log(
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify({
-				binCmd: config.binCmd,
+				binCmd: binStr,
 				args,
 			})
 		);
-		const phpstan = spawn(config.binCmd, args, {
+		const phpstan = spawn(binStr, args, {
 			shell: process.platform === 'win32',
 			cwd: config.cwd,
+			windowsVerbatimArguments: true,
 		});
 
 		this._disposables.push(
@@ -479,27 +485,31 @@ class PHPStanCheck implements Disposable {
 			return ReturnValue.ERROR;
 		}
 
-		const { initialArgs, binCmd } = (() => {
+		const partialConfig = ((): Pick<
+			CheckConfig,
+			'initialArgs' | 'binPath' | 'binCmd'
+		> => {
 			if (binCommand?.length) {
 				const [binCmd, ...initialArgs] = binCommand;
 				return {
 					binCmd,
+					binPath: null,
 					initialArgs,
 				};
 			}
 			return {
-				binCmd: this._quoteFilePath(binPath),
+				binCmd: null,
+				binPath,
 				initialArgs: [],
 			};
 		})();
 		const config: CheckConfig = {
 			cwd,
-			configFile: this._quoteFilePath(configFile),
+			configFile: this._escapeFilePath(configFile),
 			remoteConfigFile: this._applyPathMapping(configFile),
-			binCmd,
-			initialArgs,
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
+			...partialConfig,
 		};
 		this.__config = config;
 		return config;
