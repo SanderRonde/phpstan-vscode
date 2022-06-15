@@ -161,16 +161,22 @@ export class PHPStan implements Disposable {
 		} else if (checkResult === ReturnValue.CANCELED) {
 			return;
 		}
-		const { errors, config } = checkResult;
-		const filteredErrors = !config
-			? errors
-			: await filterBaselineErrorsForFile(
+		// eslint-disable-next-line prefer-const
+		let { errors, config } = checkResult;
+		if (config) {
+			try {
+				errors = await filterBaselineErrorsForFile(
 					config,
 					e.fileName,
 					errors,
 					this._context
-			  );
-		this._errorHandler.showForDocument(e, filteredErrors);
+				);
+			} catch (e) {
+				// Ignore this step
+				log('Failed to filter baseline errors', (e as Error).message);
+			}
+		}
+		this._errorHandler.showForDocument(e, errors);
 	}
 
 	public dispose(): void {

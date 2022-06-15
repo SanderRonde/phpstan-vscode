@@ -81,7 +81,8 @@ type PHPStanIgnoreError =
 			paths?: string[];
 	  }
 	| string
-	| RegExp;
+	| RegExp
+	| undefined;
 
 interface PHPStanConfig {
 	includes?: string[];
@@ -171,6 +172,9 @@ export async function filterBaselineErrorsForFile(
 	// Find rules that match current file
 	const matchingErrors = ignoreErrors
 		.filter((error) => {
+			if (!error) {
+				return false;
+			}
 			if (typeof error === 'string' || error instanceof RegExp) {
 				return true;
 			}
