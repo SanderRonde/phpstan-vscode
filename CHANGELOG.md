@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 1.3.3
+
+-   Add support for disabling config file
+
 ## 1.3.2
 
 -   Fix more windows issues
