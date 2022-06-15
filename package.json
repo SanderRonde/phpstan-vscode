@@ -53,8 +53,8 @@
 					},
 					"phpstan.configFile": {
 						"type": "string",
-						"default": null,
-						"description": "Path to the config file"
+						"default": "phpstan.neon",
+						"description": "Path to the config file (leave empty to disable)"
 					},
 					"phpstan.paths": {
 						"type": "object",

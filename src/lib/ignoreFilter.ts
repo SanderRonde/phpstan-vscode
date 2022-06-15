@@ -95,12 +95,12 @@ async function getPHPStanConfig(
 	context: vscode.ExtensionContext
 ): Promise<PHPStanConfig> {
 	let entrypointFile = parseNeonFile(
-		await readConfigFile(checkConfig.configFile, context)
+		await readConfigFile(checkConfig.configFile!, context)
 	) as PHPStanConfig;
 	if (entrypointFile.includes) {
 		for (const include of entrypointFile.includes) {
 			const filePath = path.join(
-				path.dirname(checkConfig.configFile),
+				path.dirname(checkConfig.configFile!),
 				include
 			);
 			entrypointFile = deepObjectJoin(
@@ -116,6 +116,9 @@ async function getErrorsToIgnore(
 	checkConfig: CheckConfig,
 	context: vscode.ExtensionContext
 ): Promise<(PHPStanIgnoreError | InvalidNeonValue)[]> {
+	if (!checkConfig.configFile) {
+		return [];
+	}
 	const file = await getPHPStanConfig(checkConfig, context);
 	return file.parameters?.ignoreErrors ?? [];
 }

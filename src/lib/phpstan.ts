@@ -193,8 +193,8 @@ interface CheckResult {
 
 export interface CheckConfig {
 	cwd: string;
-	configFile: string;
-	remoteConfigFile: string;
+	configFile: string | null;
+	remoteConfigFile: string | null;
 	binCmd: string | null;
 	binPath: string | null;
 	initialArgs: string[];
@@ -283,18 +283,20 @@ class PHPStanCheck implements Disposable {
 			return filePath;
 		}
 
-		const args = [
-			...config.initialArgs,
-			'analyse',
-			'-c',
-			this._escapeFilePath(config.remoteConfigFile),
-			'--error-format=raw',
-			'--no-progress',
-			'--no-interaction',
-			`--memory-limit=${config.memoryLimit}`,
-			...config.args,
-			this._escapeFilePath(filePath),
-		];
+		const args = [...config.initialArgs, 'analyse'];
+		if (config.remoteConfigFile) {
+			args.push(...['-c', this._escapeFilePath(config.remoteConfigFile)]);
+		}
+		args.push(
+			...[
+				'--error-format=raw',
+				'--no-progress',
+				'--no-interaction',
+				`--memory-limit=${config.memoryLimit}`,
+				...config.args,
+				this._escapeFilePath(filePath),
+			]
+		);
 		const binStr = config.binCmd
 			? config.binCmd
 			: this._escapeFilePath(config.binPath!);
@@ -475,16 +477,6 @@ class PHPStanCheck implements Disposable {
 			return ReturnValue.ERROR;
 		}
 
-		const configFile =
-			defaultConfigFile ??
-			(await this._fileIfExists(path.join(cwd, 'phpstan.neon'))) ??
-			(await this._fileIfExists(path.join(cwd, 'phpstan.neon.dist')));
-
-		if (!configFile) {
-			showErrorOnce('PHPStan: failed to find config file');
-			return ReturnValue.ERROR;
-		}
-
 		const partialConfig = ((): Pick<
 			CheckConfig,
 			'initialArgs' | 'binPath' | 'binCmd'
@@ -505,8 +497,10 @@ class PHPStanCheck implements Disposable {
 		})();
 		const config: CheckConfig = {
 			cwd,
-			configFile: configFile,
-			remoteConfigFile: this._applyPathMapping(configFile),
+			configFile: defaultConfigFile,
+			remoteConfigFile: defaultConfigFile
+				? this._applyPathMapping(defaultConfigFile)
+				: null,
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
 			...partialConfig,
