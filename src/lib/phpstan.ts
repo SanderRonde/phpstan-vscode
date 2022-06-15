@@ -131,7 +131,7 @@ export class PHPStan implements Disposable {
 			'File check done for file',
 			e.fileName,
 			'errors=',
-			checkResult.errors.map((e) => e.message).join(', ')
+			JSON.stringify(checkResult.errors.map((err) => err.message))
 		);
 		return checkResult;
 	}
@@ -505,7 +505,7 @@ class PHPStanCheck implements Disposable {
 		})();
 		const config: CheckConfig = {
 			cwd,
-			configFile: this._escapeFilePath(configFile),
+			configFile: configFile,
 			remoteConfigFile: this._applyPathMapping(configFile),
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
