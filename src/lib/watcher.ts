@@ -37,7 +37,7 @@ export class Watcher implements Disposable {
 		this._errorHandler.clearForDocument(e);
 	}
 
-	private _watch(prev: WhenToRun, current: WhenToRun): void {
+	private _watch(firstRun: boolean, current: WhenToRun): void {
 		if (current === WhenToRun.NEVER) {
 			return;
 		}
@@ -84,7 +84,7 @@ export class Watcher implements Disposable {
 			)
 		);
 
-		if (prev !== WhenToRun.NEVER) {
+		if (firstRun) {
 			vscode.workspace.textDocuments.forEach((doc) => {
 				log('Checking open document');
 				void this._onDocumentSave(doc);
@@ -102,11 +102,8 @@ export class Watcher implements Disposable {
 		);
 	}
 
-	public watch(): void {
-		this._watch(
-			WhenToRun.NEVER,
-			getConfiguration().get('phpstan.whenToRun')
-		);
+	public watch(firstRun: boolean = false): void {
+		this._watch(firstRun, getConfiguration().get('phpstan.whenToRun'));
 	}
 
 	public dispose(): void {

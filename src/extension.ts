@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext): void {
 		errorHandler,
 		phpstan,
 	});
-	watcher.watch();
+	watcher.watch(true);
 
 	registerListeners(context, phpstan);
 
