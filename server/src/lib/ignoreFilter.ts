@@ -7,16 +7,17 @@
  * those errors that should have been ignored by the ignoreErrors config.
  */
 
-import { InvalidNeonValue, parseNeonFile } from './neon';
+import type { Diagnostic, Disposable } from 'vscode-languageserver';
+import { deepObjectJoin } from '../../../shared/util';
+import { log } from '../../../client/src/lib/log';
+import type { InvalidNeonValue } from './neon';
+import type { CheckConfig } from './phpstan';
 import * as fsPromises from 'fs/promises';
-import { CheckConfig } from './phpstan';
-import { deepObjectJoin } from './util';
-import * as vscode from 'vscode';
+import { parseNeonFile } from './neon';
 import * as path from 'path';
-import { log } from './log';
 import * as fs from 'fs';
 
-class CachedFileReader implements vscode.Disposable {
+class CachedFileReader implements Disposable {
 	private _cachedValue: string | null = null;
 	private _watching: boolean = false;
 	private _watcher: fs.StatWatcher | null = null;
@@ -62,11 +63,11 @@ class CachedFileReader implements vscode.Disposable {
 const readers: Map<string, CachedFileReader> = new Map();
 function readConfigFile(
 	filePath: string,
-	context: vscode.ExtensionContext
+	disposables: Disposable[]
 ): Promise<string> {
 	if (!readers.has(filePath)) {
 		const reader = new CachedFileReader(filePath);
-		context.subscriptions.push(reader);
+		disposables.push(reader);
 		readers.set(filePath, reader);
 	}
 
@@ -93,10 +94,10 @@ interface PHPStanConfig {
 
 async function getPHPStanConfig(
 	checkConfig: CheckConfig,
-	context: vscode.ExtensionContext
+	disposables: Disposable[]
 ): Promise<PHPStanConfig> {
 	let entrypointFile = parseNeonFile(
-		await readConfigFile(checkConfig.configFile!, context)
+		await readConfigFile(checkConfig.configFile!, disposables)
 	) as PHPStanConfig;
 	if (entrypointFile.includes) {
 		for (const include of entrypointFile.includes) {
@@ -106,7 +107,7 @@ async function getPHPStanConfig(
 			);
 			entrypointFile = deepObjectJoin(
 				entrypointFile,
-				parseNeonFile(await readConfigFile(filePath, context))
+				parseNeonFile(await readConfigFile(filePath, disposables))
 			);
 		}
 	}
@@ -115,12 +116,12 @@ async function getPHPStanConfig(
 
 async function getErrorsToIgnore(
 	checkConfig: CheckConfig,
-	context: vscode.ExtensionContext
+	disposables: Disposable[]
 ): Promise<(PHPStanIgnoreError | InvalidNeonValue)[]> {
 	if (!checkConfig.configFile) {
 		return [];
 	}
-	const file = await getPHPStanConfig(checkConfig, context);
+	const file = await getPHPStanConfig(checkConfig, disposables);
 	return file.parameters?.ignoreErrors ?? [];
 }
 
@@ -135,7 +136,7 @@ function matchesStringOrRegexp(
 }
 
 function isIgnored(
-	error: vscode.Diagnostic,
+	error: Diagnostic,
 	ignoredErrors: PHPStanIgnoreError[]
 ): boolean {
 	for (const ignoredError of ignoredErrors) {
@@ -165,10 +166,10 @@ function isIgnored(
 export async function filterBaselineErrorsForFile(
 	checkConfig: CheckConfig,
 	originalFilePath: string,
-	errors: vscode.Diagnostic[],
-	context: vscode.ExtensionContext
-): Promise<vscode.Diagnostic[]> {
-	const ignoreErrors = await getErrorsToIgnore(checkConfig, context);
+	errors: Diagnostic[],
+	disposables: Disposable[]
+): Promise<Diagnostic[]> {
+	const ignoreErrors = await getErrorsToIgnore(checkConfig, disposables);
 	// Find rules that match current file
 	const matchingErrors = ignoreErrors
 		.filter((error) => {
@@ -195,7 +196,7 @@ export async function filterBaselineErrorsForFile(
 		})
 		.map((err) => (typeof err === 'object' ? { ...err } : err));
 
-	const finalErrors: vscode.Diagnostic[] = [];
+	const finalErrors: Diagnostic[] = [];
 	// Filter out error that match the message
 	for (const error of errors) {
 		if (!isIgnored(error, matchingErrors as PHPStanIgnoreError[])) {

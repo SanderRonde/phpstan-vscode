@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { log } from './log';
+import { log } from '../../../client/src/lib/log';
 
 const shownWarnings: Set<string> = new Set();
 

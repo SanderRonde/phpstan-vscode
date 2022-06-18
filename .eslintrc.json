@@ -5,7 +5,7 @@
 		"plugin:@typescript-eslint/recommended-requiring-type-checking"
 	],
 	"parserOptions": {
-		"tsconfigRootDir": "./src",
+		"tsconfigRootDir": "./",
 		"project": ["./tsconfig.json"],
 		"createDefaultProgram": true
 	},
@@ -48,6 +48,7 @@
 		"no-debugger": "warn",
 		"@typescript-eslint/no-inferrable-types": "off",
 		"node/no-unpublished-import": "off",
+		"@typescript-eslint/consistent-type-imports": "warn",
 		"@typescript-eslint/prefer-readonly": [
 			"error",
 			{ "onlyInlineLambdas": true }

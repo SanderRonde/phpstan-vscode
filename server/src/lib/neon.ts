@@ -102,7 +102,6 @@ function filterOutComment(line: string): string {
 	return line;
 }
 
-// TODO: fix hashes in the center of the strings
 function parseNeonObject(lines: string[], holder: IndexHolder): NeonConfig {
 	const obj: NeonConfig = {};
 	for (; holder.index < lines.length; holder.index++) {

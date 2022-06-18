@@ -1,15 +1,11 @@
+import { NotificationChannel } from '../../../shared/notificationChannels';
+import type { LanguageClient } from 'vscode-languageclient/node';
+import { OperationResult } from '../../../shared/statusBar';
+import { assertUnreachable } from '../../../shared/util';
 import { getConfiguration } from './config';
-import { assertUnreachable } from './util';
-import { Disposable } from 'vscode';
+import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 import { log } from './log';
-
-export enum OperationResult {
-	SUCCESS = 'Success',
-	KILLED = 'Killed',
-	SUPERCEDED = 'Superceded',
-	ERROR = 'Error',
-}
 
 export class StatusBar implements Disposable {
 	private readonly _opTracker: OperationTracker;
@@ -19,10 +15,25 @@ export class StatusBar implements Disposable {
 	);
 	private _hideTimeout: NodeJS.Timer | undefined;
 
-	public constructor() {
+	public constructor(
+		context: vscode.ExtensionContext,
+		client: LanguageClient
+	) {
 		this._opTracker = new OperationTracker(
 			() => this._showStatusBar(),
 			(lastResult: OperationResult) => this._hideStatusBar(lastResult)
+		);
+		context.subscriptions.push(
+			client.onNotification(
+				NotificationChannel.STATUS_BAR,
+				(params: { opId: number; result?: OperationResult }) => {
+					if (!params.result) {
+						this.startOperation(params.opId);
+					} else {
+						this.finishOperation(params.opId, params.result);
+					}
+				}
+			)
 		);
 	}
 
@@ -59,8 +70,15 @@ export class StatusBar implements Disposable {
 		);
 	}
 
-	public pushOperation(operation: Promise<OperationResult>): void {
-		this._opTracker.pushOperation(operation);
+	private startOperation(operationId: number): void {
+		this._opTracker.startOperation(operationId);
+	}
+
+	private finishOperation(
+		operationId: number,
+		result: OperationResult
+	): void {
+		this._opTracker.finishOperation(operationId, result);
 	}
 
 	public dispose(): void {
@@ -70,7 +88,7 @@ export class StatusBar implements Disposable {
 }
 
 class OperationTracker implements Disposable {
-	private _runningOperations: Resolvable[] = [];
+	private _runningOperations: Map<number, Resolvable> = new Map();
 
 	public constructor(
 		private readonly _onHasOperations: () => void,
@@ -78,27 +96,35 @@ class OperationTracker implements Disposable {
 	) {}
 
 	private _checkOperations(): void {
-		const lastOperation =
-			this._runningOperations[this._runningOperations.length - 1];
-		this._runningOperations = this._runningOperations.filter(
-			(o) => !o.done
-		);
-		if (this._runningOperations.length === 0 && lastOperation) {
-			this._onNoOperations(lastOperation.result!);
+		let lastOperation: OperationResult | null = null;
+		for (const operationId of this._runningOperations.keys()) {
+			if (this._runningOperations.get(operationId)!.done) {
+				lastOperation =
+					this._runningOperations.get(operationId)!.result;
+				this._runningOperations.delete(operationId);
+			}
+		}
+
+		if (this._runningOperations.size === 0 && lastOperation) {
+			this._onNoOperations(lastOperation);
 		}
 	}
 
-	public pushOperation(operation: Promise<OperationResult>): void {
-		const hadOperations = this._runningOperations.length > 0;
-		this._runningOperations.push(new Resolvable(operation));
-		void operation.then(() => this._checkOperations());
+	public startOperation(operationId: number): void {
+		const hadOperations = this._runningOperations.size > 0;
+		this._runningOperations.set(operationId, new Resolvable());
 		if (!hadOperations) {
 			this._onHasOperations();
 		}
 	}
 
+	public finishOperation(operationId: number, result: OperationResult): void {
+		this._runningOperations.get(operationId)?.complete(result);
+		this._checkOperations();
+	}
+
 	public dispose(): void {
-		this._runningOperations = [];
+		this._runningOperations.clear();
 	}
 }
 
@@ -106,10 +132,8 @@ class Resolvable {
 	public done: boolean = false;
 	public result: null | OperationResult = null;
 
-	public constructor(promise: Promise<OperationResult>) {
-		void promise.then((result) => {
-			this.result = result;
-			this.done = true;
-		});
+	public complete(result: OperationResult): void {
+		this.done = true;
+		this.result = result;
 	}
 }

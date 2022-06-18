@@ -1,9 +1,4 @@
-import {
-	ConfigurationTarget,
-	window,
-	workspace,
-	WorkspaceConfiguration,
-} from 'vscode';
+import type { ConfigurationTarget, WorkspaceConfiguration } from 'vscode';
 
 export enum WhenToRun {
 	ON_SAVE = 'onSave',
@@ -25,7 +20,7 @@ export interface ConfigSettings {
 	'phpstan.paths': Record<string, string>;
 }
 
-interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {
+export interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {
 	get<K extends Extract<keyof T, string>>(
 		section: K,
 		defaultValue: T[K]
@@ -42,14 +37,4 @@ interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {
 		configurationTarget?: ConfigurationTarget | boolean | null,
 		overrideInLanguage?: boolean
 	): Thenable<void>;
-}
-
-export function getConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> {
-	const document = window.activeTextEditor?.document;
-
-	if (document) {
-		return workspace.getConfiguration(undefined, document.uri);
-	}
-
-	return workspace.getConfiguration();
 }

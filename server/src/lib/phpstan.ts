@@ -1,15 +1,23 @@
+import type {
+	_Connection,
+	TextDocumentIdentifier,
+	TextDocuments,
+} from 'vscode-languageserver';
+import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver';
+import type { TextDocument } from 'vscode-languageserver-textdocument';
+import { EXTENSION_ID, ROOT_FOLDER } from '../../../shared/constants';
 import { filterBaselineErrorsForFile } from './ignoreFilter';
-import { OperationResult, StatusBar } from './statusBar';
-import { showError, showErrorOnce } from './error-util';
-import { ErrorHandler } from './errorHandler';
+import { OperationResult } from '../../../shared/statusBar';
+import { assertUnreachable } from '../../../shared/util';
+import { showError, showErrorOnce } from './errorUtil';
+import type { StatusBar } from './statusBar';
+import { executeCommand } from './commands';
 import { getConfiguration } from './config';
-import { EXTENSION_ID } from './constants';
-import { assertUnreachable } from './util';
 import { spawn } from 'child_process';
 import { Disposable } from 'vscode';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
-import * as vscode from 'vscode';
+import { URI } from 'vscode-uri';
 import { constants } from 'fs';
 import * as path from 'path';
 import { log } from './log';
@@ -23,41 +31,53 @@ export class PHPStan implements Disposable {
 			check: PHPStanCheck;
 		}
 	> = new Map();
+	private _checkedFiles: Set<string> = new Set();
 	private _timers: Set<NodeJS.Timeout> = new Set();
-	private readonly _errorHandler: ErrorHandler;
 	private readonly _statusBar: StatusBar;
-	private readonly _context: vscode.ExtensionContext;
+	private readonly _connection: _Connection;
+	private readonly _disposables: Disposable[] = [];
+	private readonly _getWorkspaceFolder: () => string | null;
+	private readonly _documents: TextDocuments<TextDocument>;
 
 	public constructor({
-		errorHandler,
 		statusBar,
-		context,
+		connection,
+		getWorkspaceFolder,
+		documents,
 	}: {
 		statusBar: StatusBar;
-		errorHandler: ErrorHandler;
-		context: vscode.ExtensionContext;
+		connection: _Connection;
+		getWorkspaceFolder: () => string | null;
+		documents: TextDocuments<TextDocument>;
 	}) {
-		this._errorHandler = errorHandler;
 		this._statusBar = statusBar;
-		this._context = context;
+		this._connection = connection;
+		this._documents = documents;
+		this._getWorkspaceFolder = getWorkspaceFolder;
 	}
 
 	private async _checkFile(
-		e: vscode.TextDocument
+		e: Pick<TextDocument, 'uri' | 'getText' | 'languageId'>,
+		dirty: boolean
 	): Promise<CheckResult | ReturnValue> {
 		if (e.languageId !== 'php') {
-			log('Skipping', e.languageId, 'file');
+			await log(this._connection, 'Skipping', e.languageId, 'file');
 			return ReturnValue.CANCELED;
 		}
 
-		log('Checking file', e.fileName);
+		await log(this._connection, 'Checking file', e.uri);
 
-		const check = new PHPStanCheck(e);
-		this._runningOperations.set(e.fileName, {
+		const check = new PHPStanCheck(
+			e,
+			this._connection,
+			this._getWorkspaceFolder
+		);
+		this._runningOperations.set(e.uri, {
 			content: e.getText(),
 			check,
 		});
-		this._statusBar.pushOperation(
+		this._checkedFiles.add(e.uri);
+		await this._statusBar.pushOperation(
 			new Promise<OperationResult>((resolve) => {
 				let isDone: boolean = false;
 				check.onDone(() => {
@@ -72,64 +92,68 @@ export class PHPStan implements Disposable {
 					isDone = true;
 					resolve(OperationResult.ERROR);
 				});
-				const timeout = getConfiguration().get('phpstan.timeout');
-				const timer = setTimeout(() => {
-					this._timers.delete(timer);
-					if (!isDone) {
-						if (
-							!getConfiguration().get(
-								'phpstan.suppressTimeoutMessage'
-							)
-						) {
-							showError(
-								`PHPStan check timed out after ${timeout}ms`,
-								[
-									{
-										title: 'Adjust timeout',
-										callback: async () => {
-											await vscode.commands.executeCommand(
-												'workbench.action.openSettings',
-												'phpstan.timeout'
-											);
+				void getConfiguration(this._connection).then((config) => {
+					const timeout = config.get('phpstan.timeout');
+					const timer = setTimeout(() => {
+						this._timers.delete(timer);
+						if (!isDone) {
+							if (!config.get('phpstan.suppressTimeoutMessage')) {
+								showError(
+									`PHPStan check timed out after ${timeout}ms`,
+									[
+										{
+											title: 'Adjust timeout',
+											callback: async () => {
+												await executeCommand(
+													this._connection,
+													'workbench.action.openSettings',
+													'phpstan.timeout'
+												);
+											},
 										},
-									},
-									{
-										title: 'Stop showing this message',
-										callback: async () => {
-											await vscode.commands.executeCommand(
-												'workbench.action.openSettings',
-												'phpstan.suppressTimeoutMessage'
-											);
+										{
+											title: 'Stop showing this message',
+											callback: async () => {
+												await executeCommand(
+													this._connection,
+													'workbench.action.openSettings',
+													'phpstan.suppressTimeoutMessage'
+												);
+											},
 										},
-									},
-								]
+									]
+								);
+							}
+							void log(
+								this._connection,
+								`PHPStan check timed out after ${timeout}ms`
 							);
+							check.dispose();
+							resolve(OperationResult.KILLED);
 						}
-						log(`PHPStan check timed out after ${timeout}ms`);
-						check.dispose();
-						resolve(OperationResult.KILLED);
-					}
-				}, timeout);
-				this._timers.add(timer);
+					}, timeout);
+					this._timers.add(timer);
+				});
 			})
 		);
-		const checkResult = await check.check();
-		this._runningOperations.delete(e.fileName);
+		const checkResult = await check.check(dirty);
+		this._runningOperations.delete(e.uri);
 		if (checkResult === ReturnValue.ERROR) {
-			log('File check failed for file', e.fileName);
+			await log(this._connection, 'File check failed for file', e.uri);
 			return checkResult;
 		}
 		if (checkResult === ReturnValue.CANCELED) {
-			log('File check canceled for file', e.fileName);
+			await log(this._connection, 'File check canceled for file', e.uri);
 			return checkResult;
 		}
 		if (typeof checkResult !== 'object') {
 			assertUnreachable(checkResult);
 		}
 
-		log(
+		await log(
+			this._connection,
 			'File check done for file',
-			e.fileName,
+			e.uri,
 			'errors=',
 			JSON.stringify(checkResult.errors.map((err) => err.message))
 		);
@@ -137,26 +161,35 @@ export class PHPStan implements Disposable {
 	}
 
 	public async checkFileAndRegisterErrors(
-		e: vscode.TextDocument
+		e: Pick<TextDocument, 'uri' | 'getText' | 'languageId'>,
+		dirty: boolean
 	): Promise<void> {
 		// Kill current running instances for this file
-		if (this._runningOperations.has(e.fileName)) {
-			const previousOperation = this._runningOperations.get(e.fileName)!;
+		if (this._runningOperations.has(e.uri)) {
+			const previousOperation = this._runningOperations.get(e.uri)!;
 			if (previousOperation.content === e.getText()) {
 				// Same text, no need to run at all
-				log('File already has pending check');
+				await log(this._connection, 'File already has pending check');
 				return;
 			}
 			// Kill current running instances for this file
-			if (this._runningOperations.has(e.fileName)) {
-				this._runningOperations.get(e.fileName)!.check.dispose();
+			if (this._runningOperations.has(e.uri)) {
+				this._runningOperations.get(e.uri)!.check.dispose();
 			}
 		}
 
-		const checkResult = await this._checkFile(e);
+		const checkResult = await this._checkFile(e, dirty);
 		if (checkResult === ReturnValue.ERROR) {
-			this._errorHandler.clearForDocument(e);
-			log('File check failed for file', e.fileName, 'clearing');
+			await this._connection.sendDiagnostics({
+				uri: e.uri.toString(),
+				diagnostics: [],
+			});
+			await log(
+				this._connection,
+				'File check failed for file',
+				e.uri,
+				'clearing'
+			);
 			return;
 		} else if (checkResult === ReturnValue.CANCELED) {
 			return;
@@ -167,16 +200,37 @@ export class PHPStan implements Disposable {
 			try {
 				errors = await filterBaselineErrorsForFile(
 					config,
-					e.fileName,
+					URI.parse(e.uri).fsPath,
 					errors,
-					this._context
+					this._disposables
 				);
 			} catch (e) {
 				// Ignore this step
-				log('Failed to filter baseline errors', (e as Error).message);
+				await log(
+					this._connection,
+					'Failed to filter baseline errors',
+					(e as Error).message
+				);
 			}
 		}
-		this._errorHandler.showForDocument(e, errors);
+		await this._connection.sendDiagnostics({
+			uri: e.uri.toString(),
+			diagnostics: errors,
+		});
+	}
+
+	public fileIsPending(filePath: string): boolean {
+		return this._runningOperations.has(filePath);
+	}
+
+	public async ensureFileChecked(doc: TextDocumentIdentifier): Promise<void> {
+		if (!this._checkedFiles.has(URI.parse(doc.uri).fsPath)) {
+			// Assume dirty because we don't know any better
+			const docContent = this._documents.get(doc.uri);
+			if (docContent) {
+				await this._checkFile(docContent, true);
+			}
+		}
 	}
 
 	public dispose(): void {
@@ -184,6 +238,7 @@ export class PHPStan implements Disposable {
 		this._timers.forEach((t) => clearTimeout(t));
 		this._runningOperations.clear();
 		this._timers.clear();
+		this._disposables.forEach((d) => void d.dispose());
 	}
 }
 
@@ -194,7 +249,7 @@ enum ReturnValue {
 
 interface CheckResult {
 	config: CheckConfig;
-	errors: vscode.Diagnostic[];
+	errors: Diagnostic[];
 }
 
 export interface CheckConfig {
@@ -216,7 +271,14 @@ class PHPStanCheck implements Disposable {
 	private _disposables: Disposable[] = [];
 	private __config: CheckConfig | null = null;
 
-	public constructor(private readonly _file: vscode.TextDocument) {}
+	public constructor(
+		private readonly _file: Pick<
+			TextDocument,
+			'uri' | 'getText' | 'languageId'
+		>,
+		private readonly _connection: _Connection,
+		private readonly _getWorkspaceFolder: () => string | null
+	) {}
 
 	private async _fileIfExists(filePath: string): Promise<string | null> {
 		try {
@@ -245,12 +307,15 @@ class PHPStanCheck implements Disposable {
 	}
 
 	private async _getFilePath(
-		e: vscode.TextDocument
+		e: Pick<TextDocument, 'uri' | 'getText' | 'languageId'>,
+		dirty: boolean
 	): Promise<string | ReturnValue.CANCELED> {
-		const mappedPath = this._applyPathMapping(e.fileName);
+		const mappedPath = await this._applyPathMapping(
+			URI.parse(e.uri).fsPath
+		);
 
-		if (e.isDirty) {
-			if (mappedPath !== e.fileName) {
+		if (dirty) {
+			if (mappedPath !== URI.parse(e.uri).fsPath) {
 				return ReturnValue.CANCELED;
 			}
 			const tmpFile = await tmp.file();
@@ -272,7 +337,7 @@ class PHPStanCheck implements Disposable {
 		return filePath;
 	}
 
-	private async _check(): Promise<CheckResult | ReturnValue> {
+	private async _check(dirty: boolean): Promise<CheckResult | ReturnValue> {
 		const config = await this.collectConfiguration();
 		if (!config) {
 			return ReturnValue.ERROR;
@@ -281,7 +346,7 @@ class PHPStanCheck implements Disposable {
 			return ReturnValue.CANCELED;
 		}
 
-		const filePath = await this._getFilePath(this._file);
+		const filePath = await this._getFilePath(this._file, dirty);
 		if (this._cancelled) {
 			return ReturnValue.CANCELED;
 		}
@@ -293,6 +358,51 @@ class PHPStanCheck implements Disposable {
 		if (config.remoteConfigFile) {
 			args.push(...['-c', this._escapeFilePath(config.remoteConfigFile)]);
 		}
+
+		let userAutoloadFile: string | null = null;
+		for (let i = 0; i < config.args.length; i++) {
+			if (config.args[i] === '-a') {
+				userAutoloadFile = config.args[i + 1];
+			} else if (config.args[i].startsWith('--autoload-file')) {
+				if (config.args[i]['--autoload-file'.length] === '=') {
+					userAutoloadFile = config.args[i].slice(
+						'--autoload-file'.length + 1
+					);
+				} else {
+					userAutoloadFile = config.args[i + 1];
+				}
+			}
+		}
+		let autoloadFile = path.join(ROOT_FOLDER, 'php/extensionLoader.php');
+		if (userAutoloadFile) {
+			// Already defined, we have to make a tmp file that joins the two
+			const userAutoloadFileContents = (
+				await fs.readFile(userAutoloadFile, {
+					encoding: 'utf-8',
+				})
+			).replace('<?php', '');
+			const autoloadFileContents = (
+				await fs.readFile(autoloadFile, {
+					encoding: 'utf-8',
+				})
+			).replace('<?php', '');
+			const joinedFile = `
+				<?php
+
+				chdir('${path.dirname(autoloadFile)}');
+
+				${autoloadFileContents}
+
+				chdir('${path.dirname(userAutoloadFile)}');
+
+				${userAutoloadFileContents}
+			`;
+			const tempFile = await tmp.file();
+			await fs.writeFile(tempFile.path, joinedFile);
+			this._disposables.push(new Disposable(() => tempFile.cleanup()));
+			autoloadFile = tempFile.path;
+		}
+
 		args.push(
 			...[
 				'--error-format=raw',
@@ -300,13 +410,16 @@ class PHPStanCheck implements Disposable {
 				'--no-interaction',
 				`--memory-limit=${config.memoryLimit}`,
 				...config.args,
+				'-a',
+				autoloadFile,
 				this._escapeFilePath(filePath),
 			]
 		);
 		const binStr = config.binCmd
 			? config.binCmd
 			: this._escapeFilePath(config.binPath!);
-		log(
+		await log(
+			this._connection,
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify({
 				binCmd: binStr,
@@ -342,7 +455,8 @@ class PHPStanCheck implements Disposable {
 
 		return await new Promise<CheckResult | ReturnValue>((resolve) => {
 			phpstan.on('error', (e) => {
-				log(
+				void log(
+					this._connection,
 					'PHPStan process exited with error, error=',
 					e.message,
 					' errData=',
@@ -361,14 +475,18 @@ class PHPStanCheck implements Disposable {
 				}
 
 				if (errData) {
-					log(
+					void log(
+						this._connection,
 						'PHPStan process exited successfully but with error message, error=',
 						errData,
 						' data=',
 						data
 					);
 				} else {
-					log('PHPStan process exited succesfully');
+					void log(
+						this._connection,
+						'PHPStan process exited succesfully'
+					);
 				}
 
 				if (data.includes('Allowed memory size of')) {
@@ -378,7 +496,8 @@ class PHPStanCheck implements Disposable {
 							{
 								title: 'Go to option',
 								callback: () => {
-									void vscode.commands.executeCommand(
+									void executeCommand(
+										this._connection,
 										'workbench.action.openSettings',
 										`@ext:${EXTENSION_ID} memoryLimit`
 									);
@@ -400,8 +519,10 @@ class PHPStanCheck implements Disposable {
 		});
 	}
 
-	private _applyPathMapping(filePath: string): string {
-		const pathMapping = getConfiguration().get('phpstan.paths') ?? {};
+	private async _applyPathMapping(filePath: string): Promise<string> {
+		const pathMapping =
+			(await getConfiguration(this._connection)).get('phpstan.paths') ??
+			{};
 		if (Object.keys(pathMapping).length === 0) {
 			return filePath;
 		}
@@ -424,15 +545,13 @@ class PHPStanCheck implements Disposable {
 		if (this.__config) {
 			return this.__config;
 		}
-		const extensionConfig = getConfiguration();
+		const extensionConfig = await getConfiguration(this._connection);
 
-		const workspaceRoot =
-			vscode.workspace.getWorkspaceFolder(this._file.uri)?.uri.fsPath ??
-			vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+		const workspaceRoot = this._getWorkspaceFolder();
 		const cwd =
 			this._getAbsolutePath(
 				extensionConfig.get('phpstan.rootDir'),
-				workspaceRoot
+				workspaceRoot ?? undefined
 			) || workspaceRoot;
 
 		if (cwd && !(await this._fileIfExists(cwd))) {
@@ -505,7 +624,7 @@ class PHPStanCheck implements Disposable {
 			cwd,
 			configFile: defaultConfigFile,
 			remoteConfigFile: defaultConfigFile
-				? this._applyPathMapping(defaultConfigFile)
+				? await this._applyPathMapping(defaultConfigFile)
 				: null,
 			args: extensionConfig.get('phpstan.options') ?? [],
 			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
@@ -515,8 +634,8 @@ class PHPStanCheck implements Disposable {
 		return config;
 	}
 
-	public async check(): Promise<CheckResult | ReturnValue> {
-		const errors = await this._check();
+	public async check(dirty: boolean): Promise<CheckResult | ReturnValue> {
+		const errors = await this._check(dirty);
 		if (errors === ReturnValue.ERROR) {
 			this._onErrorListener?.();
 		} else if (errors === ReturnValue.CANCELED) {
@@ -553,10 +672,13 @@ class OutputParser {
 	public constructor(
 		private readonly _output: string,
 		private readonly _filePath: string,
-		private readonly _file: vscode.TextDocument
+		private readonly _file: Pick<
+			TextDocument,
+			'uri' | 'getText' | 'languageId'
+		>
 	) {}
 
-	public parse(): vscode.Diagnostic[] {
+	public parse(): Diagnostic[] {
 		return (
 			this._output
 				.split('\n')
@@ -590,7 +712,7 @@ class OutputParser {
 				.map((error) => {
 					// Get text range
 					const line = error.lineNumber - 1;
-					const fullLineText = this._file.lineAt(line).text;
+					const fullLineText = this._file.getText().split('\n')[line];
 
 					const { startChar, endChar } = (() => {
 						const match = /^(\s*).*(\s*)$/.exec(fullLineText);
@@ -607,17 +729,12 @@ class OutputParser {
 						};
 					})();
 
-					const range = new vscode.Range(
-						line,
-						startChar,
-						line,
-						endChar
-					);
+					const range = Range.create(line, startChar, line, endChar);
 
-					return new vscode.Diagnostic(
+					return Diagnostic.create(
 						range,
 						error.message,
-						vscode.DiagnosticSeverity.Error
+						DiagnosticSeverity.Error
 					);
 				})
 		);

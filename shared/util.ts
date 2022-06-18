@@ -1,4 +1,4 @@
-import { Disposable } from 'vscode';
+import type { Disposable } from 'vscode';
 
 export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
 	const result: Partial<A & B> = {};
@@ -59,4 +59,26 @@ export function assertUnreachable(x: never): void {
 			`Value of type '${typeof x}' was not expected and should be unreachable`
 		);
 	}
+}
+
+export async function wait(time: number): Promise<void> {
+	await new Promise<void>((resolve) => setTimeout(resolve, time));
+}
+
+export async function waitPeriodical<R>(
+	totalTime: number,
+	periodTime: number,
+	callback: () => R | null
+): Promise<R | null> {
+	let passedTime = 0;
+	while (passedTime < totalTime) {
+		const result = callback();
+		if (result !== null) {
+			return result;
+		}
+		const waitedTime = Math.min(periodTime, totalTime - passedTime);
+		await wait(waitedTime);
+		passedTime += waitedTime;
+	}
+	return null;
 }
