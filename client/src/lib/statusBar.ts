@@ -1,6 +1,6 @@
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { statusBarNotification } from './notificationChannels';
-import { OperationResult } from '../../../shared/statusBar';
+import { OperationStatus } from '../../../shared/statusBar';
 import { assertUnreachable } from '../../../shared/util';
 import { getConfiguration } from './config';
 import type { Disposable } from 'vscode';
@@ -21,12 +21,12 @@ export class StatusBar implements Disposable {
 	) {
 		this._opTracker = new OperationTracker(
 			() => this._showStatusBar(),
-			(lastResult: OperationResult) => this._hideStatusBar(lastResult)
+			(lastResult: OperationStatus) => this._hideStatusBar(lastResult)
 		);
 		context.subscriptions.push(
 			client.onNotification(
 				statusBarNotification,
-				(params: { opId: number; result?: OperationResult }) => {
+				(params: { opId: number; result?: OperationStatus }) => {
 					if (!params.result) {
 						this.startOperation(params.opId);
 					} else {
@@ -50,15 +50,15 @@ export class StatusBar implements Disposable {
 		this._statusBar.show();
 	}
 
-	private _hideStatusBar(lastResult: OperationResult): void {
+	private _hideStatusBar(lastResult: OperationStatus): void {
 		log('Hiding status bar, last operation result =', lastResult);
-		if (lastResult === OperationResult.KILLED) {
+		if (lastResult === OperationStatus.KILLED) {
 			this._statusBar.text = 'PHPStan process killed (timeout)';
-		} else if (lastResult === OperationResult.SUCCESS) {
+		} else if (lastResult === OperationStatus.SUCCESS) {
 			this._statusBar.text = 'PHPStan checking done';
-		} else if (lastResult === OperationResult.ERROR) {
+		} else if (lastResult === OperationStatus.ERROR) {
 			this._statusBar.text = 'PHPStan checking errored (see log)';
-		} else if (lastResult !== OperationResult.SUPERCEDED) {
+		} else if (lastResult !== OperationStatus.CANCELED) {
 			assertUnreachable(lastResult);
 		}
 		this._statusBar.text = 'PHPStan checking done';
@@ -66,7 +66,7 @@ export class StatusBar implements Disposable {
 			() => {
 				this._statusBar.hide();
 			},
-			lastResult === OperationResult.ERROR ? 2000 : 500
+			lastResult === OperationStatus.ERROR ? 2000 : 500
 		);
 	}
 
@@ -76,7 +76,7 @@ export class StatusBar implements Disposable {
 
 	private finishOperation(
 		operationId: number,
-		result: OperationResult
+		result: OperationStatus
 	): void {
 		this._opTracker.finishOperation(operationId, result);
 	}
@@ -92,11 +92,11 @@ class OperationTracker implements Disposable {
 
 	public constructor(
 		private readonly _onHasOperations: () => void,
-		private readonly _onNoOperations: (lastResult: OperationResult) => void
+		private readonly _onNoOperations: (lastResult: OperationStatus) => void
 	) {}
 
 	private _checkOperations(): void {
-		let lastOperation: OperationResult | null = null;
+		let lastOperation: OperationStatus | null = null;
 		for (const operationId of this._runningOperations.keys()) {
 			if (this._runningOperations.get(operationId)!.done) {
 				lastOperation =
@@ -118,7 +118,7 @@ class OperationTracker implements Disposable {
 		}
 	}
 
-	public finishOperation(operationId: number, result: OperationResult): void {
+	public finishOperation(operationId: number, result: OperationStatus): void {
 		this._runningOperations.get(operationId)?.complete(result);
 		this._checkOperations();
 	}
@@ -130,9 +130,9 @@ class OperationTracker implements Disposable {
 
 class Resolvable {
 	public done: boolean = false;
-	public result: null | OperationResult = null;
+	public result: null | OperationStatus = null;
 
-	public complete(result: OperationResult): void {
+	public complete(result: OperationStatus): void {
 		this.done = true;
 		this.result = result;
 	}

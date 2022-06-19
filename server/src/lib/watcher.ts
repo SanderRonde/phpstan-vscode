@@ -1,16 +1,16 @@
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { watcherNotification } from './notificationChannels';
+import type { PHPStanCheckManager } from './phpstan/manager';
 import { createDebouncer } from '../../../shared/util';
 import { TextDocuments } from 'vscode-languageserver';
 import { WhenToRun } from '../../../shared/config';
 import { getConfiguration } from './config';
-import type { PHPStan } from './phpstan';
 import { log } from './log';
 
 export class Watcher implements Disposable {
 	private _disposables: Disposable[] = [];
-	private readonly _phpstan: PHPStan;
+	private readonly _phpstan: PHPStanCheckManager;
 	private readonly _debouncer = createDebouncer(1000);
 	private readonly _connection: _Connection;
 	private readonly _documents: TextDocuments<TextDocument>;
@@ -19,7 +19,7 @@ export class Watcher implements Disposable {
 		phpstan,
 		connection,
 	}: {
-		phpstan: PHPStan;
+		phpstan: PHPStanCheckManager;
 		connection: _Connection;
 	}) {
 		const documents: TextDocuments<TextDocument> = new TextDocuments(
@@ -35,10 +35,7 @@ export class Watcher implements Disposable {
 				if (data.operation === 'watch') {
 					const doc = this._documents.get(data.uri);
 					if (doc) {
-						void this._phpstan.checkFileAndRegisterErrors(
-							doc,
-							data.dirty
-						);
+						void this._phpstan.checkFile(doc, data.dirty);
 					}
 				}
 			})
@@ -46,12 +43,12 @@ export class Watcher implements Disposable {
 	}
 
 	private async _onDocumentSave(e: TextDocument): Promise<void> {
-		await this._phpstan.checkFileAndRegisterErrors(e, false);
+		await this._phpstan.checkFile(e, false);
 	}
 
 	private _onDocumentChange(e: TextDocument): void {
 		this._debouncer.debounce(async () => {
-			await this._phpstan.checkFileAndRegisterErrors(e, true);
+			await this._phpstan.checkFile(e, true);
 		});
 	}
 

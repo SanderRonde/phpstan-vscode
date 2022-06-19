@@ -83,10 +83,12 @@ export async function waitPeriodical<R>(
 	return null;
 }
 
-export function createPromise<R>(): Promise<{
+export interface PromiseObject<R> {
 	promise: Promise<R>;
 	resolve: (result: R) => void;
-}> {
+}
+
+export function createPromise<R>(): Promise<PromiseObject<R>> {
 	return new Promise<{
 		promise: Promise<R>;
 		resolve: (result: R) => void;
@@ -98,4 +100,45 @@ export function createPromise<R>(): Promise<{
 			});
 		});
 	});
+}
+
+export function withTimeout<P, R>(config: {
+	onKill: () => R;
+	promise: Promise<P>;
+	timeout: number;
+}): Disposable & {
+	promise: Promise<P | R>;
+} {
+	let timeout: NodeJS.Timeout | null = null;
+	const promise = new Promise<P | R>((resolve) => {
+		timeout = setTimeout(() => {
+			resolve(config.onKill());
+		}, config.timeout);
+		void config.promise.then((result) => {
+			resolve(result);
+			if (timeout) {
+				clearTimeout(timeout);
+			}
+		});
+	});
+	return {
+		dispose: () => (timeout ? clearTimeout(timeout) : void 0),
+		promise,
+	};
+}
+
+export function toCheckablePromise<R>(promise: Promise<R>): {
+	promise: Promise<R>;
+	done: boolean;
+} {
+	let done = false;
+	void promise.then(() => {
+		done = true;
+	});
+	return {
+		promise,
+		get done() {
+			return done;
+		},
+	};
 }

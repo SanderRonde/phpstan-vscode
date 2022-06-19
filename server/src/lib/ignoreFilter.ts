@@ -12,9 +12,9 @@ import type {
 	Disposable,
 	_Connection,
 } from 'vscode-languageserver';
+import type { CheckConfig } from './phpstan/configManager';
 import { deepObjectJoin } from '../../../shared/util';
 import type { InvalidNeonValue } from './neon';
-import type { CheckConfig } from './phpstan';
 import * as fsPromises from 'fs/promises';
 import { parseNeonFile } from './neon';
 import * as path from 'path';

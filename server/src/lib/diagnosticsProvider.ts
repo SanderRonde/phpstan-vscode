@@ -1,8 +1,8 @@
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { PHPStanCheckManager } from './phpstan/manager';
 import { TextDocuments } from 'vscode-languageserver';
 import { StatusBar } from './statusBar';
-import { PHPStan } from './phpstan';
 import { Watcher } from './watcher';
 
 export function createDiagnosticsProvider(
@@ -10,7 +10,7 @@ export function createDiagnosticsProvider(
 	disposables: Disposable[],
 	getWorkspaceFolder: () => string | null
 ): {
-	phpstan: PHPStan;
+	phpstan: PHPStanCheckManager;
 } {
 	// Create a manager for open text documents
 	const documents: TextDocuments<TextDocument> = new TextDocuments(
@@ -18,7 +18,7 @@ export function createDiagnosticsProvider(
 	);
 
 	const statusBar = new StatusBar(connection);
-	const phpstan = new PHPStan({
+	const phpstan = new PHPStanCheckManager({
 		statusBar,
 		connection,
 		getWorkspaceFolder,

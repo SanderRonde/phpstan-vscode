@@ -1,4 +1,4 @@
-import type { OperationResult } from './statusBar';
+import type { OperationStatus } from './statusBar';
 
 export enum NotificationChannel {
 	LOG = 'phpstan.log',
@@ -24,5 +24,5 @@ export interface LogNotificationType {
 
 export interface StatusBarNotificationType {
 	opId: number;
-	result?: OperationResult;
+	result?: OperationStatus;
 }

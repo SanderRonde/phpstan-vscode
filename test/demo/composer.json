@@ -1,17 +1,17 @@
 {
-    "name": "sander/demo",
-    "require": {
-        "phpstan/phpstan": "^1.7"
-    },
-    "autoload": {
-        "psr-4": {
-            "Sander\\Demo\\": "src/"
-        }
-    },
-    "authors": [
-        {
-            "name": "\"Sander Ronde\"",
-            "email": "awsdfgvhbjn@gmail.com"
-        }
-    ]
+	"name": "sander/demo",
+	"require": {
+		"phpstan/phpstan": "^1.7"
+	},
+	"autoload": {
+		"psr-4": {
+			"Sander\\Demo\\": "src/"
+		}
+	},
+	"authors": [
+		{
+			"name": "\"Sander Ronde\"",
+			"email": "awsdfgvhbjn@gmail.com"
+		}
+	]
 }

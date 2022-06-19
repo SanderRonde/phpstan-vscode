@@ -1,18 +1,18 @@
 {
-    "name": "sander/php",
-    "require": {
-        "phpstan/phpstan": "^1.7",
-        "nikic/php-parser": "^4.14"
-    },
-    "autoload": {
-        "psr-4": {
-            "Sander\\Php\\": "src/"
-        }
-    },
-    "authors": [
-        {
-            "name": "\"Sander Ronde\"",
-            "email": "awsdfgvhbjn@gmail.com"
-        }
-    ]
+	"name": "sander/php",
+	"require": {
+		"phpstan/phpstan": "^1.7",
+		"nikic/php-parser": "^4.14"
+	},
+	"autoload": {
+		"psr-4": {
+			"Sander\\Php\\": "src/"
+		}
+	},
+	"authors": [
+		{
+			"name": "\"Sander Ronde\"",
+			"email": "awsdfgvhbjn@gmail.com"
+		}
+	]
 }
