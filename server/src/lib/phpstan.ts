@@ -1,15 +1,6 @@
-import {
-	EXTENSION_ID,
-	PHP_FILES,
-	ROOT_FOLDER,
-	TREE_FETCHER_FILE,
-} from '../../../shared/constants';
-import type {
-	_Connection,
-	TextDocumentIdentifier,
-	TextDocuments,
-} from 'vscode-languageserver';
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver';
+import { EXTENSION_ID, TREE_FETCHER_FILE } from '../../../shared/constants';
+import type { _Connection, TextDocuments } from 'vscode-languageserver';
 import { assertUnreachable, createPromise } from '../../../shared/util';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { FileReport, ReporterFile } from './hoverProvider';
@@ -153,8 +144,15 @@ export class PHPStan implements Disposable {
 
 		// Do check
 		const checkResult = await check.check(dirty);
-		const reported = checkResult
-		this._runningOperations.delete(e.uri);
+		const reported =
+			typeof checkResult === 'object' ? checkResult.reported : null;
+		const checkedFileData = {
+			...(this._operations.get(e.uri) as CheckedFileData),
+			pending: false,
+			reported: reported,
+		};
+		this._operations.set(e.uri, checkedFileData);
+		promise.resolve(checkedFileData);
 		if (checkResult === ReturnValue.ERROR) {
 			await log(this._connection, 'File check failed for file', e.uri);
 			return checkResult;
@@ -166,12 +164,6 @@ export class PHPStan implements Disposable {
 		if (typeof checkResult !== 'object') {
 			assertUnreachable(checkResult);
 		}
-
-		this._operations.set(e.uri, {
-			...(this._operations.get(e.uri) as CheckedFileData),
-			pending: false,
-			reported: checkResult.reported,
-		});
 
 		await log(
 			this._connection,
@@ -188,17 +180,18 @@ export class PHPStan implements Disposable {
 		dirty: boolean
 	): Promise<void> {
 		// Kill current running instances for this file
-		if (this._runningOperations.has(e.uri)) {
-			const previousOperation = this._runningOperations.get(e.uri)!;
-			if (previousOperation.content === e.getText()) {
+		const operation = this._operations.get(e.uri);
+		if (operation) {
+			if (operation.content === e.getText()) {
 				// Same text, no need to run at all
-				await log(this._connection, 'File already has pending check');
+				await log(
+					this._connection,
+					'Not checking file, file already has pending check'
+				);
 				return;
 			}
 			// Kill current running instances for this file
-			if (this._runningOperations.has(e.uri)) {
-				this._runningOperations.get(e.uri)!.check.dispose();
-			}
+			operation.check.dispose();
 		}
 
 		const checkResult = await this._checkFile(e, dirty);
@@ -243,24 +236,10 @@ export class PHPStan implements Disposable {
 		});
 	}
 
-	public fileIsPending(filePath: string): boolean {
-		return this._runningOperations.has(filePath);
-	}
-
-	public async ensureFileChecked(doc: TextDocumentIdentifier): Promise<void> {
-		if (!this._checkedFiles.has(URI.parse(doc.uri).fsPath)) {
-			// Assume dirty because we don't know any better
-			const docContent = this._documents.get(doc.uri);
-			if (docContent) {
-				await this._checkFile(docContent, true);
-			}
-		}
-	}
-
 	public dispose(): void {
-		this._runningOperations.forEach((v) => v.check.dispose());
+		this._operations.forEach((v) => v.check.dispose());
 		this._timers.forEach((t) => clearTimeout(t));
-		this._runningOperations.clear();
+		this._operations.clear();
 		this._timers.clear();
 		this._disposables.forEach((d) => void d.dispose());
 	}
