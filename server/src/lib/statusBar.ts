@@ -1,5 +1,5 @@
-import { NotificationChannel } from '../../../shared/notificationChannels';
 import type { OperationResult } from '../../../shared/statusBar';
+import { statusBarNotification } from './notificationChannels';
 import type { _Connection } from 'vscode-languageserver';
 
 export class StatusBar {
@@ -11,20 +11,14 @@ export class StatusBar {
 		operation: Promise<OperationResult>
 	): Promise<void> {
 		const id = this._lastOperationId++;
-		await this._connection.sendNotification(
-			NotificationChannel.STATUS_BAR,
-			{
-				opId: id,
-			}
-		);
+		await this._connection.sendNotification(statusBarNotification, {
+			opId: id,
+		});
 		void operation.then(async (result) => {
-			await this._connection.sendNotification(
-				NotificationChannel.STATUS_BAR,
-				{
-					opId: id,
-					result,
-				}
-			);
+			await this._connection.sendNotification(statusBarNotification, {
+				opId: id,
+				result,
+			});
 		});
 	}
 }

@@ -1,15 +1,12 @@
-import { NotificationChannel } from '../../../shared/notificationChannels';
-import { commands, Commands } from '../../../server/src/commands/defs';
+import {
+	commandNotification,
+	watcherNotification,
+} from './notificationChannels';
+import { commands, Commands } from '../../../shared/commands/defs';
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { showError } from '../../../server/src/lib/errorUtil';
-import type { WatcherNotification } from './watcher';
+import { showError } from './errorUtil';
 import * as vscode from 'vscode';
-
-export interface CommandMessage {
-	commandName: string;
-	commandArgs: string[];
-}
 
 export function registerListeners(
 	context: vscode.ExtensionContext,
@@ -26,10 +23,11 @@ export function registerListeners(
 						return;
 					}
 
-					await client.sendNotification(NotificationChannel.WATCHER, {
+					await client.sendNotification(watcherNotification, {
 						operation: 'watch',
 						uri: doc.uri.toString(),
-					} as WatcherNotification);
+						dirty: doc.isDirty,
+					});
 				}
 			},
 			commands
@@ -38,8 +36,8 @@ export function registerListeners(
 
 	context.subscriptions.push(
 		client.onNotification(
-			NotificationChannel.COMMAND,
-			({ commandArgs, commandName }: CommandMessage) => {
+			commandNotification,
+			({ commandArgs, commandName }) => {
 				void vscode.commands.executeCommand(
 					commandName,
 					...commandArgs

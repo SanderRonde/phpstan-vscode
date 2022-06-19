@@ -82,3 +82,20 @@ export async function waitPeriodical<R>(
 	}
 	return null;
 }
+
+export function createPromise<R>(): Promise<{
+	promise: Promise<R>;
+	resolve: (result: R) => void;
+}> {
+	return new Promise<{
+		promise: Promise<R>;
+		resolve: (result: R) => void;
+	}>((resolve) => {
+		const promise = new Promise<R>((_resolve) => {
+			resolve({
+				resolve: _resolve,
+				promise,
+			});
+		});
+	});
+}

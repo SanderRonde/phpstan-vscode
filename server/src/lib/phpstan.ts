@@ -1,20 +1,26 @@
+import {
+	EXTENSION_ID,
+	PHP_FILES,
+	ROOT_FOLDER,
+	TREE_FETCHER_FILE,
+} from '../../../shared/constants';
 import type {
 	_Connection,
 	TextDocumentIdentifier,
 	TextDocuments,
 } from 'vscode-languageserver';
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver';
+import { assertUnreachable, createPromise } from '../../../shared/util';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
-import { EXTENSION_ID, ROOT_FOLDER } from '../../../shared/constants';
+import type { FileReport, ReporterFile } from './hoverProvider';
 import { filterBaselineErrorsForFile } from './ignoreFilter';
 import { OperationResult } from '../../../shared/statusBar';
-import { assertUnreachable } from '../../../shared/util';
 import { showError, showErrorOnce } from './errorUtil';
+import { Disposable } from 'vscode-languageserver';
 import type { StatusBar } from './statusBar';
 import { executeCommand } from './commands';
 import { getConfiguration } from './config';
 import { spawn } from 'child_process';
-import { Disposable } from 'vscode';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
@@ -23,15 +29,16 @@ import * as path from 'path';
 import { log } from './log';
 import * as os from 'os';
 
+interface CheckedFileData {
+	content: string;
+	reported: FileReport | null;
+	check: PHPStanCheck;
+	donePromise: Promise<CheckedFileData>;
+	pending: boolean;
+}
+
 export class PHPStan implements Disposable {
-	private _runningOperations: Map<
-		string,
-		{
-			content: string;
-			check: PHPStanCheck;
-		}
-	> = new Map();
-	private _checkedFiles: Set<string> = new Set();
+	private _operations: Map<string, CheckedFileData> = new Map();
 	private _timers: Set<NodeJS.Timeout> = new Set();
 	private readonly _statusBar: StatusBar;
 	private readonly _connection: _Connection;
@@ -72,11 +79,17 @@ export class PHPStan implements Disposable {
 			this._connection,
 			this._getWorkspaceFolder
 		);
-		this._runningOperations.set(e.uri, {
+
+		const promise = await createPromise<CheckedFileData>();
+		this._operations.set(e.uri, {
 			content: e.getText(),
 			check,
+			reported: null,
+			donePromise: promise.promise,
+			pending: true,
 		});
-		this._checkedFiles.add(e.uri);
+
+		// Manage statusbar
 		await this._statusBar.pushOperation(
 			new Promise<OperationResult>((resolve) => {
 				let isDone: boolean = false;
@@ -93,12 +106,13 @@ export class PHPStan implements Disposable {
 					resolve(OperationResult.ERROR);
 				});
 				void getConfiguration(this._connection).then((config) => {
-					const timeout = config.get('phpstan.timeout');
+					const timeout = config.phpstan.timeout;
 					const timer = setTimeout(() => {
 						this._timers.delete(timer);
 						if (!isDone) {
-							if (!config.get('phpstan.suppressTimeoutMessage')) {
+							if (!config.phpstan.suppressTimeoutMessage) {
 								showError(
+									this._connection,
 									`PHPStan check timed out after ${timeout}ms`,
 									[
 										{
@@ -136,7 +150,10 @@ export class PHPStan implements Disposable {
 				});
 			})
 		);
+
+		// Do check
 		const checkResult = await check.check(dirty);
+		const reported = checkResult
 		this._runningOperations.delete(e.uri);
 		if (checkResult === ReturnValue.ERROR) {
 			await log(this._connection, 'File check failed for file', e.uri);
@@ -149,6 +166,12 @@ export class PHPStan implements Disposable {
 		if (typeof checkResult !== 'object') {
 			assertUnreachable(checkResult);
 		}
+
+		this._operations.set(e.uri, {
+			...(this._operations.get(e.uri) as CheckedFileData),
+			pending: false,
+			reported: checkResult.reported,
+		});
 
 		await log(
 			this._connection,
@@ -202,7 +225,8 @@ export class PHPStan implements Disposable {
 					config,
 					URI.parse(e.uri).fsPath,
 					errors,
-					this._disposables
+					this._disposables,
+					this._connection
 				);
 			} catch (e) {
 				// Ignore this step
@@ -250,6 +274,7 @@ enum ReturnValue {
 interface CheckResult {
 	config: CheckConfig;
 	errors: Diagnostic[];
+	reported: FileReport | null;
 }
 
 export interface CheckConfig {
@@ -320,7 +345,9 @@ class PHPStanCheck implements Disposable {
 			}
 			const tmpFile = await tmp.file();
 			await fs.writeFile(tmpFile.path, e.getText());
-			this._disposables.push(new Disposable(() => tmpFile.cleanup()));
+			this._disposables.push(
+				Disposable.create(() => void tmpFile.cleanup())
+			);
 			return tmpFile.path;
 		}
 
@@ -335,6 +362,52 @@ class PHPStanCheck implements Disposable {
 			filePath = '"' + filePath + '"';
 		}
 		return filePath;
+	}
+
+	private async _createAutoloadFile(
+		userAutoloadFile: string | null
+	): Promise<{
+		autoloadFile: string;
+		reportedFile: string;
+	}> {
+		const tmpDir = await tmp.dir();
+		const treeFetcherTmpFilePath = path.join(
+			tmpDir.path,
+			'TreeFetcher.php'
+		);
+		const treeFetcherReportedFilePath = path.join(
+			tmpDir.path,
+			'reported.json'
+		);
+		const autoloadFilePath = path.join(tmpDir.path, 'autoload.php');
+
+		const treeFetcherContent = (
+			await fs.readFile(TREE_FETCHER_FILE, {
+				encoding: 'utf-8',
+			})
+		).replace('reported.json', treeFetcherReportedFilePath);
+		await fs.writeFile(treeFetcherTmpFilePath, treeFetcherContent, {
+			encoding: 'utf-8',
+		});
+
+		let autoloadFileContent = '<?php\n';
+		if (userAutoloadFile) {
+			autoloadFileContent += `chdir('${path.dirname(
+				userAutoloadFile
+			)}');\n`;
+			autoloadFileContent += `require_once "${userAutoloadFile}";\n`;
+		}
+		autoloadFileContent += `require_once "${treeFetcherTmpFilePath}";`;
+		await fs.writeFile(autoloadFilePath, autoloadFileContent, {
+			encoding: 'utf-8',
+		});
+
+		this._disposables.push(Disposable.create(() => void tmpDir.cleanup()));
+
+		return {
+			autoloadFile: autoloadFilePath,
+			reportedFile: treeFetcherReportedFilePath,
+		};
 	}
 
 	private async _check(dirty: boolean): Promise<CheckResult | ReturnValue> {
@@ -373,35 +446,10 @@ class PHPStanCheck implements Disposable {
 				}
 			}
 		}
-		let autoloadFile = path.join(ROOT_FOLDER, 'php/extensionLoader.php');
-		if (userAutoloadFile) {
-			// Already defined, we have to make a tmp file that joins the two
-			const userAutoloadFileContents = (
-				await fs.readFile(userAutoloadFile, {
-					encoding: 'utf-8',
-				})
-			).replace('<?php', '');
-			const autoloadFileContents = (
-				await fs.readFile(autoloadFile, {
-					encoding: 'utf-8',
-				})
-			).replace('<?php', '');
-			const joinedFile = `
-				<?php
 
-				chdir('${path.dirname(autoloadFile)}');
-
-				${autoloadFileContents}
-
-				chdir('${path.dirname(userAutoloadFile)}');
-
-				${userAutoloadFileContents}
-			`;
-			const tempFile = await tmp.file();
-			await fs.writeFile(tempFile.path, joinedFile);
-			this._disposables.push(new Disposable(() => tempFile.cleanup()));
-			autoloadFile = tempFile.path;
-		}
+		const { autoloadFile, reportedFile } = await this._createAutoloadFile(
+			userAutoloadFile
+		);
 
 		args.push(
 			...[
@@ -433,7 +481,7 @@ class PHPStanCheck implements Disposable {
 		});
 
 		this._disposables.push(
-			new Disposable(() => !phpstan.killed && phpstan.kill())
+			Disposable.create(() => !phpstan.killed && phpstan.kill())
 		);
 
 		let data: string = '';
@@ -465,11 +513,13 @@ class PHPStanCheck implements Disposable {
 					data
 				);
 				showError(
+					this._connection,
 					'PHPStan: process exited with error, see log for details'
 				);
 				resolve(ReturnValue.ERROR);
 			});
-			phpstan.on('exit', () => {
+			// eslint-disable-next-line @typescript-eslint/no-misused-promises
+			phpstan.on('exit', async () => {
 				if (this._cancelled) {
 					return;
 				}
@@ -491,6 +541,7 @@ class PHPStanCheck implements Disposable {
 
 				if (data.includes('Allowed memory size of')) {
 					showError(
+						this._connection,
 						'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
 						[
 							{
@@ -507,6 +558,19 @@ class PHPStanCheck implements Disposable {
 					);
 					resolve(ReturnValue.ERROR);
 				}
+
+				const reportedFileContent =
+					await (async (): Promise<FileReport | null> => {
+						try {
+							const file = await fs.readFile(reportedFile, {
+								encoding: 'utf-8',
+							});
+							const parsed = JSON.parse(file) as ReporterFile;
+							return parsed[filePath];
+						} catch (e) {
+							return null;
+						}
+					})();
 				resolve({
 					config,
 					errors: new OutputParser(
@@ -514,6 +578,7 @@ class PHPStanCheck implements Disposable {
 						filePath,
 						this._file
 					).parse(),
+					reported: reportedFileContent,
 				});
 			});
 		});
@@ -521,8 +586,7 @@ class PHPStanCheck implements Disposable {
 
 	private async _applyPathMapping(filePath: string): Promise<string> {
 		const pathMapping =
-			(await getConfiguration(this._connection)).get('phpstan.paths') ??
-			{};
+			(await getConfiguration(this._connection)).phpstan.paths ?? {};
 		if (Object.keys(pathMapping).length === 0) {
 			return filePath;
 		}
@@ -550,17 +614,21 @@ class PHPStanCheck implements Disposable {
 		const workspaceRoot = this._getWorkspaceFolder();
 		const cwd =
 			this._getAbsolutePath(
-				extensionConfig.get('phpstan.rootDir'),
+				extensionConfig.phpstan.rootDir,
 				workspaceRoot ?? undefined
 			) || workspaceRoot;
 
 		if (cwd && !(await this._fileIfExists(cwd))) {
-			showErrorOnce(`PHPStan: rootDir "${cwd}" does not exist`);
+			await showErrorOnce(
+				this._connection,
+				`PHPStan: rootDir "${cwd}" does not exist`
+			);
 			return ReturnValue.ERROR;
 		}
 
 		if (!cwd) {
-			showErrorOnce(
+			await showErrorOnce(
+				this._connection,
 				'PHPStan: failed to get CWD',
 				'workspaceRoot=',
 				workspaceRoot ?? 'undefined'
@@ -568,15 +636,18 @@ class PHPStanCheck implements Disposable {
 			return ReturnValue.ERROR;
 		}
 
-		const binCommand = extensionConfig.get('phpstan.binCommand');
+		const binCommand = extensionConfig.phpstan.binCommand;
 		const defaultBinPath = this._getAbsolutePath(
-			extensionConfig.get('phpstan.binPath'),
+			extensionConfig.phpstan.binPath,
 			cwd
 		);
 		const binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
 
 		if (!binPath && (!binCommand || binCommand.length === 0)) {
-			showErrorOnce('PHPStan: failed to find binary path');
+			await showErrorOnce(
+				this._connection,
+				'PHPStan: failed to find binary path'
+			);
 			return ReturnValue.ERROR;
 		}
 
@@ -584,19 +655,23 @@ class PHPStanCheck implements Disposable {
 			(!binCommand || binCommand.length === 0) &&
 			!(await this._fileIfExists(binPath))
 		) {
-			showErrorOnce(`PHPStan: failed to find binary at "${binPath}"`);
+			await showErrorOnce(
+				this._connection,
+				`PHPStan: failed to find binary at "${binPath}"`
+			);
 			return ReturnValue.ERROR;
 		}
 
 		const defaultConfigFile = this._getAbsolutePath(
-			extensionConfig.get('phpstan.configFile'),
+			extensionConfig.phpstan.configFile,
 			cwd
 		);
 		if (
 			defaultConfigFile &&
 			!(await this._fileIfExists(defaultConfigFile))
 		) {
-			showErrorOnce(
+			await showErrorOnce(
+				this._connection,
 				`PHPStan: failed to find config file at "${defaultConfigFile}"`
 			);
 			return ReturnValue.ERROR;
@@ -626,8 +701,8 @@ class PHPStanCheck implements Disposable {
 			remoteConfigFile: defaultConfigFile
 				? await this._applyPathMapping(defaultConfigFile)
 				: null,
-			args: extensionConfig.get('phpstan.options') ?? [],
-			memoryLimit: extensionConfig.get('phpstan.memoryLimit'),
+			args: extensionConfig.phpstan.options ?? [],
+			memoryLimit: extensionConfig.phpstan.memoryLimit,
 			...partialConfig,
 		};
 		this.__config = config;
@@ -664,7 +739,7 @@ class PHPStanCheck implements Disposable {
 	public dispose(): void {
 		this._cancelled = true;
 		this._onCancelListener?.();
-		Disposable.from(...this._disposables).dispose();
+		this._disposables.forEach((d) => d.dispose());
 	}
 }
 

@@ -12,8 +12,9 @@ import { createDiagnosticsProvider } from './lib/diagnosticsProvider';
 import type { Disposable } from 'vscode-languageserver/node';
 import { createHoverProvider } from './lib/hoverProvider';
 import { URI } from 'vscode-uri';
+import { log } from './lib/log';
 
-async function main(): Promise<void> {
+function main(): void {
 	// Creates the LSP connection
 	const connection = createConnection(ProposedFeatures.all);
 	const disposables: Disposable[] = [];
@@ -43,13 +44,19 @@ async function main(): Promise<void> {
 			},
 		};
 	});
-	const { phpstan } = await createDiagnosticsProvider(
+	const { phpstan } = createDiagnosticsProvider(
 		connection,
 		disposables,
 		getWorkspaceFolder
 	);
 	connection.onHover(createHoverProvider(phpstan, getWorkspaceFolder));
 	connection.listen();
+
+	disposables.push(
+		connection.onInitialized(() => {
+			void log(connection, 'Language server ready');
+		})
+	);
 }
 
-void main();
+main();

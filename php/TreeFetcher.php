@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use PhpParser\Node;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Param;
@@ -10,7 +8,8 @@ use PHPStan\Rules\Rule;
 use PHPStan\Type\VerbosityLevel;
 
 class TreeFetcher implements Rule {
-	public const REPORTER_FILE = './reported.json';
+	// Replaced at runtime with a tmp file
+	public const REPORTER_FILE = 'reported.json';
 	private static int $_startedAt;
 
 	public function __construct() {

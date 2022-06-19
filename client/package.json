@@ -7,8 +7,8 @@
     "vscode-generate-package-json": "^1.0.5"
   },
   "scripts": {
-    "build": "esbuild --minify --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode",
-    "build:debug": "esbuild --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode --sourcemap=inline"
+    "build": "esbuild --minify --bundle --outfile=../out/extension.js src/extension.ts --platform=node --external:vscode",
+    "build:debug": "esbuild --bundle --outfile=../out/extension.js src/extension.ts --platform=node --external:vscode --sourcemap=inline"
   },
   "devDependencies": {
     "@types/vscode": "^1.64.0",

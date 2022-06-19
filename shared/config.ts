@@ -6,19 +6,23 @@ export enum WhenToRun {
 	NEVER = 'never',
 }
 
-export interface ConfigSettings {
-	'phpstan.binPath': string | null;
-	'phpstan.binCommand': string[] | null;
-	'phpstan.configFile': string | null;
-	'phpstan.rootDir': string | null;
-	'phpstan.options': string[];
-	'phpstan.enableStatusBar': boolean;
-	'phpstan.memoryLimit': string;
-	'phpstan.whenToRun': WhenToRun;
-	'phpstan.timeout': number;
-	'phpstan.suppressTimeoutMessage': boolean;
-	'phpstan.paths': Record<string, string>;
+export interface PHPStanConfig {
+	binPath: string | null;
+	binCommand: string[] | null;
+	configFile: string | null;
+	rootDir: string | null;
+	options: string[];
+	enableStatusBar: boolean;
+	memoryLimit: string;
+	whenToRun: WhenToRun;
+	timeout: number;
+	suppressTimeoutMessage: boolean;
+	paths: Record<string, string>;
 }
+
+export type ConfigSettings = {
+	[K in keyof PHPStanConfig as `phpstan.${K}`]: PHPStanConfig[K];
+};
 
 export interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {
 	get<K extends Extract<keyof T, string>>(

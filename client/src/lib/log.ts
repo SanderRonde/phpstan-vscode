@@ -1,6 +1,6 @@
-import { NotificationChannel } from '../../../shared/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ExtensionContext, OutputChannel } from 'vscode';
+import { logNotification } from './notificationChannels';
 import { window } from 'vscode';
 
 let channel: OutputChannel | null;
@@ -14,13 +14,14 @@ export function registerLogMessager(
 	client: LanguageClient
 ): void {
 	context.subscriptions.push(
-		client.onNotification(NotificationChannel.LOG, (args: string[]) => {
-			log(...args);
+		client.onNotification(logNotification, ({ data }) => {
+			log(...data);
 		})
 	);
 }
 
 export function log(...data: string[]): void {
+	console.log(data.join(' '));
 	if (channel) {
 		channel.appendLine(data.join(' '));
 	}

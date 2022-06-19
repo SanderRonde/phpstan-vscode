@@ -7,14 +7,18 @@
  * those errors that should have been ignored by the ignoreErrors config.
  */
 
-import type { Diagnostic, Disposable } from 'vscode-languageserver';
+import type {
+	Diagnostic,
+	Disposable,
+	_Connection,
+} from 'vscode-languageserver';
 import { deepObjectJoin } from '../../../shared/util';
-import { log } from '../../../client/src/lib/log';
 import type { InvalidNeonValue } from './neon';
 import type { CheckConfig } from './phpstan';
 import * as fsPromises from 'fs/promises';
 import { parseNeonFile } from './neon';
 import * as path from 'path';
+import { log } from './log';
 import * as fs from 'fs';
 
 class CachedFileReader implements Disposable {
@@ -167,7 +171,8 @@ export async function filterBaselineErrorsForFile(
 	checkConfig: CheckConfig,
 	originalFilePath: string,
 	errors: Diagnostic[],
-	disposables: Disposable[]
+	disposables: Disposable[],
+	connection: _Connection
 ): Promise<Diagnostic[]> {
 	const ignoreErrors = await getErrorsToIgnore(checkConfig, disposables);
 	// Find rules that match current file
@@ -180,7 +185,8 @@ export async function filterBaselineErrorsForFile(
 				return true;
 			}
 			if (typeof error === 'object' && 'invalid' in error) {
-				log(
+				void log(
+					connection,
 					'Failed to parse "ignoreErrors" value in config. Source string:',
 					error.source
 				);

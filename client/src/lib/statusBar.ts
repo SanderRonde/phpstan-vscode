@@ -1,5 +1,5 @@
-import { NotificationChannel } from '../../../shared/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
+import { statusBarNotification } from './notificationChannels';
 import { OperationResult } from '../../../shared/statusBar';
 import { assertUnreachable } from '../../../shared/util';
 import { getConfiguration } from './config';
@@ -25,7 +25,7 @@ export class StatusBar implements Disposable {
 		);
 		context.subscriptions.push(
 			client.onNotification(
-				NotificationChannel.STATUS_BAR,
+				statusBarNotification,
 				(params: { opId: number; result?: OperationResult }) => {
 					if (!params.result) {
 						this.startOperation(params.opId);

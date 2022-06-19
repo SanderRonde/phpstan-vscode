@@ -29,12 +29,12 @@ interface VariableData {
 	};
 }
 
-interface FileReport {
+export interface FileReport {
 	timestamp: number;
 	data: VariableData[];
 }
 
-type ReporterFile = Record<string, FileReport>;
+export type ReporterFile = Record<string, FileReport>;
 
 export function createHoverProvider(
 	phpstan: PHPStan,

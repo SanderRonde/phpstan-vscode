@@ -24,7 +24,9 @@ async function startLanguageServer(
 		debug: {
 			module: serverModule,
 			transport: TransportKind.ipc,
-			options: { execArgv: ['--nolazy', '--inspect=6009'] },
+			options: {
+				execArgv: ['--nolazy', '--inspect=6009', '--inspect-brk'],
+			},
 		},
 	};
 	const clientOptions: LanguageClientOptions = {

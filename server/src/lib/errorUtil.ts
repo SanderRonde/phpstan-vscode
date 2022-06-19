@@ -1,14 +1,18 @@
-import * as vscode from 'vscode';
-import { log } from '../../../client/src/lib/log';
+import type { _Connection } from 'vscode-languageserver';
+import { log } from './log';
 
 const shownWarnings: Set<string> = new Set();
 
-export function showErrorOnce(message: string, ...extra: string[]): void {
-	log(`Error: ${message}`, ...extra);
+export async function showErrorOnce(
+	connection: _Connection,
+	message: string,
+	...extra: string[]
+): Promise<void> {
+	await log(connection, `Error: ${message}`, ...extra);
 	if (shownWarnings.has(message)) {
 		return;
 	}
-	showError(message);
+	showError(connection, message);
 	shownWarnings.add(message);
 }
 
@@ -17,15 +21,19 @@ interface ErrorOption {
 	callback: () => void;
 }
 
-export function showError(message: string, options?: ErrorOption[]): void {
-	void vscode.window
-		.showErrorMessage(message, ...(options || []).map((o) => o.title))
+export function showError(
+	connection: _Connection,
+	message: string,
+	options: ErrorOption[] = []
+): void {
+	void connection.window
+		.showErrorMessage(message, ...options.map(({ title }) => ({ title })))
 		.then((choice) => {
 			if (!options || !choice) {
 				return;
 			}
 
-			const match = options.find((o) => o.title === choice);
+			const match = options.find((o) => o.title === choice.title);
 			match?.callback();
 		});
 }

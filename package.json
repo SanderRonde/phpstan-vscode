@@ -146,8 +146,8 @@
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc -p ./src",
 		"watch": "tsc -p src --noEmit false --watch",
-		"build:main": "yarn --cwd server build",
-		"build:debug:main": "yarn --cwd server build:debug",
+		"build:main": "yarn --cwd server build && yarn --cwd client build",
+		"build:debug:main": "yarn --cwd server build:debug && yarn --cwd client build:debug",
 		"build": "rimraf ./out && yarn run build:main",
 		"build:debug": "rimraf ./out && yarn run build:debug:main",
 		"lint": "eslint src --ext ts",
@@ -155,7 +155,7 @@
 		"format": "prettier --write src/",
 		"package": "yarn run prepack && yarn vsce package",
 		"package-dev": "yarn prepush && yarn run build:debug && yarn vsce package",
-		"generate-package": "generate-package-json generate --input src/commands/defs.ts -w -p package.json --handler src/commands/commands.ts --validate --prefix PHPStan && prettier --write package.json",
+		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --prefix PHPStan && prettier --write package.json",
 		"prepush": "yarn generate-package && yarn format-staged && yarn lint --fix && yarn compile"
 	},
 	"devDependencies": {
@@ -180,6 +180,7 @@
 		"ts-node": "^10.5.0",
 		"typescript": "^4.5.5",
 		"vscode-generate-package-json": "^1.0.5",
+		"vscode-languageclient": "^8.0.1",
 		"vscode-test": "^1.6.1"
 	},
 	"packageManager": "yarn@3.1.1",

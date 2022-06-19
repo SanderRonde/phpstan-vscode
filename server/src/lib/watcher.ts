@@ -1,7 +1,6 @@
-import { NotificationChannel } from '../../../shared/notificationChannels';
-import type { WatcherNotification } from '../../../client/src/lib/watcher';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { watcherNotification } from './notificationChannels';
 import { createDebouncer } from '../../../shared/util';
 import { TextDocuments } from 'vscode-languageserver';
 import { WhenToRun } from '../../../shared/config';
@@ -32,20 +31,17 @@ export class Watcher implements Disposable {
 		this._documents = documents;
 
 		this._disposables.push(
-			this._connection.onNotification(
-				NotificationChannel.WATCHER,
-				(data: WatcherNotification) => {
-					if (data.operation === 'watch') {
-						const doc = this._documents.get(data.uri);
-						if (doc) {
-							void this._phpstan.checkFileAndRegisterErrors(
-								doc,
-								data.dirty
-							);
-						}
+			this._connection.onNotification(watcherNotification, (data) => {
+				if (data.operation === 'watch') {
+					const doc = this._documents.get(data.uri);
+					if (doc) {
+						void this._phpstan.checkFileAndRegisterErrors(
+							doc,
+							data.dirty
+						);
 					}
 				}
-			)
+			})
 		);
 	}
 
@@ -113,9 +109,8 @@ export class Watcher implements Disposable {
 	}
 
 	public async watch(): Promise<void> {
-		this._watch(
-			(await getConfiguration(this._connection)).get('phpstan.whenToRun')
-		);
+		const config = await getConfiguration(this._connection);
+		this._watch(config.phpstan.whenToRun);
 	}
 
 	public dispose(): void {
