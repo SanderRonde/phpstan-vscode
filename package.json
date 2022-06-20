@@ -136,13 +136,14 @@
 	"watch": {
 		"build:debug": {
 			"patterns": [
-				"src"
+				"client",
+				"server"
 			],
 			"extensions": "ts"
 		}
 	},
 	"scripts": {
-		"prepack": "yarn generate-package && yarn prettier --check src/ && yarn lint && yarn compile && yarn run build",
+		"prepack": "yarn generate-package && yarn prettier --check client server && yarn lint && yarn compile && yarn run build",
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc",
 		"watch": "tsc --watch",
@@ -152,7 +153,7 @@
 		"build:debug": "rimraf ./out && yarn run build:debug:main",
 		"lint": "eslint client server --ext ts",
 		"format-staged": "(git diff --ignore-submodules --quiet && yarn format) || pretty-quick client server",
-		"format": "prettier --write src/",
+		"format": "prettier --write client server",
 		"package": "yarn run prepack && yarn vsce package",
 		"package-dev": "yarn prepush && yarn run build:debug && yarn vsce package",
 		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --prefix PHPStan && prettier --write package.json",
