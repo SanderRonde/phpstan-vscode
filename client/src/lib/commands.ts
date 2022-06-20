@@ -24,10 +24,12 @@ export function registerListeners(
 					}
 
 					await client.sendNotification(watcherNotification, {
-						operation: 'watch',
-						uri: doc.uri.toString(),
-						dirty: doc.isDirty,
-						content: doc.getText(),
+						operation: 'check',
+						file: {
+							content: doc.getText(),
+							dirty: doc.isDirty,
+							uri: doc.uri.toString(),
+						},
 					});
 				}
 			},

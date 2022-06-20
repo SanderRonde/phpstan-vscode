@@ -34,6 +34,10 @@ export type WatcherNotificationType =
 	| {
 			operation: 'close';
 			file: WatcherNotificationFileData;
+	  }
+	| {
+			operation: 'check';
+			file: WatcherNotificationFileData;
 	  };
 
 export interface CommandNotificationType {

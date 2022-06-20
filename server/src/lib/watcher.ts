@@ -90,6 +90,13 @@ export class Watcher implements Disposable {
 		}
 	}
 
+	public async onDocumentCheck(
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		await log(this._connection, 'Force checking document');
+		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+	}
+
 	public async onDocumentClose(
 		e: WatcherNotificationFileData
 	): Promise<void> {

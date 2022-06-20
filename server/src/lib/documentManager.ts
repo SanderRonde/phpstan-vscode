@@ -36,6 +36,8 @@ export class DocumentManager implements Disposable {
 						return this._onDocumentActive(data.file);
 					case 'close':
 						return this._onDocumentClose(data.file);
+					case 'check':
+						return this._onDocumentCheck(data.file);
 				}
 			})
 		);
@@ -53,6 +55,13 @@ export class DocumentManager implements Disposable {
 	): Promise<void> {
 		this._documents.set(e.uri, e);
 		await this._watcher.onDocumentSave(e);
+	}
+
+	private async _onDocumentCheck(
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		this._documents.set(e.uri, e);
+		await this._watcher.onDocumentCheck(e);
 	}
 
 	private async _onDocumentActive(
