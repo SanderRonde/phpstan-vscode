@@ -1,5 +1,5 @@
+import type { Disposable, _Connection } from 'vscode-languageserver';
 import type { PHPStanConfig } from '../../../shared/config';
-import type { _Connection } from 'vscode-languageserver';
 
 export function getConfiguration(connection: _Connection): Promise<{
 	phpstan: PHPStanConfig;
@@ -7,4 +7,19 @@ export function getConfiguration(connection: _Connection): Promise<{
 	return connection.workspace.getConfiguration() as Promise<{
 		phpstan: PHPStanConfig;
 	}>;
+}
+
+export function onChangeConfiguration<K extends keyof PHPStanConfig>(
+	connection: _Connection,
+	key: K,
+	handler: (value: PHPStanConfig[K]) => void
+): Disposable {
+	void getConfiguration(connection).then((config) => {
+		handler(config.phpstan[key]);
+	});
+	return connection.onDidChangeConfiguration(() => {
+		void getConfiguration(connection).then((config) => {
+			handler(config.phpstan[key]);
+		});
+	});
 }

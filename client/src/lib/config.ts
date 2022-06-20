@@ -13,3 +13,17 @@ export function getConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> 
 
 	return workspace.getConfiguration();
 }
+
+export function registerConfigListeners(): void {
+	workspace.onDidChangeConfiguration(async (e) => {
+		if (e.affectsConfiguration('phpstan.paths')) {
+			const config = getConfiguration();
+			const paths = config.get('phpstan.paths');
+			if (Object.keys(paths).length > 0) {
+				await window.showWarningMessage(
+					'On-hover type information is disabled when the paths setting is being used'
+				);
+			}
+		}
+	});
+}

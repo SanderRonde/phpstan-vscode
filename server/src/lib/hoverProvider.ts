@@ -1,6 +1,7 @@
 import {
 	HOVER_WAIT_CHUNK_TIME,
 	MAX_HOVER_WAIT_TIME,
+	NEON_FILE,
 	NO_CANCEL_OPERATIONS,
 	TREE_FETCHER_FILE,
 } from '../../../shared/constants';
@@ -11,9 +12,11 @@ import type {
 	_Connection,
 } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
+import { getConfiguration, onChangeConfiguration } from './config';
 import type { PHPStanCheckManager } from './phpstan/manager';
 import type { CheckConfig } from './phpstan/configManager';
 import { Disposable } from 'vscode-languageserver';
+import type { DirectoryResult } from 'tmp-promise';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -41,13 +44,36 @@ export interface FileReport {
 
 export type ReporterFile = Record<string, FileReport>;
 
+function pathsEnabled(paths: Record<string, string>): boolean {
+	return Object.keys(paths).length > 0;
+}
+
 export function createHoverProvider(
 	connection: _Connection,
 	hooks: HoverProviderCheckHooks,
 	phpstan: PHPStanCheckManager,
-	getWorkspaceFolder: () => string | null
+	getWorkspaceFolder: () => string | null,
+	onConnectionInitialized: Promise<void>,
+	disposables: Disposable[]
 ): ServerRequestHandler<HoverParams, Hover | undefined | null, never, void> {
+	let enabled: Promise<boolean> = onConnectionInitialized.then(() => {
+		return getConfiguration(connection).then(
+			(config) => !pathsEnabled(config.phpstan.paths)
+		);
+	});
+	void onConnectionInitialized.then(() => {
+		disposables.push(
+			onChangeConfiguration(connection, 'paths', (paths) => {
+				enabled = Promise.resolve(!pathsEnabled(paths));
+			})
+		);
+	});
+
 	return async (hoverParams, cancelToken) => {
+		if (!(await enabled)) {
+			return null;
+		}
+
 		const workspaceFolder = getWorkspaceFolder();
 		if (
 			!workspaceFolder ||
@@ -57,7 +83,7 @@ export function createHoverProvider(
 		}
 
 		// Ensure the file has been checked
-		await log(connection, 'Hovering, performing check');
+		void log(connection, 'Hovering, performing check');
 		const promise = toCheckablePromise(
 			phpstan.checkFileFromURI(hoverParams.textDocument.uri, false)
 		);
@@ -93,6 +119,7 @@ export function createHoverProvider(
 				type.pos.start.char < hoverParams.position.character &&
 				type.pos.end.char > hoverParams.position.character
 			) {
+				void log(connection, 'Found hover type');
 				return {
 					contents: [
 						`PHPStan: \`${type.typeDescription} $${type.name}\``,
@@ -100,6 +127,8 @@ export function createHoverProvider(
 				};
 			}
 		}
+
+		void log(connection, 'Hovering, no type found');
 
 		return null;
 	};
@@ -132,13 +161,29 @@ export class HoverProviderCheckHooks {
 		}
 	}
 
+	private async _getConfigFile(
+		tmpDir: DirectoryResult,
+		userConfigFile: string
+	): Promise<string> {
+		const neonFileContent = (
+			await fs.readFile(NEON_FILE, {
+				encoding: 'utf-8',
+			})
+		).replace('userfile.neon', userConfigFile);
+		const tmpNeonFilePath = path.join(tmpDir.path, 'config.neon');
+		await fs.writeFile(tmpNeonFilePath, neonFileContent, {
+			encoding: 'utf8',
+		});
+
+		return tmpNeonFilePath;
+	}
+
 	private async _getAutoloadFile(
+		tmpDir: DirectoryResult,
 		uri: string,
 		filePath: string,
-		userAutoloadFile: string | null,
-		disposables: Disposable[]
+		userAutoloadFile: string | null
 	): Promise<string> {
-		const tmpDir = await tmp.dir();
 		const treeFetcherTmpFilePath = path.join(
 			tmpDir.path,
 			'TreeFetcher.php'
@@ -170,18 +215,31 @@ export class HoverProviderCheckHooks {
 			encoding: 'utf-8',
 		});
 
-		disposables.push(
-			Disposable.create(() => {
-				void fs.rm(tmpDir.path, { recursive: true });
-			})
-		);
-
 		this._operationMap.set(uri, {
 			reportPath: treeFetcherReportedFilePath,
 			sourceFilePath: filePath,
 		});
 
 		return autoloadFilePath;
+	}
+
+	private _findArg(
+		config: CheckConfig,
+		short: string,
+		long: string
+	): string | null {
+		for (let i = 0; i < config.args.length; i++) {
+			if (config.args[i] === short) {
+				return config.args[i + 1];
+			} else if (config.args[i].startsWith(long)) {
+				if (config.args[i][long.length] === '=') {
+					return config.args[i].slice(long.length + 1);
+				} else {
+					return config.args[i + 1];
+				}
+			}
+		}
+		return null;
 	}
 
 	public getFileReport(uri: string): FileReport | null | undefined {
@@ -195,28 +253,31 @@ export class HoverProviderCheckHooks {
 		filePath: string,
 		disposables: Disposable[]
 	): Promise<string[]> {
-		let userAutoloadFile: string | null = null;
-		for (let i = 0; i < config.args.length; i++) {
-			if (config.args[i] === '-a') {
-				userAutoloadFile = config.args[i + 1];
-			} else if (config.args[i].startsWith('--autoload-file')) {
-				if (config.args[i]['--autoload-file'.length] === '=') {
-					userAutoloadFile = config.args[i].slice(
-						'--autoload-file'.length + 1
-					);
-				} else {
-					userAutoloadFile = config.args[i + 1];
-				}
-			}
-		}
+		const tmpDir = await tmp.dir();
+		disposables.push(
+			Disposable.create(() => {
+				void fs.rm(tmpDir.path, { recursive: true });
+			})
+		);
+
+		const userAutoloadFile = this._findArg(config, '-a', '--autoload-file');
 
 		const autoloadFile = await this._getAutoloadFile(
+			tmpDir,
 			uri,
 			filePath,
-			userAutoloadFile,
-			disposables
+			userAutoloadFile
 		);
+
 		args.push('-a', autoloadFile);
+		if (config.configFile) {
+			// No config is invalid anyway so we can just ignore this
+			const configFile = await this._getConfigFile(
+				tmpDir,
+				config.configFile
+			);
+			args.push('-c', configFile);
+		}
 		return args;
 	}
 

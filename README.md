@@ -92,4 +92,4 @@ Initial release!
 
 ## TODO
 
-[ ] `documents` does not work yet on backend
+[ ] Show warning that onHover is not supported when pathMapping is enabled

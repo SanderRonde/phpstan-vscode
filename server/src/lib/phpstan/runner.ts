@@ -72,6 +72,8 @@ export class PHPStanRunner implements Disposable {
 		const args = [...config.initialArgs, 'analyse'];
 		if (config.remoteConfigFile) {
 			args.push(...['-c', this._escapeFilePath(config.remoteConfigFile)]);
+		} else if (config.configFile) {
+			args.push('-c', config.configFile);
 		}
 
 		args.push(

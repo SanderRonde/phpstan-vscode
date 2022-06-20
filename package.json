@@ -1,7 +1,7 @@
 {
 	"name": "phpstan-vscode",
 	"displayName": "phpstan",
-	"description": "Inline PHPStan support for VSCode",
+	"description": "PHPStan language server and inline error provider",
 	"version": "1.3.4",
 	"engines": {
 		"vscode": "^1.64.0",
@@ -147,7 +147,7 @@
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc",
 		"watch": "tsc --watch",
-		"build:main": "yarn --cwd server build && yarn --cwd client build",
+		"build:main": "yarn --cwd server build:debug && yarn --cwd client build:debug",
 		"build:debug:main": "yarn --cwd server build:debug && yarn --cwd client build:debug",
 		"build": "rimraf ./out && yarn run build:main",
 		"build:debug": "rimraf ./out && yarn run build:debug:main",

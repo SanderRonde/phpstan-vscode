@@ -4,7 +4,3 @@ parameters:
 		- .
 	paths:
 		- .
-
-# Rules from phpstan/phpstan-strict-rules, based on the full list here: https://github.com/phpstan/phpstan-strict-rules/blob/master/rules.neon
-rules:
-	- TreeFetcher

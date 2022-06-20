@@ -5,6 +5,7 @@ import type {
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
+import { registerConfigListeners } from './lib/config';
 import { log, registerLogMessager } from './lib/log';
 import { registerListeners } from './lib/commands';
 import type { ExtensionContext } from 'vscode';
@@ -26,7 +27,7 @@ async function startLanguageServer(
 			module: serverModule,
 			transport: TransportKind.ipc,
 			options: {
-				execArgv: ['--nolazy', '--inspect=6009', '--inspect-brk'],
+				execArgv: ['--nolazy', '--inspect=6009'], // '--inspect-brk' Enable if you want to attach to the server
 			},
 		},
 	};
@@ -65,6 +66,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const watcher = new DocumentManager(client);
 
 	registerListeners(context, client);
+	registerConfigListeners();
 	registerLogMessager(context, client);
 	context.subscriptions.push(statusBar, watcher);
 

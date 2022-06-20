@@ -63,7 +63,9 @@ async function main(): Promise<void> {
 			connection,
 			hoverProviderHooks,
 			phpstan,
-			getWorkspaceFolder
+			getWorkspaceFolder,
+			onConnectionInitialized,
+			disposables
 		)
 	);
 	connection.listen();

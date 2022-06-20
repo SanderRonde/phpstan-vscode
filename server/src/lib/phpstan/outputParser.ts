@@ -40,6 +40,14 @@ export class OutputParser {
 				)
 				.filter(({ file }) => file.includes(this._filePath))
 				.map((error) => {
+					if (error.lineNumber === 0) {
+						return Diagnostic.create(
+							Range.create(0, 0, 0, 0),
+							error.message,
+							DiagnosticSeverity.Error
+						);
+					}
+
 					// Get text range
 					const line = error.lineNumber - 1;
 					const fullLineText = this._file.getText().split('\n')[line];

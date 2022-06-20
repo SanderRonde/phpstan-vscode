@@ -10,3 +10,5 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 !src/images
+php/vendor
+test/demo/vendor
