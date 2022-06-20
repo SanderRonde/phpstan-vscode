@@ -1,5 +1,9 @@
 <?php
 
+class X {
+	public string $y;
+}
+
 class DemoClass {
 	/**
 	 * @param 'a'|'b'|'c'|'d'|'e'|'f' $initialStr
@@ -19,3 +23,6 @@ class DemoClass {
 }
 
 
+
+$x = new X;
+$x->y;

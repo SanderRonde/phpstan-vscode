@@ -1,8 +1,8 @@
 <?php
 
 use PhpParser\Node;
+use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
-use PhpParser\Node\Param;
 use PHPStan\Analyser\Scope;
 use PHPStan\Rules\Rule;
 use PHPStan\Type\VerbosityLevel;
@@ -17,7 +17,7 @@ class TreeFetcher implements Rule {
 	}
 
 	public function getNodeType(): string {
-		return Variable::class;
+		return Node::class;
 	}
 
 	/** @var array<string, string> */
@@ -36,7 +36,7 @@ class TreeFetcher implements Rule {
 	 * so we can't use that. Instead we just get the source string and scan it for `$varName`
 	 * and hope someone doesn't mention the same variable in a comment in a line or something.
 	 */
-	private static function bestEffortFindPos(string $fileName, int $lineNumber, string $line, string $varName): int {
+	private static function bestEffortFindPos(string $fileName, int $lineNumber, string $line, string $varName, bool $isVar): int {
 		self::$_varPositions[$fileName] ??= [];
 		self::$_varPositions[$fileName][$lineNumber] ??= [];
 		self::$_varPositions[$fileName][$lineNumber][$varName] ??= 0;
@@ -48,7 +48,7 @@ class TreeFetcher implements Rule {
 		$remainingPositions = $positionOnLine + 1;
 		do {
 			$remainingPositions -= 1;
-			$offset = strpos($line, "$$varName", $offset + 1);
+			$offset = strpos($line, $isVar ? "$$varName" : $varName, $offset + 1);
 		} while ($remainingPositions > 0);
 
 		return $offset === false ? 0 : $offset;
@@ -86,17 +86,20 @@ class TreeFetcher implements Rule {
 	}
 
 	public function processNode(Node $node, Scope $scope): array {
-		assert($node instanceof Variable);
+		if (!($node instanceof Variable) && !($node instanceof PropertyFetch)) {
+			return [];
+		}
+		$isVar = $node instanceof Variable;
 
 		$lineNumber = $node->getStartLine();
 		$file = self::readFile($scope->getFile());
 		$line = explode("\n", $file)[$lineNumber - 1];
-		$index = self::bestEffortFindPos($scope->getFile(), $lineNumber, $line, $node->name);
+		$index = self::bestEffortFindPos($scope->getFile(), $lineNumber, $line, $node->name, $isVar);
 		$type = $scope->getType($node);
 		$typeDescr = $type->describe(VerbosityLevel::precise());
 		self::reportVariable($scope->getFile(), [
 			'typeDescription' => $typeDescr,
-			'name' => $node->name,
+			'name' => $isVar ? $node->name : $node->name->name,
 			'pos' => [
 				'start' => [
 					'line' => $lineNumber - 1,
@@ -104,7 +107,7 @@ class TreeFetcher implements Rule {
 				],
 				'end' => [
 					'line' => $node->getEndLine(),
-					'char' => $index + strlen($node->name) + 1 // +1 for the $
+					'char' => $index + strlen($node->name) + ($isVar ? 1 : 0) // +1 for the $
 				]
 			]
 		]);

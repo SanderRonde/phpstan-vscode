@@ -13,3 +13,4 @@ node_modules
 !.yarn/versions
 php/vendor
 test/demo/vendor
+test/demo/reported.json
