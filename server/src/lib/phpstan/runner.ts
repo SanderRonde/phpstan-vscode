@@ -1,7 +1,6 @@
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
 import { EXTENSION_ID } from '../../../../shared/constants';
-import { HoverProviderCheckHooks } from '../hoverProvider';
 import type { Diagnostic } from 'vscode-languageserver';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
@@ -85,7 +84,7 @@ export class PHPStanRunner implements Disposable {
 			this._escapeFilePath(filePath)
 		);
 
-		return await HoverProviderCheckHooks.transformArgs(
+		return await this._config.hooks.hoverProvider.transformArgs(
 			config,
 			args,
 			doc.uri,
@@ -168,14 +167,14 @@ export class PHPStanRunner implements Disposable {
 				resolve(ReturnResult.error());
 			});
 			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			phpstan.on('exit', async (exitCode) => {
+			phpstan.on('exit', async () => {
 				// On exit
 				if (this._cancelled) {
 					resolve(ReturnResult.canceled());
 					return;
 				}
 
-				if (exitCode !== 0) {
+				if (getErr()) {
 					onError();
 					resolve(ReturnResult.error());
 					return;
@@ -208,7 +207,7 @@ export class PHPStanRunner implements Disposable {
 					return;
 				}
 
-				await HoverProviderCheckHooks.onCheckDone(doc.uri);
+				await this._config.hooks.hoverProvider.onCheckDone(doc.uri);
 
 				resolve(ReturnResult.success(getData()));
 			});
@@ -257,5 +256,6 @@ export class PHPStanRunner implements Disposable {
 	public dispose(): void {
 		this._cancelled = true;
 		this._disposables.forEach((d) => d.dispose());
+		this._disposables = [];
 	}
 }

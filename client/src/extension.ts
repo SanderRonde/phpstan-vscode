@@ -3,6 +3,7 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { readyNotification } from './lib/notificationChannels';
 import { log, registerLogMessager } from './lib/log';
 import { registerListeners } from './lib/commands';
 import type { ExtensionContext } from 'vscode';
@@ -62,11 +63,18 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const client = await startLanguageServer(context);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new Watcher(client);
-	watcher.watch(true);
 
 	registerListeners(context, client);
 	registerLogMessager(context, client);
 	context.subscriptions.push(statusBar, watcher);
+
+	context.subscriptions.push(
+		client.onNotification(readyNotification, ({ ready }) => {
+			if (ready) {
+				watcher.watch(true);
+			}
+		})
+	);
 	log('Initializing done');
 }
 

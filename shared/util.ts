@@ -96,7 +96,9 @@ export function createPromise<R>(): Promise<PromiseObject<R>> {
 		const promise = new Promise<R>((_resolve) => {
 			resolve({
 				resolve: _resolve,
-				promise,
+				get promise() {
+					return promise;
+				},
 			});
 		});
 	});

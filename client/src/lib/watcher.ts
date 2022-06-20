@@ -21,6 +21,8 @@ export class Watcher implements Disposable {
 			operation: 'watch',
 			uri: e.uri.toString(),
 			dirty: e.isDirty,
+			content: e.getText(),
+			languageId: e.languageId,
 		});
 	}
 

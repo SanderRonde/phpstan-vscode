@@ -1,5 +1,6 @@
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import type { HoverProviderCheckHooks } from './hoverProvider';
 import { PHPStanCheckManager } from './phpstan/manager';
 import { TextDocuments } from 'vscode-languageserver';
 import { StatusBar } from './statusBar';
@@ -7,6 +8,7 @@ import { Watcher } from './watcher';
 
 export function createDiagnosticsProvider(
 	connection: _Connection,
+	hoverProviderHooks: HoverProviderCheckHooks,
 	disposables: Disposable[],
 	getWorkspaceFolder: () => string | null
 ): {
@@ -23,6 +25,9 @@ export function createDiagnosticsProvider(
 		connection,
 		getWorkspaceFolder,
 		documents,
+		hooks: {
+			hoverProvider: hoverProviderHooks,
+		},
 	});
 	const watcher = new Watcher({
 		connection,

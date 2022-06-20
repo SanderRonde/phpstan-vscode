@@ -1,6 +1,7 @@
 import type { _Connection, TextDocuments } from 'vscode-languageserver';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import { createPromise, withTimeout } from '../../../../shared/util';
+import type { HoverProviderCheckHooks } from '../hoverProvider';
 import type { PromiseObject } from '../../../../shared/util';
 import type { Diagnostic } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
@@ -18,6 +19,9 @@ export interface ClassConfig {
 	connection: _Connection;
 	getWorkspaceFolder: () => string | null;
 	documents: TextDocuments<TextDocument>;
+	hooks: {
+		hoverProvider: HoverProviderCheckHooks;
+	};
 }
 
 interface CheckOperation {
@@ -71,7 +75,8 @@ export class PHPStanCheckManager implements Disposable {
 
 	private async _checkFile(
 		e: PartialDocument,
-		dirty: boolean
+		dirty: boolean,
+		applyErrors: boolean
 	): Promise<void> {
 		// Create statusbar operation
 		const operation = this._config.statusBar.createOperation();
@@ -90,7 +95,7 @@ export class PHPStanCheckManager implements Disposable {
 			ReturnResult<Diagnostic[]>,
 			ReturnResult<Diagnostic[]>
 		>({
-			promise: check.check(e, dirty),
+			promise: check.check(e, dirty, applyErrors),
 			timeout: config.phpstan.timeout,
 			onKill: () => {
 				check.dispose();
@@ -141,7 +146,11 @@ export class PHPStanCheckManager implements Disposable {
 		});
 	}
 
-	public async checkFile(e: PartialDocument, dirty: boolean): Promise<void> {
+	public async checkFile(
+		e: PartialDocument,
+		dirty: boolean,
+		applyErrors: boolean
+	): Promise<void> {
 		if (e.languageId !== 'php') {
 			await log(
 				this._config.connection,
@@ -159,7 +168,7 @@ export class PHPStanCheckManager implements Disposable {
 				// Same text, no need to run at all
 				await log(
 					this._config.connection,
-					'Not checking file, file already has pending check'
+					'Not checking file, file has already been checked or check is pending'
 				);
 				return this._getFilePromise(e);
 			}
@@ -169,17 +178,20 @@ export class PHPStanCheckManager implements Disposable {
 		}
 
 		await log(this._config.connection, 'Checking file', e.uri);
-		const check = this._checkFile(e, dirty);
+		const check = this._checkFile(e, dirty, applyErrors);
 		await this._withRecursivePromise(e, check);
 		return this._getFilePromise(e);
 	}
 
-	public async checkFileFromURI(uri: string): Promise<void> {
+	public async checkFileFromURI(
+		uri: string,
+		applyErrors: boolean
+	): Promise<void> {
 		const file = this._config.documents.get(uri);
 		if (!file) {
 			return;
 		}
-		return this.checkFile(file, true);
+		return this.checkFile(file, true, applyErrors);
 	}
 
 	public dispose(): void {

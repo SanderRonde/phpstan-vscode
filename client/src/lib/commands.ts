@@ -27,6 +27,8 @@ export function registerListeners(
 						operation: 'watch',
 						uri: doc.uri.toString(),
 						dirty: doc.isDirty,
+						content: doc.getText(),
+						languageId: doc.languageId,
 					});
 				}
 			},

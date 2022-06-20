@@ -33,22 +33,27 @@ export class Watcher implements Disposable {
 		this._disposables.push(
 			this._connection.onNotification(watcherNotification, (data) => {
 				if (data.operation === 'watch') {
-					const doc = this._documents.get(data.uri);
-					if (doc) {
-						void this._phpstan.checkFile(doc, data.dirty);
-					}
+					void this._phpstan.checkFile(
+						{
+							getText: () => data.content,
+							languageId: data.languageId,
+							uri: data.uri,
+						},
+						data.dirty,
+						true
+					);
 				}
 			})
 		);
 	}
 
 	private async _onDocumentSave(e: TextDocument): Promise<void> {
-		await this._phpstan.checkFile(e, false);
+		await this._phpstan.checkFile(e, false, true);
 	}
 
 	private _onDocumentChange(e: TextDocument): void {
 		this._debouncer.debounce(async () => {
-			await this._phpstan.checkFile(e, true);
+			await this._phpstan.checkFile(e, true, true);
 		});
 	}
 
@@ -108,6 +113,7 @@ export class Watcher implements Disposable {
 	public async watch(): Promise<void> {
 		const config = await getConfiguration(this._connection);
 		this._watch(config.phpstan.whenToRun);
+		this._documents.listen(this._connection);
 	}
 
 	public dispose(): void {

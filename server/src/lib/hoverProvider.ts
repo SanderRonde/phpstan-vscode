@@ -15,7 +15,6 @@ import type { CheckConfig } from './phpstan/configManager';
 import { Disposable } from 'vscode-languageserver';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
-import { URI } from 'vscode-uri';
 import * as path from 'path';
 
 interface VariableData {
@@ -41,6 +40,7 @@ export interface FileReport {
 export type ReporterFile = Record<string, FileReport>;
 
 export function createHoverProvider(
+	hooks: HoverProviderCheckHooks,
 	phpstan: PHPStanCheckManager,
 	getWorkspaceFolder: () => string | null
 ): ServerRequestHandler<HoverParams, Hover | undefined | null, never, void> {
@@ -55,7 +55,7 @@ export function createHoverProvider(
 
 		// Ensure the file has been checked
 		const promise = toCheckablePromise(
-			phpstan.checkFileFromURI(hoverParams.textDocument.uri)
+			phpstan.checkFileFromURI(hoverParams.textDocument.uri, false)
 		);
 
 		// Check if the file is currently being checked. If so, wait for that to end.
@@ -81,21 +81,9 @@ export function createHoverProvider(
 			return null;
 		}
 
-		// Read reporter file
-		const reporterFile: ReporterFile = JSON.parse(
-			await fs.readFile(path.join(workspaceFolder, 'reported.json'), {
-				encoding: 'utf8',
-			})
-		);
-
-		if (!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested) {
-			return null;
-		}
-
 		// Look for it
-		for (const type of reporterFile[
-			URI.parse(hoverParams.textDocument.uri).fsPath
-		]?.data ?? []) {
+		for (const type of hooks.getFileReport(hoverParams.textDocument.uri)
+			?.data ?? []) {
 			if (
 				type.pos.start.line === hoverParams.position.line &&
 				type.pos.start.char < hoverParams.position.character &&
@@ -114,18 +102,16 @@ export function createHoverProvider(
 }
 
 export class HoverProviderCheckHooks {
-	private static _operationMap: Map<
+	private _operationMap: Map<
 		string,
 		{
 			reportPath: string;
 			sourceFilePath: string;
 		}
 	> = new Map();
-	private static _reports: Map<string, FileReport | null> = new Map();
+	private _reports: Map<string, FileReport | null> = new Map();
 
-	private static async _getFileReport(
-		uri: string
-	): Promise<FileReport | null> {
+	private async _getFileReport(uri: string): Promise<FileReport | null> {
 		// TODO: this should happen at the responsible spot, not here
 		if (!this._operationMap.has(uri)) {
 			return null;
@@ -143,7 +129,7 @@ export class HoverProviderCheckHooks {
 		}
 	}
 
-	private static async _getAutoloadFile(
+	private async _getAutoloadFile(
 		uri: string,
 		filePath: string,
 		userAutoloadFile: string | null,
@@ -181,7 +167,11 @@ export class HoverProviderCheckHooks {
 			encoding: 'utf-8',
 		});
 
-		disposables.push(Disposable.create(() => void tmpDir.cleanup()));
+		disposables.push(
+			Disposable.create(() => {
+				void fs.rm(tmpDir.path, { recursive: true });
+			})
+		);
 
 		this._operationMap.set(uri, {
 			reportPath: treeFetcherReportedFilePath,
@@ -191,7 +181,11 @@ export class HoverProviderCheckHooks {
 		return autoloadFilePath;
 	}
 
-	public static async transformArgs(
+	public getFileReport(uri: string): FileReport | null | undefined {
+		return this._reports.get(uri);
+	}
+
+	public async transformArgs(
 		config: CheckConfig,
 		args: string[],
 		uri: string,
@@ -223,7 +217,7 @@ export class HoverProviderCheckHooks {
 		return args;
 	}
 
-	public static async onCheckDone(uri: string): Promise<void> {
+	public async onCheckDone(uri: string): Promise<void> {
 		this._reports.set(uri, await this._getFileReport(uri));
 	}
 }

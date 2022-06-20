@@ -8,9 +8,13 @@ import {
 	ProposedFeatures,
 	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
+import {
+	createHoverProvider,
+	HoverProviderCheckHooks,
+} from './lib/hoverProvider';
 import { createDiagnosticsProvider } from './lib/diagnosticsProvider';
+import { readyNotification } from './lib/notificationChannels';
 import type { Disposable } from 'vscode-languageserver/node';
-import { createHoverProvider } from './lib/hoverProvider';
 import { URI } from 'vscode-uri';
 import { log } from './lib/log';
 
@@ -29,11 +33,6 @@ function main(): void {
 	connection.onInitialize((params) => {
 		const uri = params.workspaceFolders?.[0].uri;
 		workspaceFolder = uri ? URI.parse(uri).fsPath : null;
-		connection.console.log(
-			`[Server(${
-				process.pid
-			}) ${workspaceFolder!}] Started and initialize received`
-		);
 		return {
 			capabilities: {
 				textDocumentSync: {
@@ -44,17 +43,25 @@ function main(): void {
 			},
 		};
 	});
+
+	const hoverProviderHooks = new HoverProviderCheckHooks();
 	const { phpstan } = createDiagnosticsProvider(
 		connection,
+		hoverProviderHooks,
 		disposables,
 		getWorkspaceFolder
 	);
-	connection.onHover(createHoverProvider(phpstan, getWorkspaceFolder));
+	connection.onHover(
+		createHoverProvider(hoverProviderHooks, phpstan, getWorkspaceFolder)
+	);
 	connection.listen();
 
 	disposables.push(
 		connection.onInitialized(() => {
 			void log(connection, 'Language server ready');
+			void connection.sendNotification(readyNotification, {
+				ready: true,
+			});
 		})
 	);
 }

@@ -12,14 +12,17 @@ export class PHPStanCheck implements Disposable {
 
 	public async check(
 		e: PartialDocument,
-		dirty: boolean
+		dirty: boolean,
+		applyErrors: boolean
 	): Promise<ReturnResult<Diagnostic[]>> {
 		const runner = new PHPStanRunner(this._config);
 		const errorManager = new PHPStanCheckErrorManager(this._config);
 		this._disposables.push(runner);
 
 		const result = await runner.check(e, dirty);
-		await errorManager.handleResult(e, result);
+		if (applyErrors) {
+			await errorManager.handleResult(e, result);
+		}
 
 		this.dispose();
 
