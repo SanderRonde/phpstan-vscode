@@ -158,7 +158,8 @@
 		"package-dev": "yarn prepush && yarn run build:debug && yarn vsce package",
 		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --prefix PHPStan && prettier --write package.json",
 		"prepush": "yarn generate-package && yarn format-staged && yarn lint --fix && yarn compile",
-		"dev": "yarn && yarn --cwd client && yarn --cwd server && cd test/demo && composer install && cd ../../php && composer install && cd vendor/phpstan && git clone https://github.com/phpstan/phpstan-src"
+		"devYarn": "yarn && yarn --cwd client && yarn --cwd server",
+		"dev": "yarn devYarn && cd test/demo && composer install && cd ../../php && composer install && cd vendor/phpstan && git clone https://github.com/phpstan/phpstan-src"
 	},
 	"devDependencies": {
 		"@types/glob": "^7.2.0",

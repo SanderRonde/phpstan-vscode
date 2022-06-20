@@ -23,7 +23,7 @@ jobs:
                   node-version: 14
 
             - name: Install
-              run: yarn
+              run: yarn devYarn
 
             - name: Format
               run: yarn prettier --check client server
