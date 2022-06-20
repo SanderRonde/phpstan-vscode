@@ -27,6 +27,12 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Release Notes
 
+### 2.0.0
+
+-   Extension now provides a language server
+-   Add support for showing type on hover(!)
+-   Rewrite main phpstan-runner code
+
 ### 1.2.4
 
 -   Never enable quote paths on non-windows operating systems
