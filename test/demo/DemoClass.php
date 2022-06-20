@@ -6,7 +6,7 @@ class DemoClass {
 	 */
 	public function strUnion(string $initialStr): mixed {
 		if ($initialStr === 'a') {
-			return 0;			
+			return 0;
 		}
 		if ($initialStr === 'b' || $initialStr === 'c') {
 			return $initialStr;

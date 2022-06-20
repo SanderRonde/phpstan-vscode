@@ -1,30 +1,27 @@
 import type { Disposable, _Connection } from 'vscode-languageserver';
-import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { HoverProviderCheckHooks } from './hoverProvider';
 import { PHPStanCheckManager } from './phpstan/manager';
-import { TextDocuments } from 'vscode-languageserver';
+import { DocumentManager } from './documentManager';
 import { StatusBar } from './statusBar';
 import { Watcher } from './watcher';
 
 export function createDiagnosticsProvider(
 	connection: _Connection,
+	onConnectionInitialized: Promise<void>,
 	hoverProviderHooks: HoverProviderCheckHooks,
 	disposables: Disposable[],
 	getWorkspaceFolder: () => string | null
 ): {
 	phpstan: PHPStanCheckManager;
 } {
-	// Create a manager for open text documents
-	const documents: TextDocuments<TextDocument> = new TextDocuments(
-		TextDocument
-	);
-
 	const statusBar = new StatusBar(connection);
 	const phpstan = new PHPStanCheckManager({
 		statusBar,
 		connection,
 		getWorkspaceFolder,
-		documents,
+		get documents() {
+			return documentManager;
+		},
 		hooks: {
 			hoverProvider: hoverProviderHooks,
 		},
@@ -32,15 +29,14 @@ export function createDiagnosticsProvider(
 	const watcher = new Watcher({
 		connection,
 		phpstan,
+		onConnectionInitialized,
+	});
+	const documentManager: DocumentManager = new DocumentManager({
+		connection,
+		watcher,
 	});
 
-	disposables.push(phpstan, watcher);
-	disposables.push(documents.listen(connection));
-	disposables.push(
-		connection.onInitialized(() => {
-			void watcher.watch();
-		})
-	);
+	disposables.push(phpstan, watcher, documentManager);
 
 	return {
 		phpstan,

@@ -17,13 +17,13 @@ import { URI } from 'vscode-uri';
 import { log } from '../log';
 import * as os from 'os';
 
-export type PartialDocument = Pick<
-	TextDocument,
-	'uri' | 'getText' | 'languageId'
->;
+export type PartialDocument = Pick<TextDocument, 'uri' | 'getText'> & {
+	dirty: boolean;
+};
 
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
+	private _process: ChildProcessWithoutNullStreams | null = null;
 	private _disposables: Disposable[] = [];
 	private _configManager: ConfigurationManager = new ConfigurationManager(
 		this._config
@@ -32,15 +32,14 @@ export class PHPStanRunner implements Disposable {
 	public constructor(private readonly _config: ClassConfig) {}
 
 	private async _getFilePath(
-		e: Pick<TextDocument, 'uri' | 'getText' | 'languageId'>,
-		dirty: boolean
+		e: PartialDocument
 	): Promise<ReturnResult<string>> {
 		const mappedPath = await ConfigurationManager.applyPathMapping(
 			this._config,
 			URI.parse(e.uri).fsPath
 		);
 
-		if (dirty) {
+		if (e.dirty) {
 			if (mappedPath !== URI.parse(e.uri).fsPath) {
 				return ReturnResult.canceled();
 			}
@@ -136,6 +135,7 @@ export class PHPStanRunner implements Disposable {
 		doc: PartialDocument
 	): Promise<ReturnResult<string>> {
 		const phpstan = await this._spawnProcess(config, args);
+		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(phpstan, 'stdout');
 		const getErr = this._createOutputCapturer(phpstan, 'stderr');
@@ -215,8 +215,7 @@ export class PHPStanRunner implements Disposable {
 	}
 
 	private async _check(
-		doc: PartialDocument,
-		dirty: boolean
+		doc: PartialDocument
 	): Promise<ReturnResult<Diagnostic[]>> {
 		// Get config
 		const config = await this._configManager.collectConfiguration();
@@ -228,7 +227,7 @@ export class PHPStanRunner implements Disposable {
 		}
 
 		// Get file
-		const filePath = await this._getFilePath(doc, dirty);
+		const filePath = await this._getFilePath(doc);
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
@@ -237,6 +236,9 @@ export class PHPStanRunner implements Disposable {
 		}
 
 		const args = await this._getArgs(config, filePath.value, doc);
+		if (this._cancelled) {
+			return ReturnResult.canceled();
+		}
 		const result = await this._getProcessOutput(config, args, doc);
 
 		return result.chain((output) => {
@@ -245,10 +247,9 @@ export class PHPStanRunner implements Disposable {
 	}
 
 	public async check(
-		file: PartialDocument,
-		dirty: boolean
+		file: PartialDocument
 	): Promise<ReturnResult<Diagnostic[]>> {
-		const errors = await this._check(file, dirty);
+		const errors = await this._check(file);
 		this.dispose();
 		return errors;
 	}
@@ -256,6 +257,9 @@ export class PHPStanRunner implements Disposable {
 	public dispose(): void {
 		this._cancelled = true;
 		this._disposables.forEach((d) => d.dispose());
+		if (this._process && !this._process.killed) {
+			this._process.kill();
+		}
 		this._disposables = [];
 	}
 }

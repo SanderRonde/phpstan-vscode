@@ -8,13 +8,33 @@ export enum NotificationChannel {
 	READY = 'phpstan.ready',
 }
 
-export interface WatcherNotificationType {
-	operation: 'watch';
+export interface WatcherNotificationFileData {
 	uri: string;
 	dirty: boolean;
 	content: string;
-	languageId: string;
 }
+
+export type WatcherNotificationType =
+	| {
+			operation: 'open';
+			file: WatcherNotificationFileData;
+	  }
+	| {
+			operation: 'change';
+			file: WatcherNotificationFileData;
+	  }
+	| {
+			operation: 'save';
+			file: WatcherNotificationFileData;
+	  }
+	| {
+			operation: 'setActive';
+			file: WatcherNotificationFileData;
+	  }
+	| {
+			operation: 'close';
+			file: WatcherNotificationFileData;
+	  };
 
 export interface CommandNotificationType {
 	commandName: string;

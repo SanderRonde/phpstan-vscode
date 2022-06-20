@@ -18,12 +18,17 @@ import type { Disposable } from 'vscode-languageserver/node';
 import { URI } from 'vscode-uri';
 import { log } from './lib/log';
 
-function main(): void {
+async function main(): Promise<void> {
 	// Creates the LSP connection
 	const connection = createConnection(ProposedFeatures.all);
 	const disposables: Disposable[] = [];
 	connection.onExit(() => {
 		disposables.forEach((d) => void d.dispose());
+	});
+	const onConnectionInitialized = new Promise<void>((resolve) => {
+		connection.onInitialized(() => {
+			resolve();
+		});
 	});
 
 	// The workspace folder this server is operating on
@@ -37,6 +42,7 @@ function main(): void {
 			capabilities: {
 				textDocumentSync: {
 					openClose: true,
+					save: true,
 					change: TextDocumentSyncKind.Full,
 				},
 				hoverProvider: true,
@@ -47,23 +53,26 @@ function main(): void {
 	const hoverProviderHooks = new HoverProviderCheckHooks();
 	const { phpstan } = createDiagnosticsProvider(
 		connection,
+		onConnectionInitialized,
 		hoverProviderHooks,
 		disposables,
 		getWorkspaceFolder
 	);
 	connection.onHover(
-		createHoverProvider(hoverProviderHooks, phpstan, getWorkspaceFolder)
+		createHoverProvider(
+			connection,
+			hoverProviderHooks,
+			phpstan,
+			getWorkspaceFolder
+		)
 	);
 	connection.listen();
 
-	disposables.push(
-		connection.onInitialized(() => {
-			void log(connection, 'Language server ready');
-			void connection.sendNotification(readyNotification, {
-				ready: true,
-			});
-		})
-	);
+	await onConnectionInitialized;
+	void log(connection, 'Language server ready');
+	void connection.sendNotification(readyNotification, {
+		ready: true,
+	});
 }
 
-main();
+void main();

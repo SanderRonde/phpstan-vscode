@@ -4,11 +4,11 @@ import type {
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { readyNotification } from './lib/notificationChannels';
+import { DocumentManager } from './lib/documentManager';
 import { log, registerLogMessager } from './lib/log';
 import { registerListeners } from './lib/commands';
 import type { ExtensionContext } from 'vscode';
 import { StatusBar } from './lib/statusBar';
-import { Watcher } from './lib/watcher';
 import { workspace } from 'vscode';
 import * as path from 'path';
 
@@ -39,7 +39,7 @@ async function startLanguageServer(
 		],
 		synchronize: {
 			fileEvents: workspace.createFileSystemWatcher(
-				'**/*.php',
+				'*.php',
 				false,
 				false,
 				true
@@ -62,7 +62,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	log('Initializing PHPStan extension');
 	const client = await startLanguageServer(context);
 	const statusBar = new StatusBar(context, client);
-	const watcher = new Watcher(client);
+	const watcher = new DocumentManager(client);
 
 	registerListeners(context, client);
 	registerLogMessager(context, client);
@@ -71,7 +71,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	context.subscriptions.push(
 		client.onNotification(readyNotification, ({ ready }) => {
 			if (ready) {
-				watcher.watch(true);
+				void watcher.watch();
 			}
 		})
 	);

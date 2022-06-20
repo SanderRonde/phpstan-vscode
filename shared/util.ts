@@ -27,9 +27,11 @@ export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
 	return result as A & B;
 }
 
-export function createDebouncer(delay: number): {
+export type Debouncer = {
 	debounce: (callback: () => void | Promise<void>) => void;
-} & Disposable {
+} & Disposable;
+
+export function createDebouncer(delay: number): Debouncer {
 	let timeout: NodeJS.Timeout | null = null;
 	return {
 		debounce: (callback: () => void | Promise<void>): void => {

@@ -8,6 +8,7 @@ import type {
 	Hover,
 	HoverParams,
 	ServerRequestHandler,
+	_Connection,
 } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
 import type { PHPStanCheckManager } from './phpstan/manager';
@@ -16,6 +17,7 @@ import { Disposable } from 'vscode-languageserver';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { log } from './log';
 
 interface VariableData {
 	typeDescription: string;
@@ -40,6 +42,7 @@ export interface FileReport {
 export type ReporterFile = Record<string, FileReport>;
 
 export function createHoverProvider(
+	connection: _Connection,
 	hooks: HoverProviderCheckHooks,
 	phpstan: PHPStanCheckManager,
 	getWorkspaceFolder: () => string | null
@@ -54,6 +57,7 @@ export function createHoverProvider(
 		}
 
 		// Ensure the file has been checked
+		await log(connection, 'Hovering, performing check');
 		const promise = toCheckablePromise(
 			phpstan.checkFileFromURI(hoverParams.textDocument.uri, false)
 		);
@@ -112,7 +116,6 @@ export class HoverProviderCheckHooks {
 	private _reports: Map<string, FileReport | null> = new Map();
 
 	private async _getFileReport(uri: string): Promise<FileReport | null> {
-		// TODO: this should happen at the responsible spot, not here
 		if (!this._operationMap.has(uri)) {
 			return null;
 		}
@@ -218,6 +221,7 @@ export class HoverProviderCheckHooks {
 	}
 
 	public async onCheckDone(uri: string): Promise<void> {
-		this._reports.set(uri, await this._getFileReport(uri));
+		const report = await this._getFileReport(uri);
+		this._reports.set(uri, report);
 	}
 }

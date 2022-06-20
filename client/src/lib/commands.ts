@@ -28,7 +28,6 @@ export function registerListeners(
 						uri: doc.uri.toString(),
 						dirty: doc.isDirty,
 						content: doc.getText(),
-						languageId: doc.languageId,
 					});
 				}
 			},

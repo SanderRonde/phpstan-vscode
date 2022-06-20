@@ -1,14 +1,11 @@
 import { Diagnostic, DiagnosticSeverity, Range } from 'vscode-languageserver';
-import type { TextDocument } from 'vscode-languageserver-textdocument';
+import type { PartialDocument } from './runner';
 
 export class OutputParser {
 	public constructor(
 		private readonly _output: string,
 		private readonly _filePath: string,
-		private readonly _file: Pick<
-			TextDocument,
-			'uri' | 'getText' | 'languageId'
-		>
+		private readonly _file: PartialDocument
 	) {}
 
 	public parse(): Diagnostic[] {
