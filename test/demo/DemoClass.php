@@ -25,4 +25,4 @@ class DemoClass {
 
 
 $x = new X;
-$x->y;
+print($x->y);
