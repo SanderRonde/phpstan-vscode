@@ -8,13 +8,12 @@ import {
 	ProposedFeatures,
 	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
-import {
-	createHoverProvider,
-	HoverProviderCheckHooks,
-} from './lib/hoverProvider';
 import { createDiagnosticsProvider } from './lib/diagnosticsProvider';
+import { createHoverProvider } from './providers/hoverProvider';
 import { readyNotification } from './lib/notificationChannels';
 import type { Disposable } from 'vscode-languageserver/node';
+import { ProviderCheckHooks } from './providers/shared';
+import { providerEnabled } from './lib/providerUtil';
 import { URI } from 'vscode-uri';
 import { log } from './lib/log';
 
@@ -46,28 +45,37 @@ async function main(): Promise<void> {
 					change: TextDocumentSyncKind.Full,
 				},
 				hoverProvider: true,
+				completionProvider: {
+					completionItem: {
+						labelDetailsSupport: true,
+					},
+					triggerCharacters: ['$', '\\', '>', ':'],
+				},
 			},
 		};
 	});
 
-	const hoverProviderHooks = new HoverProviderCheckHooks();
+	const providerHooks = new ProviderCheckHooks();
 	const { phpstan } = createDiagnosticsProvider(
 		connection,
 		onConnectionInitialized,
-		hoverProviderHooks,
+		providerHooks,
 		disposables,
 		getWorkspaceFolder
 	);
-	connection.onHover(
-		createHoverProvider(
-			connection,
-			hoverProviderHooks,
-			phpstan,
-			getWorkspaceFolder,
-			onConnectionInitialized,
-			disposables
-		)
+	const providersEnabled = providerEnabled(
+		connection,
+		onConnectionInitialized,
+		disposables
 	);
+	const providerArgs = {
+		connection,
+		hooks: providerHooks,
+		phpstan,
+		getWorkspaceFolder,
+		enabled: providersEnabled,
+	};
+	connection.onHover(createHoverProvider(providerArgs));
 	connection.listen();
 
 	await onConnectionInitialized;

@@ -85,7 +85,7 @@ export class PHPStanRunner implements Disposable {
 			this._escapeFilePath(filePath)
 		);
 
-		return await this._config.hooks.hoverProvider.transformArgs(
+		return await this._config.hooks.provider.transformArgs(
 			config,
 			args,
 			doc.uri,
@@ -209,7 +209,7 @@ export class PHPStanRunner implements Disposable {
 					return;
 				}
 
-				await this._config.hooks.hoverProvider.onCheckDone(doc.uri);
+				await this._config.hooks.provider.onCheckDone(doc.uri);
 
 				resolve(ReturnResult.success(getData()));
 			});

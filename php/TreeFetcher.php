@@ -80,10 +80,10 @@ class TreeFetcher implements Rule {
 	private static function reportVariable(array $data) {
 		$reporterData = file_get_contents(self::REPORTER_FILE);
 		if ($reporterData === false) {
-			$reporterData = '[]';
+			$reporterData = '{"varValues": []}';
 		}
 		$parsedData = json_decode($reporterData, true);
-		$parsedData[] = $data;
+		$parsedData['varValues'][] = $data;
 		$json = json_encode($parsedData, self::DEV ? JSON_PRETTY_PRINT : 0);
 		file_put_contents(self::REPORTER_FILE, $json);
 	}

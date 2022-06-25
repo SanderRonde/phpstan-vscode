@@ -5,22 +5,17 @@ import {
 	NO_CANCEL_OPERATIONS,
 	TREE_FETCHER_FILE,
 } from '../../../shared/constants';
-import type {
-	Hover,
-	HoverParams,
-	ServerRequestHandler,
-	_Connection,
-} from 'vscode-languageserver';
+import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
-import { getConfiguration, onChangeConfiguration } from './config';
-import type { PHPStanCheckManager } from './phpstan/manager';
-import type { CheckConfig } from './phpstan/configManager';
+import type { PHPStanCheckManager } from '../lib/phpstan/manager';
+import type { CheckConfig } from '../lib/phpstan/configManager';
+import type { ProviderEnabled } from '../lib/providerUtil';
 import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
+import { log } from '../lib/log';
 import * as path from 'path';
-import { log } from './log';
 
 interface VariableData {
 	typeDescription: string;
@@ -38,103 +33,64 @@ interface VariableData {
 }
 
 export interface FileReport {
-	timestamp: number;
-	data: VariableData[];
+	varValues: VariableData[];
 }
 
-export type ReporterFile = Record<string, FileReport>;
-
-function pathsEnabled(paths: Record<string, string>): boolean {
-	return Object.keys(paths).length > 0;
+export interface ProviderArgs {
+	connection: _Connection;
+	hooks: ProviderCheckHooks;
+	phpstan: PHPStanCheckManager;
+	getWorkspaceFolder: () => string | null;
+	enabled: ProviderEnabled;
 }
 
-export function createHoverProvider(
-	connection: _Connection,
-	hooks: HoverProviderCheckHooks,
-	phpstan: PHPStanCheckManager,
-	getWorkspaceFolder: () => string | null,
-	onConnectionInitialized: Promise<void>,
-	disposables: Disposable[]
-): ServerRequestHandler<HoverParams, Hover | undefined | null, never, void> {
-	let enabled: Promise<boolean> = onConnectionInitialized.then(() => {
-		return getConfiguration(connection).then(
-			(config) => !pathsEnabled(config.phpstan.paths)
-		);
-	});
-	void onConnectionInitialized.then(() => {
-		disposables.push(
-			onChangeConfiguration(connection, 'paths', (paths) => {
-				enabled = Promise.resolve(!pathsEnabled(paths));
-			})
-		);
-	});
-
-	return async (hoverParams, cancelToken) => {
-		if (!(await enabled)) {
-			return null;
-		}
-
-		const workspaceFolder = getWorkspaceFolder();
-		if (
-			!workspaceFolder ||
-			(!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested)
-		) {
-			return null;
-		}
-
-		// Ensure the file has been checked
-		void log(connection, 'Hovering, performing check');
-		const promise = toCheckablePromise(
-			phpstan.checkFileFromURI(hoverParams.textDocument.uri, false)
-		);
-
-		// Check if the file is currently being checked. If so, wait for that to end.
-		const result = await waitPeriodical<'cancel' | 'checkDone'>(
-			MAX_HOVER_WAIT_TIME,
-			HOVER_WAIT_CHUNK_TIME,
-			() => {
-				if (
-					!NO_CANCEL_OPERATIONS &&
-					cancelToken.isCancellationRequested
-				) {
-					return 'cancel';
-				}
-				if (promise.done) {
-					return 'checkDone';
-				}
-				return null;
-			}
-		);
-
-		// Either timed out or was canceled
-		if (result !== 'checkDone') {
-			return null;
-		}
-
-		// Look for it
-		for (const type of hooks.getFileReport(hoverParams.textDocument.uri)
-			?.data ?? []) {
-			if (
-				type.pos.start.line === hoverParams.position.line &&
-				type.pos.start.char < hoverParams.position.character &&
-				type.pos.end.char > hoverParams.position.character
-			) {
-				void log(connection, 'Found hover type');
-				return {
-					contents: [
-						`PHPStan: \`${type.typeDescription} $${type.name}\``,
-					],
-				};
-			}
-		}
-
-		void log(connection, 'Hovering, no type found');
-
+export async function getFileReport(
+	providerArgs: ProviderArgs,
+	cancelToken: CancellationToken,
+	documentURI: string
+): Promise<FileReport | null> {
+	if (!(await providerArgs.enabled.isEnabled())) {
 		return null;
-	};
+	}
+
+	const workspaceFolder = providerArgs.getWorkspaceFolder();
+	if (
+		!workspaceFolder ||
+		(!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested)
+	) {
+		return null;
+	}
+
+	// Ensure the file has been checked
+	void log(providerArgs.connection, 'Performing check');
+	const promise = toCheckablePromise(
+		providerArgs.phpstan.checkFileFromURI(documentURI, false)
+	);
+
+	// Check if the file is currently being checked. If so, wait for that to end.
+	const result = await waitPeriodical<'cancel' | 'checkDone'>(
+		MAX_HOVER_WAIT_TIME,
+		HOVER_WAIT_CHUNK_TIME,
+		() => {
+			if (!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested) {
+				return 'cancel';
+			}
+			if (promise.done) {
+				return 'checkDone';
+			}
+			return null;
+		}
+	);
+
+	// Either timed out or was canceled
+	if (result !== 'checkDone') {
+		return null;
+	}
+
+	return providerArgs.hooks.getFileReport(documentURI) ?? null;
 }
 
-export class HoverProviderCheckHooks {
+export class ProviderCheckHooks {
 	private _operationMap: Map<
 		string,
 		{
@@ -154,8 +110,7 @@ export class HoverProviderCheckHooks {
 			const file = await fs.readFile(match.reportPath, {
 				encoding: 'utf-8',
 			});
-			const parsed = JSON.parse(file) as ReporterFile;
-			return parsed[match.sourceFilePath];
+			return JSON.parse(file) as FileReport;
 		} catch (e) {
 			return null;
 		}

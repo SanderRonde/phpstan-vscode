@@ -1,5 +1,5 @@
 import { createPromise, withTimeout } from '../../../../shared/util';
-import type { HoverProviderCheckHooks } from '../hoverProvider';
+import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
 import type { _Connection } from 'vscode-languageserver';
@@ -20,7 +20,7 @@ export interface ClassConfig {
 	getWorkspaceFolder: () => string | null;
 	documents: DocumentManager;
 	hooks: {
-		hoverProvider: HoverProviderCheckHooks;
+		provider: ProviderCheckHooks;
 	};
 }
 
