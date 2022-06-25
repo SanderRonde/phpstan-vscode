@@ -11,7 +11,7 @@
 	"categories": [
 		"Linters"
 	],
-	"icon": "server/src/images/phpstan.png",
+	"icon": "static/images/phpstan.png",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/SanderRonde/phpstan-vscode"
@@ -147,7 +147,7 @@
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc",
 		"watch": "tsc --watch",
-		"build:main": "yarn --cwd server build:debug && yarn --cwd client build:debug",
+		"build:main": "yarn --cwd server build && yarn --cwd client build",
 		"build:debug:main": "yarn --cwd server build:debug && yarn --cwd client build:debug",
 		"build": "rimraf ./out && yarn run build:main",
 		"build:debug": "rimraf ./out && yarn run build:debug:main",

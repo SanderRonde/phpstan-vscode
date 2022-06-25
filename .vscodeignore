@@ -13,3 +13,10 @@ vsc-extension-quickstart.md
 php/vendor
 test/demo/vendor
 test/demo/reported.json
+node_modules
+client
+server
+shared
+php/composer.*
+test
+.github
