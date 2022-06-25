@@ -103,7 +103,7 @@ class TreeFetcher implements Rule {
 			'pos' => [
 				'start' => [
 					'line' => $lineNumber - 1,
-					'char' => $index
+					'char' => $index - 1
 				],
 				'end' => [
 					'line' => $node->getEndLine(),
