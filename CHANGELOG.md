@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.1.0
+
+-   Add support for type-on-hover in `for` and `foreach` loops
+
 ### 2.0.0
 
 -   Extension now provides a language server
