@@ -1,19 +1,39 @@
 <?php
 
 use PhpParser\Node;
+use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PHPStan\Analyser\Scope;
+use PHPStan\Node\InForeachNode;
 use PHPStan\Rules\Rule;
+use PHPStan\Type\ArrayType;
+use PHPStan\Type\ErrorType;
+use PHPStan\Type\Type;
 use PHPStan\Type\VerbosityLevel;
+
+class Logger {
+	public static function log(...$args) {
+		foreach ($args as $arg) {
+			print_r($arg);
+			print(" ");
+		}
+		print("\n");
+	}
+}
 
 class TreeFetcher implements Rule {
 	// Replaced at runtime with a tmp file
 	public const REPORTER_FILE = 'reported.json';
-	private static int $_startedAt;
+	public const DEV = true;
+	private array $_visitedNodes = [];
 
 	public function __construct() {
-		self::$_startedAt = time();
+		if (self::DEV) {
+			if (file_exists(self::REPORTER_FILE)) {
+				unlink(self::REPORTER_FILE);
+			}
+		}
 	}
 
 	public function getNodeType(): string {
@@ -30,18 +50,18 @@ class TreeFetcher implements Rule {
 	}
 
 	/** @var array<string, array<int, array<string, int>>> */
-	private static array $_varPositions;
+	private array $_varPositions;
 	/**
 	 * Unfortunately PHPStan doesn't have the char-in-line setting enabled for PHParser
 	 * so we can't use that. Instead we just get the source string and scan it for `$varName`
 	 * and hope someone doesn't mention the same variable in a comment in a line or something.
 	 */
-	private static function bestEffortFindPos(string $fileName, int $lineNumber, string $line, string $varName, bool $isVar): int {
-		self::$_varPositions[$fileName] ??= [];
-		self::$_varPositions[$fileName][$lineNumber] ??= [];
-		self::$_varPositions[$fileName][$lineNumber][$varName] ??= 0;
-		$positionOnLine = self::$_varPositions[$fileName][$lineNumber][$varName];
-		self::$_varPositions[$fileName][$lineNumber][$varName] = $positionOnLine + 1;
+	private function bestEffortFindPos(string $fileName, int $lineNumber, string $line, string $varName, bool $isVar): int {
+		$this->_varPositions[$fileName] ??= [];
+		$this->_varPositions[$fileName][$lineNumber] ??= [];
+		$this->_varPositions[$fileName][$lineNumber][$varName] ??= 0;
+		$positionOnLine = $this->_varPositions[$fileName][$lineNumber][$varName];
+		$this->_varPositions[$fileName][$lineNumber][$varName] = $positionOnLine + 1;
 
 		// Find the nth occurrence of this variable on given line
 		$offset = -1;
@@ -54,50 +74,29 @@ class TreeFetcher implements Rule {
 		return $offset === false ? 0 : $offset;
 	}
 
-	private static array $_accessedFileMap = [];
-	private static array $_disableWriteForFile = [];
-	private static function reportVariable(string $fileName, array $data) {
-		if (self::$_disableWriteForFile[$fileName] ?? null) {
-			return;
-		}
+	/**
+	 * Records a variable usage and its associated data
+	 */
+	private static function reportVariable(array $data) {
 		$reporterData = file_get_contents(self::REPORTER_FILE);
 		if ($reporterData === false) {
-			$reporterData = '{}';
+			$reporterData = '[]';
 		}
 		$parsedData = json_decode($reporterData, true);
-
-		if (!isset(self::$_accessedFileMap[$fileName])) {
-			// Not accessed before, prep for this file to be scanned
-			$parsedData[$fileName] ??= [];
-			$timestamp = $parsedData[$fileName]['timestamp'] ?? null;
-			if ($timestamp && $timestamp >= self::$_startedAt) {
-				self::$_disableWriteForFile[$fileName] = true;
-				return;
-			}
-			$parsedData[$fileName] = [
-				'timestamp' => self::$_startedAt,
-				'data' => []
-			];
-			self::$_accessedFileMap[$fileName] = true;
-		}
-
-		$parsedData[$fileName]['data'][] = $data;
-		file_put_contents(self::REPORTER_FILE, json_encode($parsedData));
+		$parsedData[] = $data;
+		$json = json_encode($parsedData, self::DEV ? JSON_PRETTY_PRINT : 0);
+		file_put_contents(self::REPORTER_FILE, $json);
 	}
 
-	public function processNode(Node $node, Scope $scope): array {
-		if (!($node instanceof Variable) && !($node instanceof PropertyFetch)) {
-			return [];
-		}
+	private function processNodeWithType(Node $node, Scope $scope, Type $type): void {
 		$isVar = $node instanceof Variable;
 
 		$lineNumber = $node->getStartLine();
 		$file = self::readFile($scope->getFile());
 		$line = explode("\n", $file)[$lineNumber - 1];
-		$index = self::bestEffortFindPos($scope->getFile(), $lineNumber, $line, $node->name, $isVar);
-		$type = $scope->getType($node);
+		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $node->name, $isVar);
 		$typeDescr = $type->describe(VerbosityLevel::precise());
-		self::reportVariable($scope->getFile(), [
+		self::reportVariable([
 			'typeDescription' => $typeDescr,
 			'name' => $isVar ? $node->name : $node->name->name,
 			'pos' => [
@@ -111,6 +110,40 @@ class TreeFetcher implements Rule {
 				]
 			]
 		]);
+	}
+
+	public function processNode(Node $node, Scope $scope): array {
+		$this->_visitedNodes[] = $node;
+		if ($node instanceof InForeachNode) {
+			$keyVar = $node->getOriginalNode()->keyVar;
+			$valueVar = $node->getOriginalNode()->valueVar;
+			$exprType = $scope->getType($node->getOriginalNode()->expr);
+			if (!($exprType instanceof ArrayType)) {
+				return [];
+			}
+			if ($keyVar) {
+				$this->processNodeWithType($keyVar, $scope, $exprType->getKeyType());
+			}
+			if ($valueVar) {
+				$this->processNodeWithType($valueVar, $scope, $exprType->getItemType());
+			}
+			return [];
+		}
+		if (!($node instanceof Variable) && !($node instanceof PropertyFetch)) {
+			return [];
+			InForeachNode::class;
+		}
+
+		$type = $scope->getType($node);
+		$parent = $node->getAttribute('parent');
+		if ($parent && $parent instanceof Assign) {
+			$type = $scope->getType($parent->expr);
+		}
+		if ($type instanceof ErrorType) {
+			return [];
+		}
+
+		$this->processNodeWithType($node, $scope, $type);
 		return [];
 	}
 }

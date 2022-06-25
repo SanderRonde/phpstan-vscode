@@ -198,7 +198,9 @@ export class HoverProviderCheckHooks {
 			await fs.readFile(TREE_FETCHER_FILE, {
 				encoding: 'utf-8',
 			})
-		).replace('reported.json', treeFetcherReportedFilePath);
+		)
+			.replace('reported.json', treeFetcherReportedFilePath)
+			.replace('DEV = true', 'DEV = false');
 		await fs.writeFile(treeFetcherTmpFilePath, treeFetcherContent, {
 			encoding: 'utf-8',
 		});
