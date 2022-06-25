@@ -24,3 +24,19 @@ Automatically performs static analysis of your code and highlights errors as you
 -   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
 -   `phpstan.timeout` - timeout after which the PHPStan process is killed in ms (defaults to 10000ms)
 -   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
+
+## Development
+
+First get your dev environment started by running `yarn dev`. Note that this expects you to have a few programs installed:
+
+-   `composer`
+-   `git`
+-   `yarn`
+
+This command installs all JS and PHP dependencies and ensures you're ready to go for writing a PHPStan extension.
+
+### Good-to-know commands
+
+The following command will run PHPStan on a demo file, this is handy for testing out changes to the PHPStan extension.
+
+`php/vendor/bin/phpstan analyze -c php/config.neon -a php/TreeFetcher.php --debug test/demo/DemoClass.php`
