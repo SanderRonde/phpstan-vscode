@@ -169,7 +169,7 @@ export class HoverProviderCheckHooks {
 			await fs.readFile(NEON_FILE, {
 				encoding: 'utf-8',
 			})
-		).replace('userfile.neon', userConfigFile);
+		).replace('../test/demo/phpstan.neon', userConfigFile);
 		const tmpNeonFilePath = path.join(tmpDir.path, 'config.neon');
 		await fs.writeFile(tmpNeonFilePath, neonFileContent, {
 			encoding: 'utf8',

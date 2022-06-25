@@ -1,6 +1,6 @@
 includes:
 	# Replaced with location of user file when used
-	- userfile.neon
+	- ../test/demo/phpstan.neon
 
 rules:
 	- TreeFetcher
