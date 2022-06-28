@@ -45,12 +45,6 @@ async function main(): Promise<void> {
 					change: TextDocumentSyncKind.Full,
 				},
 				hoverProvider: true,
-				completionProvider: {
-					completionItem: {
-						labelDetailsSupport: true,
-					},
-					triggerCharacters: ['$', '\\', '>', ':'],
-				},
 			},
 		};
 	});
