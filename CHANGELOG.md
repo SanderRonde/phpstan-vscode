@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.1.1
+
+-   Remove completion-capability that wasn't actually being provided (leading to a popup)
+
 ### 2.1.0
 
 -   Add support for type-on-hover in `for` and `foreach` loops
