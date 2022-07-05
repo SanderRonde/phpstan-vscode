@@ -24,7 +24,8 @@
 	"publisher": "SanderRonde",
 	"activationEvents": [
 		"onLanguage:php",
-		"onCommand:cmd.phpstan.scanFileForErrors"
+		"onCommand:cmd.phpstan.scanFileForErrors",
+		"onCommand:cmd.phpstan.reload"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -115,8 +116,16 @@
 				"title": "Scan current file for errors"
 			},
 			{
+				"command": "phpstan.reload",
+				"title": "Reload language server"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
+			},
+			{
+				"command": "cmd.phpstan.reload",
+				"title": "PHPStan: Reload language server"
 			}
 		],
 		"menus": {
@@ -126,7 +135,15 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.reload",
+					"when": "false"
+				},
+				{
 					"command": "cmd.phpstan.scanFileForErrors",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.reload",
 					"when": "true"
 				}
 			]

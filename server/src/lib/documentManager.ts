@@ -38,6 +38,8 @@ export class DocumentManager implements Disposable {
 						return this._onDocumentClose(data.file);
 					case 'check':
 						return this._onDocumentCheck(data.file);
+					case 'clear':
+						return this._watcher.clearData();
 				}
 			})
 		);

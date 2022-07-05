@@ -203,6 +203,10 @@ export class ProviderCheckHooks {
 		return this._reports.get(uri);
 	}
 
+	public clearReports(): void {
+		this._reports.clear();
+	}
+
 	public async transformArgs(
 		config: CheckConfig,
 		args: string[],

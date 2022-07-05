@@ -195,6 +195,11 @@ export class PHPStanCheckManager implements Disposable {
 		);
 	}
 
+	public clear(): void {
+		this.dispose();
+		this._config.hooks.provider.clearReports();
+	}
+
 	public dispose(): void {
 		this._operations.forEach((op) => op.check.dispose());
 		this._operations.clear();

@@ -38,6 +38,34 @@ export function registerListeners(
 	);
 
 	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.RELOAD,
+			async () => {
+				const doc = vscode.window.activeTextEditor?.document;
+				if (doc) {
+					if (doc.languageId !== 'php') {
+						showError('Only PHP files can be scanned for errors');
+						return;
+					}
+
+					await client.sendNotification(watcherNotification, {
+						operation: 'clear',
+					});
+					await client.sendNotification(watcherNotification, {
+						operation: 'check',
+						file: {
+							content: doc.getText(),
+							dirty: doc.isDirty,
+							uri: doc.uri.toString(),
+						},
+					});
+				}
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
 		client.onNotification(
 			commandNotification,
 			({ commandArgs, commandName }) => {

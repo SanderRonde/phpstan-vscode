@@ -106,6 +106,10 @@ export class Watcher implements Disposable {
 		});
 	}
 
+	public clearData(): void {
+		this._phpstan.clear();
+	}
+
 	public dispose(): void {
 		this._disposables.forEach((d) => void d.dispose());
 		[...this._debouncers.values()].forEach((d) => void d.dispose());
