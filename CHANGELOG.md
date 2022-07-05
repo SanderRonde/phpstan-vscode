@@ -2,6 +2,12 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.1.3
+
+-   Improve hover functionality
+    -   Also works if a parameter with the same name as a variable is defined on one line
+    -   Also works if a variable that starts with the same name is on the line (`$x` and `$xyz`)
+
 ### 2.1.2
 
 -   Add `reload` command
