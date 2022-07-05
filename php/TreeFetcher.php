@@ -4,6 +4,7 @@ use PhpParser\Node;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\Param;
 use PHPStan\Analyser\Scope;
 use PHPStan\Node\InForeachNode;
 use PHPStan\Rules\Rule;
@@ -64,11 +65,17 @@ class TreeFetcher implements Rule {
 		$this->_varPositions[$fileName][$lineNumber][$varName] = $positionOnLine + 1;
 
 		// Find the nth occurrence of this variable on given line
-		$offset = -1;
+		$offset = 0;
 		$remainingPositions = $positionOnLine + 1;
 		do {
 			$remainingPositions -= 1;
-			$offset = strpos($line, $isVar ? "$$varName" : $varName, $offset + 1);
+			$matches = [];
+			$name = $isVar ? '\$' . $varName : $varName;
+			preg_match("/${name}[^a-zA-Z0-9_]/", $line, $matches, PREG_OFFSET_CAPTURE, $offset);
+			$offset = false;
+			if ($matches[0]) {
+				$offset = $matches[0][1];
+			}
 		} while ($remainingPositions > 0);
 
 		return $offset === false ? 0 : $offset;
@@ -88,12 +95,17 @@ class TreeFetcher implements Rule {
 		file_put_contents(self::REPORTER_FILE, $json);
 	}
 
+	private function getLine(Scope $scope, int $lineNumber): string {
+		$file = self::readFile($scope->getFile());
+		$line = explode("\n", $file)[$lineNumber - 1];
+		return $line;
+	}
+
 	private function processNodeWithType(Node $node, Scope $scope, Type $type): void {
 		$isVar = $node instanceof Variable;
 
 		$lineNumber = $node->getStartLine();
-		$file = self::readFile($scope->getFile());
-		$line = explode("\n", $file)[$lineNumber - 1];
+		$line = $this->getLine($scope, $lineNumber);
 		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $node->name, $isVar);
 		$typeDescr = $type->describe(VerbosityLevel::precise());
 		self::reportVariable([
@@ -129,9 +141,17 @@ class TreeFetcher implements Rule {
 			}
 			return [];
 		}
+
+		if ($node instanceof Param) {
+			// Only mark these as instances of a variable in our fancy char-index-finder.
+			// PHPStan will somehow always see these are of type *ERROR*
+			$line = $this->getLine($scope, $node->getStartLine());
+			$this->bestEffortFindPos($scope->getFile(), $node->getStartLine(), $line, $node->var->name, true);
+			return [];
+		}
+
 		if (!($node instanceof Variable) && !($node instanceof PropertyFetch)) {
 			return [];
-			InForeachNode::class;
 		}
 
 		$type = $scope->getType($node);

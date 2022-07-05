@@ -21,8 +21,3 @@ class DemoClass {
 		return $initialStr;
 	}
 }
-
-
-
-$x = new X;
-print($x->y);
