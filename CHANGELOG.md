@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.1.4
+
+-   Release LSP functionality to the stable channel
+
 ### 2.1.3
 
 -   Improve hover functionality
