@@ -1,0 +1,16 @@
+{
+	"name": "phpstan-vscode-server",
+	"version": "1.0.0",
+	"main": "index.js",
+	"license": "MIT",
+	"dependencies": {
+		"tmp-promise": "^3.0.3",
+		"vscode-languageserver": "^8.0.1",
+		"vscode-languageserver-textdocument": "^1.0.5",
+		"vscode-uri": "^3.0.3"
+	},
+	"scripts": {
+		"build": "esbuild --minify --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode",
+		"build:debug": "esbuild --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode --sourcemap=inline"
+	}
+}

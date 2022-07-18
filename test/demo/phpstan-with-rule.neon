@@ -1,0 +1,9 @@
+parameters:
+	level: 9
+	scanDirectories:
+		- .
+	paths:
+		- .
+
+rules:
+	- TreeFetcher

@@ -11,3 +11,8 @@ node_modules
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+php/vendor
+test/demo/vendor
+test/demo/reported.json
+test/scratchpad
+**/reported.json

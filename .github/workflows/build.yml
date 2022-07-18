@@ -23,10 +23,10 @@ jobs:
                   node-version: 14
 
             - name: Install
-              run: yarn
+              run: yarn devYarn
 
             - name: Format
-              run: yarn prettier --check src/
+              run: yarn prettier --check client server
 
             - name: Lint
               run: yarn lint

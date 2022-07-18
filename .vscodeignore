@@ -10,3 +10,13 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 !src/images
+php/vendor
+test/demo/vendor
+test/demo/reported.json
+node_modules
+client
+server
+shared
+php/composer.*
+test
+.github
