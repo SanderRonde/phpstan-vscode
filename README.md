@@ -8,11 +8,24 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ## Extension Settings
 
+### Main Config
+
 -   `phpstan.configFile` (**required**) : path to the config file, either relative to `phpstan.rootDir` or absolute
 -   `phpstan.rootDir` - path to the root directory of your PHP project (defaults to `workspaceFolder`)
 -   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
 -   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. Unset by default.
+
+### Tuning
+
+-   `phpstan.options` - array of command line options to pass to PHPStan (defaults to `[]`)
+-   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
+-   `phpstan.timeout` - timeout for checking single files after which the PHPStan process is killed in ms (defaults to 10000ms)
+-   `phpstan.projectTimeout` - timeout for checking the entire project after which the PHPStan process is killed in ms (defaults to 60000ms)
+-   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
 -   `phpstan.paths` - path mapping that allows for rewriting paths. Can be useful when developing inside a docker container or over SSH. Unset by default.
+
+### Customization
+
 -   `phpstan.whenToRun` - when to perform the check (defaults to `onSave`). Can be one of:
 
     -   `onSave` - whenever the current file is saved
@@ -20,10 +33,7 @@ Automatically performs static analysis of your code and highlights errors as you
     -   `never` - never performs the check automatically, allowing you to use the `phpstan.scanFileForErrors` command to check the current file for errors
 
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
--   `phpstan.options` - array of command line options to pass to PHPStan (defaults to `[]`)
--   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
--   `phpstan.timeout` - timeout after which the PHPStan process is killed in ms (defaults to 10000ms)
--   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
+-   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `true`)
 
 ## Development
 
