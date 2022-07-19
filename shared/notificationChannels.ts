@@ -6,6 +6,7 @@ export enum NotificationChannel {
 	WATCHER = 'phpstan.watcher',
 	COMMAND = 'phpstan.command',
 	READY = 'phpstan.ready',
+	ERROR = 'phpstan.error',
 }
 
 export interface WatcherNotificationFileData {
@@ -18,6 +19,7 @@ export type WatcherNotificationType =
 	| {
 			operation: 'open';
 			file: WatcherNotificationFileData;
+			check: boolean;
 	  }
 	| {
 			operation: 'change';
@@ -40,6 +42,9 @@ export type WatcherNotificationType =
 			file: WatcherNotificationFileData;
 	  }
 	| {
+			operation: 'checkProject';
+	  }
+	| {
 			operation: 'clear';
 	  };
 
@@ -52,11 +57,29 @@ export interface LogNotificationType {
 	data: string[];
 }
 
+export interface StatusBarProgress {
+	percentage: number;
+	total: number;
+	done: number;
+}
+
 export interface StatusBarNotificationType {
 	opId: number;
+	progress?: StatusBarProgress;
 	result?: OperationStatus;
 }
 
 export interface ReadyNotificationType {
 	ready: boolean;
+}
+
+export interface PHPStanError {
+	message: string;
+	lineNumber: number;
+	file: string;
+}
+
+export interface ErrorNotificationType {
+	diagnostics: Record<string, PHPStanError[]>;
+	isProjectCheck: boolean;
 }

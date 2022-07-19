@@ -39,6 +39,18 @@ export function registerListeners(
 
 	context.subscriptions.push(
 		autoRegisterCommand(
+			Commands.SCAN_PROJECT,
+			async () => {
+				await client.sendNotification(watcherNotification, {
+					operation: 'checkProject',
+				});
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
 			Commands.RELOAD,
 			async () => {
 				const doc = vscode.window.activeTextEditor?.document;

@@ -1,5 +1,6 @@
 import type {
 	CommandNotificationType,
+	ErrorNotificationType,
 	LogNotificationType,
 	ReadyNotificationType,
 	StatusBarNotificationType,
@@ -25,4 +26,8 @@ export const statusBarNotification =
 
 export const readyNotification = new NotificationType<ReadyNotificationType>(
 	NotificationChannel.READY
+);
+
+export const errorNotification = new NotificationType<ErrorNotificationType>(
+	NotificationChannel.ERROR
 );

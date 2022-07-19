@@ -1,6 +1,7 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { watcherNotification } from './notificationChannels';
+import { assertUnreachable } from '../../../shared/util';
 import type { Debouncer } from '../../../shared/util';
 import type { Watcher } from './watcher';
 
@@ -29,7 +30,7 @@ export class DocumentManager implements Disposable {
 					case 'change':
 						return this._onDocumentChange(data.file);
 					case 'open':
-						return this._onDocumentOpen(data.file);
+						return this._onDocumentOpen(data.file, data.check);
 					case 'save':
 						return this._onDocumentSave(data.file);
 					case 'setActive':
@@ -40,6 +41,10 @@ export class DocumentManager implements Disposable {
 						return this._onDocumentCheck(data.file);
 					case 'clear':
 						return this._watcher.clearData();
+					case 'checkProject':
+						return this._watcher.onScanProject();
+					default:
+						assertUnreachable(data);
 				}
 			})
 		);
@@ -73,8 +78,16 @@ export class DocumentManager implements Disposable {
 		await this._watcher.onDocumentActive(e);
 	}
 
-	private _onDocumentOpen(e: WatcherNotificationFileData): void {
+	private async _onDocumentOpen(
+		e: WatcherNotificationFileData,
+		check: boolean
+	): Promise<void> {
 		this._documents.set(e.uri, e);
+		if (check) {
+			await this._watcher.onDocumentCheck(e);
+		} else {
+			await this._watcher.onDocumentOpen(e);
+		}
 	}
 
 	private async _onDocumentClose(
