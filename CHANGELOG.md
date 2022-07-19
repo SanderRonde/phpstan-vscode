@@ -2,6 +2,13 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.0
+
+-   Allow scanning of entire project (thanks to [edafonseca](https://github.com/SanderRonde/phpstan-vscode/issues/9) for the idea)
+-   Move error-managing to the LSP-client, allows for setting errors on unopened files
+-   Re-apply errors when files are closed and re-opened
+-   Show progress (on by default), can be turned off with `phpstan.showProgress`
+
 ### 2.1.4
 
 -   Release LSP functionality to the stable channel
