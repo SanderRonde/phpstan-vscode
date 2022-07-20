@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.1
+
+-   Last release was broken, took it offline to investigate
+
 ### 2.2.0
 
 -   Allow scanning of entire project (thanks to [edafonseca](https://github.com/SanderRonde/phpstan-vscode/issues/9) for the idea)
