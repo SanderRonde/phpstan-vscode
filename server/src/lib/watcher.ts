@@ -90,23 +90,11 @@ export class Watcher implements Disposable {
 		}
 	}
 
-	public async onDocumentOpen(e: WatcherNotificationFileData): Promise<void> {
-		await log(
-			this._connection,
-			'Document opened, checking and re-applying errors'
-		);
-		await this._phpstan.checkFile(this._toPartialDocument(e), true, {
-			applyErrorsOnAlreadyDone: true,
-		});
-	}
-
 	public async onDocumentCheck(
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		await log(this._connection, 'Force checking document');
-		await this._phpstan.checkFile(this._toPartialDocument(e), true, {
-			force: true,
-		});
+		await this._phpstan.checkFile(this._toPartialDocument(e), true);
 	}
 
 	public async onDocumentClose(
@@ -116,10 +104,6 @@ export class Watcher implements Disposable {
 			uri: e.uri,
 			diagnostics: [],
 		});
-	}
-
-	public async onScanProject(): Promise<void> {
-		await this._phpstan.checkProject();
 	}
 
 	public clearData(): void {

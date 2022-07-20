@@ -1,11 +1,10 @@
-import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
 import { EXTENSION_ID } from '../../../../shared/constants';
+import type { Diagnostic } from 'vscode-languageserver';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
-import type { ProgressListener } from './check';
 import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
 import type { ClassConfig } from './manager';
@@ -67,15 +66,8 @@ export class PHPStanRunner implements Disposable {
 
 	private async _getArgs(
 		config: CheckConfig,
-		{
-			doc,
-			filePath,
-			progress,
-		}: {
-			filePath?: string;
-			doc?: PartialDocument;
-			progress?: boolean;
-		}
+		filePath: string,
+		doc: PartialDocument
 	): Promise<string[]> {
 		const args = [...config.initialArgs, 'analyse'];
 		if (config.remoteConfigFile) {
@@ -86,27 +78,20 @@ export class PHPStanRunner implements Disposable {
 
 		args.push(
 			'--error-format=raw',
+			'--no-progress',
 			'--no-interaction',
-			`--memory-limit=${config.memoryLimit}`
+			`--memory-limit=${config.memoryLimit}`,
+			...config.args,
+			this._escapeFilePath(filePath)
 		);
-		if (!progress) {
-			args.push('--no-progress');
-		}
-		args.push(...config.args);
-		if (filePath) {
-			args.push(this._escapeFilePath(filePath));
-		}
 
-		if (filePath && doc) {
-			return await this._config.hooks.provider.transformArgs(
-				config,
-				args,
-				doc.uri,
-				filePath,
-				this._disposables
-			);
-		}
-		return args;
+		return await this._config.hooks.provider.transformArgs(
+			config,
+			args,
+			doc.uri,
+			filePath,
+			this._disposables
+		);
 	}
 
 	private async _spawnProcess(
@@ -137,26 +122,11 @@ export class PHPStanRunner implements Disposable {
 
 	private _createOutputCapturer(
 		proc: ChildProcessWithoutNullStreams,
-		channel: 'stdout' | 'stderr',
-		onProgress?: ProgressListener
+		channel: 'stdout' | 'stderr'
 	): () => string {
 		let data: string = '';
 		proc[channel].on('data', (dataPart: string | Buffer) => {
-			const str = dataPart.toString('utf-8');
-			const progressMatch = onProgress
-				? [...str.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g)]
-				: [];
-			if (progressMatch.length) {
-				const [, done, total, percentage] =
-					progressMatch[progressMatch.length - 1];
-				onProgress!({
-					done: parseInt(done, 10),
-					total: parseInt(total, 10),
-					percentage: parseInt(percentage, 10),
-				});
-				return;
-			}
-			data += str;
+			data += dataPart.toString('utf-8');
 		});
 		return () => data;
 	}
@@ -164,28 +134,13 @@ export class PHPStanRunner implements Disposable {
 	private async _getProcessOutput(
 		config: CheckConfig,
 		args: string[],
-		{
-			doc,
-			onProgress,
-		}: {
-			doc?: PartialDocument;
-			onProgress?: ProgressListener;
-		}
+		doc: PartialDocument
 	): Promise<ReturnResult<string>> {
 		const phpstan = await this._spawnProcess(config, args);
 		this._process = phpstan;
 
-		const getData = this._createOutputCapturer(
-			phpstan,
-			'stdout',
-			onProgress
-		);
-		// Not sure why progress is pumped into stderr but oh well
-		const getErr = this._createOutputCapturer(
-			phpstan,
-			'stderr',
-			onProgress
-		);
+		const getData = this._createOutputCapturer(phpstan, 'stdout');
+		const getErr = this._createOutputCapturer(phpstan, 'stderr');
 
 		const getLogData = (): string[] => [
 			' err=',
@@ -221,7 +176,7 @@ export class PHPStanRunner implements Disposable {
 					return;
 				}
 
-				if (getErr().trim()) {
+				if (getErr()) {
 					onError();
 					resolve(ReturnResult.error());
 					return;
@@ -254,9 +209,7 @@ export class PHPStanRunner implements Disposable {
 					return;
 				}
 
-				if (doc) {
-					await this._config.hooks.provider.onCheckDone(doc.uri);
-				}
+				await this._config.hooks.provider.onCheckDone(doc.uri);
 
 				resolve(ReturnResult.success(getData()));
 			});
@@ -264,9 +217,8 @@ export class PHPStanRunner implements Disposable {
 	}
 
 	private async _check(
-		doc: PartialDocument,
-		onProgress?: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+		doc: PartialDocument
+	): Promise<ReturnResult<Diagnostic[]>> {
 		// Get config
 		const config = await this._configManager.collectConfiguration();
 		if (!config) {
@@ -285,68 +237,21 @@ export class PHPStanRunner implements Disposable {
 			return filePath.cast();
 		}
 
-		const args = await this._getArgs(config, {
-			filePath: filePath.value,
-			doc,
-			progress: !!onProgress,
-		});
+		const args = await this._getArgs(config, filePath.value, doc);
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		const result = await this._getProcessOutput(config, args, {
-			doc,
-			onProgress,
-		});
+		const result = await this._getProcessOutput(config, args, doc);
 
 		return result.chain((output) => {
-			return {
-				[filePath.value]:
-					new OutputParser(output).parse()[filePath.value] ?? [],
-			};
-		});
-	}
-
-	private async _checkProject(
-		onProgress: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		// Get config
-		const config = await this._configManager.collectConfiguration();
-		if (!config) {
-			return ReturnResult.error();
-		}
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-
-		// Get args
-		const args = await this._getArgs(config, {
-			progress: true,
-		});
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-		const result = await this._getProcessOutput(config, args, {
-			onProgress,
-		});
-
-		return result.chain((output) => {
-			return new OutputParser(output).parse();
+			return new OutputParser(output, filePath.value, doc).parse();
 		});
 	}
 
 	public async check(
-		file: PartialDocument,
-		onProgress?: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		const errors = await this._check(file, onProgress);
-		this.dispose();
-		return errors;
-	}
-
-	public async checkProject(
-		onProgress: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		const errors = await this._checkProject(onProgress);
+		file: PartialDocument
+	): Promise<ReturnResult<Diagnostic[]>> {
+		const errors = await this._check(file);
 		this.dispose();
 		return errors;
 	}

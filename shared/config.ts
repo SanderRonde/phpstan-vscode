@@ -16,10 +16,8 @@ export interface PHPStanConfig {
 	memoryLimit: string;
 	whenToRun: WhenToRun;
 	timeout: number;
-	projectTimeout: number;
 	suppressTimeoutMessage: boolean;
 	paths: Record<string, string>;
-	showProgress: boolean;
 }
 
 export type ConfigSettings = {
