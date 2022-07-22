@@ -71,12 +71,13 @@ class TreeFetcher implements Rule {
 			$remainingPositions -= 1;
 			$matches = [];
 			$name = $isVar ? '\$' . $varName : $varName;
-			preg_match("/${name}[^a-zA-Z0-9_]/", $line, $matches, PREG_OFFSET_CAPTURE, $offset);
-			$offset = false;
-			if ($matches[0]) {
-				$offset = $matches[0][1];
+			preg_match("/${name}[^a-zA-Z0-9_]/", $line, $matches, PREG_OFFSET_CAPTURE, $offset + 1);
+			if (!$matches[0]) {
+				$offset = false;
+				break;
 			}
-		} while ($remainingPositions > 0);
+			$offset = $matches[0][1];
+		} while ($remainingPositions > 0 && $offset !== false);
 
 		return $offset === false ? 0 : $offset;
 	}
