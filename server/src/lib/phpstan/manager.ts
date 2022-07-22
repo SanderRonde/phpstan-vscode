@@ -3,6 +3,7 @@ import { createPromise, withTimeout } from '../../../../shared/util';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
+import type { WorkspaceFolderGetter } from '../../server';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
 import type { PartialDocument } from './runner';
@@ -17,7 +18,7 @@ import { log } from '../log';
 export interface ClassConfig {
 	statusBar: StatusBar;
 	connection: _Connection;
-	getWorkspaceFolder: () => string | null;
+	getWorkspaceFolder: WorkspaceFolderGetter;
 	documents: DocumentManager;
 	hooks: {
 		provider: ProviderCheckHooks;
@@ -40,11 +41,14 @@ export class PHPStanCheckManager implements Disposable {
 	public constructor(private readonly _config: ClassConfig) {}
 
 	private async _onTimeout(): Promise<void> {
-		const config = await getConfiguration(this._config.connection);
-		if (!config.phpstan.suppressTimeoutMessage) {
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
+		if (!config.suppressTimeoutMessage) {
 			showError(
 				this._config.connection,
-				`PHPStan check timed out after ${config.phpstan.timeout}ms`,
+				`PHPStan check timed out after ${config.timeout}ms`,
 				[
 					{
 						title: 'Adjust timeout',
@@ -71,7 +75,7 @@ export class PHPStanCheckManager implements Disposable {
 		}
 		void log(
 			this._config.connection,
-			`PHPStan check timed out after ${config.phpstan.timeout}ms`
+			`PHPStan check timed out after ${config.timeout}ms`
 		);
 	}
 
@@ -110,13 +114,16 @@ export class PHPStanCheckManager implements Disposable {
 		});
 
 		// Do check
-		const config = await getConfiguration(this._config.connection);
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
 		const runningCheck = withTimeout<
 			ReturnResult<Record<string, PHPStanError[]>>,
 			ReturnResult<Record<string, PHPStanError[]>>
 		>({
 			promise: check.check(applyErrors, e),
-			timeout: config.phpstan.timeout,
+			timeout: config.timeout,
 			onKill: () => {
 				check.dispose();
 				void this._onTimeout();

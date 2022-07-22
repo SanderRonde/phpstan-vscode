@@ -42,8 +42,12 @@ export class PHPStanCheck implements Disposable {
 		const errorManager = new PHPStanCheckErrorManager(this._config);
 		this._disposables.push(runner);
 
-		const useProgress = (await getConfiguration(this._config.connection))
-			.phpstan.showProgress;
+		const useProgress = (
+			await getConfiguration(
+				this._config.connection,
+				this._config.getWorkspaceFolder
+			)
+		).showProgress;
 		const result = await (async () => {
 			if (!e) {
 				return await runner.checkProject(this._onProgress.bind(this));

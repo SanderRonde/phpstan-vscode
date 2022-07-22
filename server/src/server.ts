@@ -17,6 +17,8 @@ import { providerEnabled } from './lib/providerUtil';
 import { URI } from 'vscode-uri';
 import { log } from './lib/log';
 
+export type WorkspaceFolderGetter = () => URI | null;
+
 async function main(): Promise<void> {
 	// Creates the LSP connection
 	const connection = createConnection(ProposedFeatures.all);
@@ -31,12 +33,12 @@ async function main(): Promise<void> {
 	});
 
 	// The workspace folder this server is operating on
-	let workspaceFolder: string | null;
-	const getWorkspaceFolder = (): string | null => workspaceFolder;
+	let workspaceFolder: URI | null;
+	const getWorkspaceFolder = (): URI | null => workspaceFolder;
 
 	connection.onInitialize((params) => {
 		const uri = params.workspaceFolders?.[0].uri;
-		workspaceFolder = uri ? URI.parse(uri).fsPath : null;
+		workspaceFolder = uri ? URI.parse(uri) : null;
 		return {
 			capabilities: {
 				textDocumentSync: {
@@ -60,6 +62,7 @@ async function main(): Promise<void> {
 	const providersEnabled = providerEnabled(
 		connection,
 		onConnectionInitialized,
+		getWorkspaceFolder,
 		disposables
 	);
 	const providerArgs = {

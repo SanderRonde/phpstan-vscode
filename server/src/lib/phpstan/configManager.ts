@@ -27,7 +27,12 @@ export class ConfigurationManager {
 		filePath: string
 	): Promise<string> {
 		const pathMapping =
-			(await getConfiguration(config.connection)).phpstan.paths ?? {};
+			(
+				await getConfiguration(
+					config.connection,
+					config.getWorkspaceFolder
+				)
+			).paths ?? {};
 		if (Object.keys(pathMapping).length === 0) {
 			return filePath;
 		}
@@ -72,12 +77,15 @@ export class ConfigurationManager {
 
 	private async _getCwd(): Promise<string | null> {
 		const workspaceRoot = this._config.getWorkspaceFolder();
-		const extensionConfig = await getConfiguration(this._config.connection);
+		const extensionConfig = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
 		const cwd =
 			this._getAbsolutePath(
-				extensionConfig.phpstan.rootDir,
-				workspaceRoot ?? undefined
-			) || workspaceRoot;
+				extensionConfig.rootDir,
+				workspaceRoot?.fsPath ?? undefined
+			) || workspaceRoot?.fsPath;
 
 		if (cwd && !(await this._fileIfExists(cwd))) {
 			await showErrorOnce(
@@ -92,7 +100,7 @@ export class ConfigurationManager {
 				this._config.connection,
 				'PHPStan: failed to get CWD',
 				'workspaceRoot=',
-				workspaceRoot ?? 'undefined'
+				workspaceRoot?.fsPath ?? 'undefined'
 			);
 			return null;
 		}
@@ -103,13 +111,16 @@ export class ConfigurationManager {
 	private async _getBinConfig(
 		cwd: string
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
-		const extensionConfig = await getConfiguration(this._config.connection);
+		const extensionConfig = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
 		const defaultBinPath = this._getAbsolutePath(
-			extensionConfig.phpstan.binPath,
+			extensionConfig.binPath,
 			cwd
 		);
 		const binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
-		const binCommand = extensionConfig.phpstan.binCommand;
+		const binCommand = extensionConfig.binCommand;
 
 		if (!binPath && (!binCommand || binCommand.length === 0)) {
 			// No binary and no command
@@ -148,9 +159,12 @@ export class ConfigurationManager {
 	}
 
 	private async _getConfigFile(cwd: string): Promise<string | null> {
-		const extensionConfig = await getConfiguration(this._config.connection);
+		const extensionConfig = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
 		const defaultConfigFile = this._getAbsolutePath(
-			extensionConfig.phpstan.configFile,
+			extensionConfig.configFile,
 			cwd
 		);
 		if (
@@ -172,7 +186,10 @@ export class ConfigurationManager {
 			return this.__config;
 		}
 		// Settings
-		const extensionConfig = await getConfiguration(this._config.connection);
+		const extensionConfig = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
 
 		const cwd = await this._getCwd();
 		if (!cwd) {
@@ -196,8 +213,8 @@ export class ConfigurationManager {
 						configFile
 				  )
 				: null,
-			args: extensionConfig.phpstan.options ?? [],
-			memoryLimit: extensionConfig.phpstan.memoryLimit,
+			args: extensionConfig.options ?? [],
+			memoryLimit: extensionConfig.memoryLimit,
 			...binConfig,
 		};
 		this.__config = config;

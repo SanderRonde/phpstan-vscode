@@ -10,6 +10,7 @@ import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
 import type { PHPStanCheckManager } from '../lib/phpstan/manager';
 import type { CheckConfig } from '../lib/phpstan/configManager';
 import type { ProviderEnabled } from '../lib/providerUtil';
+import type { WorkspaceFolderGetter } from '../server';
 import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
 import * as tmp from 'tmp-promise';
@@ -40,7 +41,7 @@ export interface ProviderArgs {
 	connection: _Connection;
 	hooks: ProviderCheckHooks;
 	phpstan: PHPStanCheckManager;
-	getWorkspaceFolder: () => string | null;
+	getWorkspaceFolder: WorkspaceFolderGetter;
 	enabled: ProviderEnabled;
 }
 

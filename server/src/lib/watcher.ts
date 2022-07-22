@@ -3,6 +3,7 @@ import type { Disposable, _Connection } from 'vscode-languageserver';
 import type { PHPStanCheckManager } from './phpstan/manager';
 import type { PartialDocument } from './phpstan/runner';
 import { createDebouncer } from '../../../shared/util';
+import type { WorkspaceFolderGetter } from '../server';
 import type { Debouncer } from '../../../shared/util';
 import { WhenToRun } from '../../../shared/config';
 import { getConfiguration } from './config';
@@ -19,10 +20,12 @@ export class Watcher implements Disposable {
 		connection,
 		phpstan: checkManager,
 		onConnectionInitialized,
+		getWorkspaceFolder,
 	}: {
 		connection: _Connection;
 		phpstan: PHPStanCheckManager;
 		onConnectionInitialized: Promise<void>;
+		getWorkspaceFolder: WorkspaceFolderGetter;
 	}) {
 		this._connection = connection;
 		this._phpstan = checkManager;
@@ -34,14 +37,15 @@ export class Watcher implements Disposable {
 						this._connection,
 						'WhenToRun setting changed, re-registering handlers'
 					);
-					this._whenToRun = getConfiguration(this._connection).then(
-						(config) => config.phpstan.whenToRun
-					);
+					this._whenToRun = getConfiguration(
+						this._connection,
+						getWorkspaceFolder
+					).then((config) => config.whenToRun);
 				})
 			);
 
-			return getConfiguration(this._connection).then(
-				(config) => config.phpstan.whenToRun
+			return getConfiguration(this._connection, getWorkspaceFolder).then(
+				(config) => config.whenToRun
 			);
 		});
 	}
