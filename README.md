@@ -33,7 +33,7 @@ Automatically performs static analysis of your code and highlights errors as you
     -   `never` - never performs the check automatically, allowing you to use the `phpstan.scanFileForErrors` command to check the current file for errors
 
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
--   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `true`)
+-   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 
 ## Development
 

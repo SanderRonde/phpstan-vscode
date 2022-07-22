@@ -116,7 +116,7 @@
 					"phpstan.showProgress": {
 						"type": "boolean",
 						"description": "Show checking progress for single-file checks",
-						"default": true
+						"default": false
 					}
 				}
 			}
