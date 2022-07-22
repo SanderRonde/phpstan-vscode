@@ -8,6 +8,7 @@ import { DocumentManager } from './lib/documentManager';
 import { registerConfigListeners } from './lib/config';
 import { log, registerLogMessager } from './lib/log';
 import { registerListeners } from './lib/commands';
+import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
 import { StatusBar } from './lib/statusBar';
 import { workspace } from 'vscode';
@@ -64,11 +65,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const client = await startLanguageServer(context);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
+	const errorManager = new ErrorManager(client);
 
 	registerListeners(context, client);
 	registerConfigListeners();
 	registerLogMessager(context, client);
-	context.subscriptions.push(statusBar, watcher);
+	context.subscriptions.push(statusBar, watcher, errorManager);
 
 	context.subscriptions.push(
 		client.onNotification(readyNotification, ({ ready }) => {

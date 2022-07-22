@@ -25,6 +25,7 @@
 	"activationEvents": [
 		"onLanguage:php",
 		"onCommand:cmd.phpstan.scanFileForErrors",
+		"onCommand:cmd.phpstan.scanProjectForErrors",
 		"onCommand:cmd.phpstan.reload"
 	],
 	"main": "./out/extension.js",
@@ -99,13 +100,23 @@
 					},
 					"phpstan.timeout": {
 						"type": "number",
-						"description": "Timeout in milliseconds. After this time the checking process is canceled",
+						"description": "Timeout in milliseconds for a single file check. After this time the checking process is canceled",
 						"default": 10000
+					},
+					"phpstan.projectTimeout": {
+						"type": "number",
+						"description": "Timeout in milliseconds for a full project check. After this time the checking process is canceled",
+						"default": 60000
 					},
 					"phpstan.suppressTimeoutMessage": {
 						"type": "boolean",
 						"description": "Stop showing an error when the operation times out",
 						"default": false
+					},
+					"phpstan.showProgress": {
+						"type": "boolean",
+						"description": "Show checking progress for single-file checks",
+						"default": true
 					}
 				}
 			}
@@ -116,12 +127,20 @@
 				"title": "Scan current file for errors"
 			},
 			{
+				"command": "phpstan.scanProjectForErrors",
+				"title": "Scan project for errors"
+			},
+			{
 				"command": "phpstan.reload",
 				"title": "Reload language server"
 			},
 			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
+			},
+			{
+				"command": "cmd.phpstan.scanProjectForErrors",
+				"title": "PHPStan: Scan project for errors"
 			},
 			{
 				"command": "cmd.phpstan.reload",
@@ -135,11 +154,19 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.scanProjectForErrors",
+					"when": "false"
+				},
+				{
 					"command": "phpstan.reload",
 					"when": "false"
 				},
 				{
 					"command": "cmd.phpstan.scanFileForErrors",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.scanProjectForErrors",
 					"when": "true"
 				},
 				{

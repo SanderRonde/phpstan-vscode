@@ -1,3 +1,4 @@
+import type { StatusBarProgress } from '../../../shared/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { statusBarNotification } from './notificationChannels';
 import { OperationStatus } from '../../../shared/statusBar';
@@ -24,16 +25,15 @@ export class StatusBar implements Disposable {
 			(lastResult: OperationStatus) => this._hideStatusBar(lastResult)
 		);
 		context.subscriptions.push(
-			client.onNotification(
-				statusBarNotification,
-				(params: { opId: number; result?: OperationStatus }) => {
-					if (!params.result) {
-						this.startOperation(params.opId);
-					} else {
-						this.finishOperation(params.opId, params.result);
-					}
+			client.onNotification(statusBarNotification, (params) => {
+				if (params.progress) {
+					this.operationProgress(params.progress);
+				} else if (!params.result) {
+					this.startOperation(params.opId);
+				} else {
+					this.finishOperation(params.opId, params.result);
 				}
-			)
+			})
 		);
 	}
 
@@ -72,6 +72,11 @@ export class StatusBar implements Disposable {
 
 	private startOperation(operationId: number): void {
 		this._opTracker.startOperation(operationId);
+	}
+
+	private operationProgress(progress: StatusBarProgress): void {
+		this._statusBar.text = `PHPStan checking project ${progress.done}/${progress.total} - ${progress.percentage}% $(loading~spin)`;
+		this._statusBar.show();
 	}
 
 	private finishOperation(

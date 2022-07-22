@@ -61,13 +61,17 @@ export class DocumentManager implements Disposable {
 		});
 	}
 
-	private async _onDocumentOpen(e: vscode.TextDocument): Promise<void> {
+	private async _onDocumentOpen(
+		e: vscode.TextDocument,
+		check: boolean
+	): Promise<void> {
 		if (!this._shouldSyncDocument(e)) {
 			return;
 		}
 		await this._client.sendNotification(watcherNotification, {
 			operation: 'open',
 			file: this._toSendData(e),
+			check,
 		});
 	}
 
@@ -84,7 +88,7 @@ export class DocumentManager implements Disposable {
 	public async watch(): Promise<void> {
 		await Promise.all(
 			vscode.workspace.textDocuments.map((doc) => {
-				return this._onDocumentOpen(doc);
+				return this._onDocumentOpen(doc, false);
 			})
 		);
 
@@ -117,6 +121,12 @@ export class DocumentManager implements Disposable {
 		this._disposables.push(
 			vscode.workspace.onDidCloseTextDocument((e) => {
 				void this._onDocumentClose(e);
+			})
+		);
+
+		this._disposables.push(
+			vscode.workspace.onDidCloseTextDocument((e) => {
+				void this._onDocumentOpen(e, true);
 			})
 		);
 
