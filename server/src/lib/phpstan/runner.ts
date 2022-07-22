@@ -18,7 +18,10 @@ import { URI } from 'vscode-uri';
 import { log } from '../log';
 import * as os from 'os';
 
-export type PartialDocument = Pick<TextDocument, 'uri' | 'getText'> & {
+export type PartialDocument = Pick<
+	TextDocument,
+	'uri' | 'getText' | 'languageId'
+> & {
 	dirty: boolean;
 };
 

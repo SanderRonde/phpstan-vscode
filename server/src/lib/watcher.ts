@@ -53,6 +53,7 @@ export class Watcher implements Disposable {
 			getText: () => e.content,
 			uri: e.uri,
 			dirty: e.dirty,
+			languageId: e.languageId,
 		};
 	}
 

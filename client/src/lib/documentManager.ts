@@ -28,6 +28,7 @@ export class DocumentManager implements Disposable {
 			uri: e.uri.toString(),
 			dirty: e.isDirty,
 			content: e.getText(),
+			languageId: e.languageId,
 		};
 	}
 

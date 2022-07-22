@@ -29,6 +29,7 @@ export function registerListeners(
 							content: doc.getText(),
 							dirty: doc.isDirty,
 							uri: doc.uri.toString(),
+							languageId: doc.languageId,
 						},
 					});
 				}
@@ -69,6 +70,7 @@ export function registerListeners(
 							content: doc.getText(),
 							dirty: doc.isDirty,
 							uri: doc.uri.toString(),
+							languageId: doc.languageId,
 						},
 					});
 				}

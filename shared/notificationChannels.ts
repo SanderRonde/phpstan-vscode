@@ -13,6 +13,7 @@ export interface WatcherNotificationFileData {
 	uri: string;
 	dirty: boolean;
 	content: string;
+	languageId: string;
 }
 
 export type WatcherNotificationType =

@@ -196,6 +196,10 @@ export class PHPStanCheckManager implements Disposable {
 			force?: boolean;
 		} = {}
 	): Promise<void> {
+		if (e.languageId !== 'php') {
+			return;
+		}
+
 		// Kill current running instances for this file
 		const operation = this._operations.get(e.uri);
 		if (operation) {
@@ -258,6 +262,7 @@ export class PHPStanCheckManager implements Disposable {
 				getText: () => file.content,
 				uri: file.uri,
 				dirty: file.dirty,
+				languageId: file.languageId,
 			},
 			applyErrors
 		);
