@@ -159,6 +159,13 @@ export class PHPStanRunner implements Disposable {
 				});
 				return;
 			}
+
+			// Ignore control characters in output
+			// eslint-disable-next-line no-control-regex
+			const ansiRegex = /\x1b\[(\d+)/g;
+			if (ansiRegex.test(str)) {
+				return;
+			}
 			data += str;
 		});
 		return () => data;
