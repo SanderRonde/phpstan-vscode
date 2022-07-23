@@ -168,7 +168,7 @@
 		"keybindings": []
 	},
 	"watch": {
-		"build:debug": {
+		"build-debug": {
 			"patterns": [
 				"client",
 				"server"
@@ -181,15 +181,18 @@
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc",
 		"watch": "tsc --watch",
+		"build": "rimraf ./out && yarn run build:$VARIANT",
+		"build:": "yarn run build:main",
+		"build:debug": "yarn run build-debug:main",
 		"build:main": "yarn --cwd server build && yarn --cwd client build",
-		"build:debug:main": "yarn --cwd server build:debug && yarn --cwd client build:debug",
-		"build": "rimraf ./out && yarn run build:main",
-		"build:debug": "rimraf ./out && yarn run build:debug:main",
+		"build-debug": "rimraf ./out && yarn run build-debug:main",
+		"build-debug:main": "yarn --cwd server build-debug && yarn --cwd client build-debug",
+		"build-debug:attach-server": "rimraf ./out && yarn --cwd server build-debug:attac-server && yarn --cwd client build-debug",
 		"lint": "eslint client server --ext ts",
 		"format-staged": "(git diff --ignore-submodules --quiet && yarn format) || pretty-quick client server",
 		"format": "prettier --write client server",
-		"package": "yarn run prepack && yarn vsce package",
-		"package-dev": "yarn prepush && yarn run build:debug && yarn vsce package",
+		"package": "yarn vsce package",
+		"package-dev": "VARIANT=\"debug\" yarn vsce package",
 		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --prefix PHPStan && prettier --write package.json",
 		"prepush": "yarn generate-package && yarn format-staged && yarn lint --fix && yarn compile",
 		"devYarn": "yarn && yarn --cwd client && yarn --cwd server",

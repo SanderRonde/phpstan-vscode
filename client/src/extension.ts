@@ -7,11 +7,11 @@ import { EXTENSION_PREFIX, log, registerLogMessager } from './lib/log';
 import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
 import { registerConfigListeners } from './lib/config';
-import { log, registerLogMessager } from './lib/log';
 import { registerListeners } from './lib/commands';
 import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
 import { StatusBar } from './lib/statusBar';
+import { INSPECT_BRK } from './lib/dev';
 import { workspace } from 'vscode';
 import * as path from 'path';
 
@@ -20,6 +20,10 @@ async function startLanguageServer(
 	context: ExtensionContext
 ): Promise<LanguageClient> {
 	const serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
+	const argv = ['--nolazy', '--inspect=6009'];
+	if (INSPECT_BRK) {
+		argv.push('--inspect-brk');
+	}
 	const serverOptions: ServerOptions = {
 		run: {
 			module: serverModule,
@@ -29,7 +33,7 @@ async function startLanguageServer(
 			module: serverModule,
 			transport: TransportKind.ipc,
 			options: {
-				execArgv: ['--nolazy', '--inspect=6009'], // '--inspect-brk' Enable if you want to attach to the server
+				execArgv: argv,
 			},
 		},
 	};

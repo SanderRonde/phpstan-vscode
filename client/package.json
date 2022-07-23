@@ -8,7 +8,8 @@
 	},
 	"scripts": {
 		"build": "esbuild --minify --bundle --outfile=../out/extension.js src/extension.ts --platform=node --external:vscode",
-		"build:debug": "esbuild --bundle --outfile=../out/extension.js src/extension.ts --platform=node --external:vscode --sourcemap=inline"
+		"build-debug": "esbuild --bundle --outfile=../out/extension.js src/extension.ts --platform=node --external:vscode --sourcemap=inline --define:_DEBUG=true",
+		"build-debug:attach-server": "esbuild --bundle --outfile=../out/extension.js src/extension.ts --platform=node --external:vscode --sourcemap=inline --define:_DEBUG=true --define:_INSPECT_BRK=true"
 	},
 	"devDependencies": {
 		"@types/vscode": "^1.64.0",

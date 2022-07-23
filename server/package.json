@@ -11,6 +11,6 @@
 	},
 	"scripts": {
 		"build": "esbuild --minify --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode",
-		"build:debug": "esbuild --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode --sourcemap=inline"
+		"build-debug": "esbuild --bundle --outfile=../out/server.js src/server.ts --platform=node --external:vscode --sourcemap=inline"
 	}
 }

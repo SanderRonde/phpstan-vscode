@@ -14,7 +14,7 @@
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": ["${workspaceFolder}/out/**/*.js"],
-			"preLaunchTask": "${defaultBuildTask}"
+			"preLaunchTask": "build-debug"
 		},
 		{
 			"type": "node",
@@ -28,7 +28,8 @@
 	"compounds": [
 		{
 			"name": "Client + Server",
-			"configurations": ["Launch Client", "Attach to Server"]
+			"configurations": ["Launch Client", "Attach to Server"],
+			"preLaunchTask": "build-debug:attach-server"
 		}
 	]
 }
