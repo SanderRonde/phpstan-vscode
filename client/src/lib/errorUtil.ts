@@ -1,10 +1,10 @@
+import { ERROR_PREFIX, log } from './log';
 import * as vscode from 'vscode';
-import { log } from './log';
 
 const shownWarnings: Set<string> = new Set();
 
 export function showErrorOnce(message: string, ...extra: string[]): void {
-	log(`Error: ${message}`, ...extra);
+	log(ERROR_PREFIX, message, ...extra);
 	if (shownWarnings.has(message)) {
 		return;
 	}

@@ -3,6 +3,7 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { EXTENSION_PREFIX, log, registerLogMessager } from './lib/log';
 import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
 import { registerConfigListeners } from './lib/config';
@@ -61,7 +62,7 @@ async function startLanguageServer(
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
-	log('Initializing PHPStan extension');
+	log(EXTENSION_PREFIX, 'Initializing PHPStan extension');
 	const client = await startLanguageServer(context);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
@@ -79,7 +80,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 			}
 		})
 	);
-	log('Initializing done');
+	log(EXTENSION_PREFIX, 'Initializing done');
 }
 
 export function deactivate(): Thenable<void> | undefined {

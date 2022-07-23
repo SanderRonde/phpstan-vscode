@@ -2,6 +2,7 @@ import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ExtensionContext, OutputChannel } from 'vscode';
 import { logNotification } from './notificationChannels';
 import { window } from 'vscode';
+import { DEBUG } from './dev';
 
 let channel: OutputChannel | null;
 
@@ -15,14 +16,25 @@ export function registerLogMessager(
 ): void {
 	context.subscriptions.push(
 		client.onNotification(logNotification, ({ data }) => {
-			log(...data);
+			log(...(data as [Prefix, ...string[]]));
 		})
 	);
 }
 
-export function log(...data: string[]): void {
-	console.log(data.join(' '));
+type Prefix = string & {
+	__isPrefix: true;
+};
+
+export function log(prefix: Prefix, ...data: string[]): void {
+	data = [prefix, ...data];
+	if (DEBUG) {
+		console.log(data.join(' '));
+	}
 	if (channel) {
 		channel.appendLine(data.join(' '));
 	}
 }
+
+export const STATUS_BAR_PREFIX = '[status-bar]' as Prefix;
+export const EXTENSION_PREFIX = '[server]' as Prefix;
+export const ERROR_PREFIX = '[error]' as Prefix;

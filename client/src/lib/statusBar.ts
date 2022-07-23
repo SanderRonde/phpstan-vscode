@@ -38,7 +38,7 @@ export class StatusBar implements Disposable {
 	}
 
 	private _showStatusBar(): void {
-		log('Showing status bar');
+		log(STATUS_BAR_PREFIX, 'Showing status bar');
 		if (!getConfiguration().get('phpstan.enableStatusBar')) {
 			return;
 		}
@@ -51,7 +51,11 @@ export class StatusBar implements Disposable {
 	}
 
 	private _hideStatusBar(lastResult: OperationStatus): void {
-		log('Hiding status bar, last operation result =', lastResult);
+		log(
+			STATUS_BAR_PREFIX,
+			'Hiding status bar, last operation result =',
+			lastResult
+		);
 		if (lastResult === OperationStatus.KILLED) {
 			this._statusBar.text = 'PHPStan process killed (timeout)';
 		} else if (lastResult === OperationStatus.SUCCESS) {
