@@ -11,7 +11,6 @@ export enum NotificationChannel {
 
 export interface WatcherNotificationFileData {
 	uri: string;
-	dirty: boolean;
 	content: string;
 	languageId: string;
 }

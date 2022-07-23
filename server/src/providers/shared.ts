@@ -15,7 +15,6 @@ import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
-import { log } from '../lib/log';
 import * as path from 'path';
 
 interface VariableData {
@@ -63,7 +62,6 @@ export async function getFileReport(
 	}
 
 	// Ensure the file has been checked
-	void log(providerArgs.connection, 'Performing check');
 	const promise = toCheckablePromise(
 		providerArgs.phpstan.checkFileFromURI(documentURI, false)
 	);

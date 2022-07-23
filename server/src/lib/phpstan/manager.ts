@@ -4,6 +4,7 @@ import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
 import type { WorkspaceFolderGetter } from '../../server';
+import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
 import type { PartialDocument } from './runner';
@@ -13,7 +14,6 @@ import { getConfiguration } from '../config';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
-import { log } from '../log';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
@@ -40,7 +40,7 @@ export class PHPStanCheckManager implements Disposable {
 
 	public constructor(private readonly _config: ClassConfig) {}
 
-	private async _onTimeout(): Promise<void> {
+	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const config = await getConfiguration(
 			this._config.connection,
 			this._config.getWorkspaceFolder
@@ -75,6 +75,7 @@ export class PHPStanCheckManager implements Disposable {
 		}
 		void log(
 			this._config.connection,
+			checkPrefix(check),
 			`PHPStan check timed out after ${config.timeout}ms`
 		);
 	}
@@ -95,10 +96,16 @@ export class PHPStanCheckManager implements Disposable {
 
 	private async _checkShared(
 		applyErrors: boolean,
+		description: string,
 		e?: PartialDocument
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+	): Promise<void> {
 		// Prep check
 		const check = new PHPStanCheck(this._config);
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			`Check started for ${description}`
+		);
 		this._operations.set(e?.uri ?? PROJECT_CHECK_STR, {
 			check,
 			fileContent: e?.getText() ?? '',
@@ -126,7 +133,7 @@ export class PHPStanCheckManager implements Disposable {
 			timeout: config.timeout,
 			onKill: () => {
 				check.dispose();
-				void this._onTimeout();
+				void this._onTimeout(check);
 
 				return ReturnResult.killed();
 			},
@@ -137,30 +144,10 @@ export class PHPStanCheckManager implements Disposable {
 		// Show result of operation in statusbar
 		await operation.finish(result.status);
 
-		return result;
-	}
-
-	private async _checkFile(
-		e: PartialDocument,
-		applyErrors: boolean
-	): Promise<void> {
-		const result = await this._checkShared(applyErrors, e);
-
-		await log(
+		void log(
 			this._config.connection,
-			'File check done for file',
-			e.uri,
-			'errors=',
-			JSON.stringify(this._toErrorMessageMap(result))
-		);
-	}
-
-	private async _checkProject(): Promise<void> {
-		const result = await this._checkShared(true);
-
-		await log(
-			this._config.connection,
-			'Check done for project',
+			checkPrefix(check),
+			`Check completed for ${description}`,
 			'errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
 		);
@@ -214,14 +201,22 @@ export class PHPStanCheckManager implements Disposable {
 				if (applyErrorsOnAlreadyDone) {
 					await log(
 						this._config.connection,
-						'Re-applying previous errors due to re-open'
+						MANAGER_PREFIX,
+						`Re-applying previous errors due to re-open (checkId=${operation.check.id})`
 					);
 					await operation.check.reApplyErrors(e.uri);
-				} else {
+				} else if (operation.check.done) {
 					// Same text, no need to run at all
 					await log(
 						this._config.connection,
-						'Not checking file, file has already been checked or check is pending'
+						MANAGER_PREFIX,
+						`Not checking file "${e.uri}", file has already been checked (checkId=${operation.check.id})`
+					);
+				} else {
+					await log(
+						this._config.connection,
+						MANAGER_PREFIX,
+						`Not checking file "${e.uri}", file check is pending (checkId=${operation.check.id})`
 					);
 				}
 
@@ -236,8 +231,7 @@ export class PHPStanCheckManager implements Disposable {
 			operation.check.dispose();
 		}
 
-		void log(this._config.connection, 'Checking file', e.uri);
-		const check = this._checkFile(e, applyErrors);
+		const check = this._checkShared(applyErrors, e.uri, e);
 		await this._withRecursivePromise(e.uri, check);
 		return this._getFilePromise(e.uri);
 	}
@@ -250,8 +244,7 @@ export class PHPStanCheckManager implements Disposable {
 			operation.check.dispose();
 		}
 
-		void log(this._config.connection, 'Checking project');
-		const check = this._checkProject();
+		const check = this._checkShared(true, 'Project');
 		await this._withRecursivePromise(PROJECT_CHECK_STR, check);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
@@ -268,7 +261,6 @@ export class PHPStanCheckManager implements Disposable {
 			{
 				getText: () => file.content,
 				uri: file.uri,
-				dirty: file.dirty,
 				languageId: file.languageId,
 			},
 			applyErrors

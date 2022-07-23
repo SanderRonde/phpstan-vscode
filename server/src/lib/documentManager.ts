@@ -2,7 +2,6 @@ import type { WatcherNotificationFileData } from '../../../shared/notificationCh
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { watcherNotification } from './notificationChannels';
 import { assertUnreachable } from '../../../shared/util';
-import type { Debouncer } from '../../../shared/util';
 import type { Watcher } from './watcher';
 
 export class DocumentManager implements Disposable {
@@ -10,7 +9,6 @@ export class DocumentManager implements Disposable {
 	private readonly _connection: _Connection;
 	private readonly _documents: Map<string, WatcherNotificationFileData> =
 		new Map();
-	private readonly _debouncers: Map<string, Debouncer> = new Map();
 	private readonly _watcher: Watcher;
 
 	public constructor({
@@ -90,11 +88,8 @@ export class DocumentManager implements Disposable {
 		}
 	}
 
-	private async _onDocumentClose(
-		e: WatcherNotificationFileData
-	): Promise<void> {
+	private _onDocumentClose(e: WatcherNotificationFileData): void {
 		this._documents.delete(e.uri);
-		await this._watcher.onDocumentClose(e);
 	}
 
 	public get(uri: string): WatcherNotificationFileData | null {
@@ -103,8 +98,6 @@ export class DocumentManager implements Disposable {
 
 	public dispose(): void {
 		this._disposables.forEach((d) => void d.dispose());
-		[...this._debouncers.values()].forEach((d) => void d.dispose());
 		this._disposables = [];
-		this._debouncers.clear();
 	}
 }

@@ -1,7 +1,6 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { watcherNotification } from './notificationChannels';
-import { createDebouncer } from '../../../shared/util';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
@@ -12,7 +11,6 @@ type PartialDocument = Pick<
 
 export class DocumentManager implements Disposable {
 	private _disposables: Disposable[] = [];
-	private readonly _debouncer = createDebouncer(1000);
 	private readonly _client: LanguageClient;
 
 	public constructor(client: LanguageClient) {
@@ -20,13 +18,12 @@ export class DocumentManager implements Disposable {
 	}
 
 	private _shouldSyncDocument(e: PartialDocument): boolean {
-		return e.languageId === 'php';
+		return e.languageId === 'php' && !e.isDirty;
 	}
 
 	private _toSendData(e: PartialDocument): WatcherNotificationFileData {
 		return {
 			uri: e.uri.toString(),
-			dirty: e.isDirty,
 			content: e.getText(),
 			languageId: e.languageId,
 		};
@@ -140,7 +137,6 @@ export class DocumentManager implements Disposable {
 
 	public dispose(): void {
 		this._disposables.forEach((d) => void d.dispose());
-		this._debouncer.dispose();
 		this._disposables = [];
 	}
 }

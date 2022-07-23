@@ -27,7 +27,6 @@ export function registerListeners(
 						operation: 'check',
 						file: {
 							content: doc.getText(),
-							dirty: doc.isDirty,
 							uri: doc.uri.toString(),
 							languageId: doc.languageId,
 						},
@@ -68,7 +67,6 @@ export function registerListeners(
 						operation: 'check',
 						file: {
 							content: doc.getText(),
-							dirty: doc.isDirty,
 							uri: doc.uri.toString(),
 							languageId: doc.languageId,
 						},

@@ -1,5 +1,5 @@
 import type { _Connection } from 'vscode-languageserver';
-import { log } from './log';
+import { ERROR_PREFIX, log } from './log';
 
 const shownWarnings: Set<string> = new Set();
 
@@ -8,7 +8,7 @@ export async function showErrorOnce(
 	message: string,
 	...extra: string[]
 ): Promise<void> {
-	await log(connection, `Error: ${message}`, ...extra);
+	await log(connection, ERROR_PREFIX, message, ...extra);
 	if (shownWarnings.has(message)) {
 		return;
 	}

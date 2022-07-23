@@ -27,31 +27,6 @@ export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
 	return result as A & B;
 }
 
-export type Debouncer = {
-	debounce: (callback: () => void | Promise<void>) => void;
-} & Disposable;
-
-export function createDebouncer(delay: number): Debouncer {
-	let timeout: NodeJS.Timeout | null = null;
-	return {
-		debounce: (callback: () => void | Promise<void>): void => {
-			if (timeout) {
-				clearTimeout(timeout);
-			}
-			timeout = setTimeout(() => {
-				void callback();
-				timeout = null;
-			}, delay);
-		},
-		dispose() {
-			if (timeout) {
-				clearTimeout(timeout);
-			}
-			timeout = null;
-		},
-	};
-}
-
 /**
  * Assert that forces TS to check whether a route is reachable
  */

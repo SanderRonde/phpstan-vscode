@@ -1,11 +1,5 @@
 import type { ConfigurationTarget, WorkspaceConfiguration } from 'vscode';
 
-export enum WhenToRun {
-	ON_SAVE = 'onSave',
-	CONTENT_CHANGE = 'onContentChange',
-	NEVER = 'never',
-}
-
 export interface PHPStanConfig {
 	binPath: string | null;
 	binCommand: string[] | null;
@@ -14,7 +8,7 @@ export interface PHPStanConfig {
 	options: string[];
 	enableStatusBar: boolean;
 	memoryLimit: string;
-	whenToRun: WhenToRun;
+	enabled: boolean;
 	timeout: number;
 	projectTimeout: number;
 	suppressTimeoutMessage: boolean;

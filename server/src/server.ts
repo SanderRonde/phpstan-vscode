@@ -14,8 +14,8 @@ import { readyNotification } from './lib/notificationChannels';
 import type { Disposable } from 'vscode-languageserver/node';
 import { ProviderCheckHooks } from './providers/shared';
 import { providerEnabled } from './lib/providerUtil';
+import { log, SERVER_PREFIX } from './lib/log';
 import { URI } from 'vscode-uri';
-import { log } from './lib/log';
 
 export type WorkspaceFolderGetter = () => URI | null;
 
@@ -76,7 +76,7 @@ async function main(): Promise<void> {
 	connection.listen();
 
 	await onConnectionInitialized;
-	void log(connection, 'Language server ready');
+	void log(connection, SERVER_PREFIX, 'Language server ready');
 	void connection.sendNotification(readyNotification, {
 		ready: true,
 	});

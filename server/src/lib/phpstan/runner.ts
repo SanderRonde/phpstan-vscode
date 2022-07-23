@@ -1,29 +1,25 @@
 import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
+import type { PHPStanCheck, ProgressListener } from './check';
 import { EXTENSION_ID } from '../../../../shared/constants';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
-import type { ProgressListener } from './check';
 import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
 import type { ClassConfig } from './manager';
+import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { spawn } from 'child_process';
-import * as tmp from 'tmp-promise';
-import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
-import { log } from '../log';
 import * as os from 'os';
 
 export type PartialDocument = Pick<
 	TextDocument,
 	'uri' | 'getText' | 'languageId'
-> & {
-	dirty: boolean;
-};
+>;
 
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
@@ -34,29 +30,6 @@ export class PHPStanRunner implements Disposable {
 	);
 
 	public constructor(private readonly _config: ClassConfig) {}
-
-	private async _getFilePath(
-		e: PartialDocument
-	): Promise<ReturnResult<string>> {
-		const mappedPath = await ConfigurationManager.applyPathMapping(
-			this._config,
-			URI.parse(e.uri).fsPath
-		);
-
-		if (e.dirty) {
-			if (mappedPath !== URI.parse(e.uri).fsPath) {
-				return ReturnResult.canceled();
-			}
-			const tmpFile = await tmp.file();
-			await fs.writeFile(tmpFile.path, e.getText());
-			this._disposables.push(
-				Disposable.create(() => void tmpFile.cleanup())
-			);
-			return ReturnResult.success(tmpFile.path);
-		}
-
-		return ReturnResult.success(mappedPath);
-	}
 
 	private _escapeFilePath(filePath: string): string {
 		if (os.platform() !== 'win32') {
@@ -114,6 +87,7 @@ export class PHPStanRunner implements Disposable {
 
 	private async _spawnProcess(
 		config: CheckConfig,
+		check: PHPStanCheck,
 		args: string[]
 	): Promise<ChildProcessWithoutNullStreams> {
 		const binStr = config.binCmd
@@ -121,6 +95,7 @@ export class PHPStanRunner implements Disposable {
 			: this._escapeFilePath(config.binPath!);
 		await log(
 			this._config.connection,
+			checkPrefix(check),
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify({
 				binCmd: binStr,
@@ -173,6 +148,7 @@ export class PHPStanRunner implements Disposable {
 
 	private async _getProcessOutput(
 		config: CheckConfig,
+		check: PHPStanCheck,
 		args: string[],
 		{
 			doc,
@@ -182,7 +158,7 @@ export class PHPStanRunner implements Disposable {
 			onProgress?: ProgressListener;
 		}
 	): Promise<ReturnResult<string>> {
-		const phpstan = await this._spawnProcess(config, args);
+		const phpstan = await this._spawnProcess(config, check, args);
 		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(
@@ -208,6 +184,7 @@ export class PHPStanRunner implements Disposable {
 			// On error
 			void log(
 				this._config.connection,
+				checkPrefix(check),
 				'PHPStan process exited with error',
 				...getLogData(),
 				...extraData
@@ -239,6 +216,7 @@ export class PHPStanRunner implements Disposable {
 
 				void log(
 					this._config.connection,
+					checkPrefix(check),
 					'PHPStan process exited succesfully'
 				);
 
@@ -275,6 +253,7 @@ export class PHPStanRunner implements Disposable {
 
 	private async _check(
 		doc: PartialDocument,
+		check: PHPStanCheck,
 		onProgress?: ProgressListener
 	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
 		// Get config
@@ -287,36 +266,36 @@ export class PHPStanRunner implements Disposable {
 		}
 
 		// Get file
-		const filePath = await this._getFilePath(doc);
+		const filePath = await ConfigurationManager.applyPathMapping(
+			this._config,
+			URI.parse(doc.uri).fsPath
+		);
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		if (!filePath.success()) {
-			return filePath.cast();
-		}
 
 		const args = await this._getArgs(config, {
-			filePath: filePath.value,
+			filePath: filePath,
 			doc,
 			progress: !!onProgress,
 		});
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		const result = await this._getProcessOutput(config, args, {
+		const result = await this._getProcessOutput(config, check, args, {
 			doc,
 			onProgress,
 		});
 
 		return result.chain((output) => {
 			return {
-				[filePath.value]:
-					new OutputParser(output).parse()[filePath.value] ?? [],
+				[filePath]: new OutputParser(output).parse()[filePath] ?? [],
 			};
 		});
 	}
 
 	private async _checkProject(
+		check: PHPStanCheck,
 		onProgress: ProgressListener
 	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
 		// Get config
@@ -335,7 +314,7 @@ export class PHPStanRunner implements Disposable {
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		const result = await this._getProcessOutput(config, args, {
+		const result = await this._getProcessOutput(config, check, args, {
 			onProgress,
 		});
 
@@ -346,17 +325,19 @@ export class PHPStanRunner implements Disposable {
 
 	public async check(
 		file: PartialDocument,
+		check: PHPStanCheck,
 		onProgress?: ProgressListener
 	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		const errors = await this._check(file, onProgress);
+		const errors = await this._check(file, check, onProgress);
 		this.dispose();
 		return errors;
 	}
 
 	public async checkProject(
+		check: PHPStanCheck,
 		onProgress: ProgressListener
 	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		const errors = await this._checkProject(onProgress);
+		const errors = await this._checkProject(check, onProgress);
 		this.dispose();
 		return errors;
 	}

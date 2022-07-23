@@ -26,12 +26,7 @@ Automatically performs static analysis of your code and highlights errors as you
 
 ### Customization
 
--   `phpstan.whenToRun` - when to perform the check (defaults to `onSave`). Can be one of:
-
-    -   `onSave` - whenever the current file is saved
-    -   `onContentChange` - whenever the content of the current file changes as you type (debounced by 1000ms)
-    -   `never` - never performs the check automatically, allowing you to use the `phpstan.scanFileForErrors` command to check the current file for errors
-
+-   `phpstan.enabled` - whether to enable the on-save checker (defaults to `true`)
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 

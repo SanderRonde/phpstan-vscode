@@ -14,12 +14,18 @@ import { ReturnResult } from './result';
 export type ProgressListener = (progress: StatusBarProgress) => void;
 
 export class PHPStanCheck implements Disposable {
+	private static _lastCheckId: number = 1;
 	private _disposables: Disposable[] = [];
 	private _done: boolean = false;
 	private _disposed: boolean = false;
 	private _progressListeners: ProgressListener[] = [];
 	private _lastResult: ReturnResult<Record<string, PHPStanError[]>> =
 		ReturnResult.success({});
+	private _id: number = PHPStanCheck._lastCheckId++;
+
+	public get id(): number {
+		return this._id;
+	}
 
 	public get done(): boolean {
 		return this._done;
@@ -50,12 +56,15 @@ export class PHPStanCheck implements Disposable {
 		).showProgress;
 		const result = await (async () => {
 			if (!e) {
-				return await runner.checkProject(this._onProgress.bind(this));
+				return await runner.checkProject(
+					this,
+					this._onProgress.bind(this)
+				);
 			}
 			const progressArg = useProgress
 				? this._onProgress.bind(this)
 				: undefined;
-			return await runner.check(e, progressArg);
+			return await runner.check(e, this, progressArg);
 		})();
 		this._lastResult = result;
 		if (applyErrors) {

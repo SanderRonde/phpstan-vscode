@@ -3,9 +3,9 @@ import type {
 	HoverParams,
 	ServerRequestHandler,
 } from 'vscode-languageserver';
+import { HOVER_PROVIDER_PREFIX, log } from '../lib/log';
 import type { ProviderArgs } from './shared';
 import { getFileReport } from './shared';
-import { log } from '../lib/log';
 
 export function createHoverProvider(
 	providerArgs: ProviderArgs
@@ -27,7 +27,11 @@ export function createHoverProvider(
 				type.pos.start.char < hoverParams.position.character &&
 				type.pos.end.char > hoverParams.position.character
 			) {
-				void log(providerArgs.connection, 'Found hover type');
+				void log(
+					providerArgs.connection,
+					HOVER_PROVIDER_PREFIX,
+					'Found hover type'
+				);
 				return {
 					contents: [
 						`PHPStan: \`${type.typeDescription} $${type.name}\``,
@@ -36,7 +40,11 @@ export function createHoverProvider(
 			}
 		}
 
-		void log(providerArgs.connection, 'Hovering, no type found');
+		void log(
+			providerArgs.connection,
+			HOVER_PROVIDER_PREFIX,
+			'Hovering, no type found'
+		);
 
 		return null;
 	};
