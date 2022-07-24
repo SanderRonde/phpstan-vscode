@@ -2,6 +2,12 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.2
+
+-   Fix bugs from broken release
+-   Fix bug where only the first symbol on a line would get hover information
+-   Improve logging
+
 ### 2.2.1
 
 -   Last release was broken, took it offline to investigate
