@@ -2,7 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
-### 2.2.2
+### 2.2.3
+
+- Publish previous version of the extension to the stable channel.
+
+### 2.2.2 (pre-release)
 
 -   Fix bugs from broken release
 -   Fix bug where only the first symbol on a line would get hover information
@@ -23,21 +27,21 @@ All notable changes to the "phpstan-vscode" extension will be documented in this
 
 -   Release LSP functionality to the stable channel
 
-### 2.1.3
+### 2.1.3 (pre-release)
 
 -   Improve hover functionality
     -   Also works if a parameter with the same name as a variable is defined on one line
     -   Also works if a variable that starts with the same name is on the line (`$x` and `$xyz`)
 
-### 2.1.2
+### 2.1.2 (pre-release)
 
 -   Add `reload` command
 
-### 2.1.1
+### 2.1.1 (pre-release)
 
 -   Remove completion-capability that wasn't actually being provided (leading to a popup)
 
-### 2.1.0
+### 2.1.0 (pre-release)
 
 -   Add support for type-on-hover in `for` and `foreach` loops
 
