@@ -35,6 +35,19 @@ export class ErrorManager implements Disposable {
 		);
 	}
 
+	private _createDiagnostic(
+		range: vscode.Range,
+		message: string
+	): vscode.Diagnostic {
+		const diagnostic = new vscode.Diagnostic(
+			range,
+			message,
+			vscode.DiagnosticSeverity.Error
+		);
+		diagnostic.source = 'PHPStan';
+		return diagnostic;
+	}
+
 	private _getDiagnosticsForURI(
 		uri: string,
 		errors: PHPStanError[]
@@ -48,10 +61,9 @@ export class ErrorManager implements Disposable {
 
 			if (!file) {
 				// Can't match on content, just use 0-char offset
-				return new vscode.Diagnostic(
+				return this._createDiagnostic(
 					new vscode.Range(lineNumber, 0, lineNumber, 0),
-					error.message,
-					vscode.DiagnosticSeverity.Error
+					error.message
 				);
 			}
 
@@ -73,10 +85,9 @@ export class ErrorManager implements Disposable {
 				};
 			})();
 
-			return new vscode.Diagnostic(
+			return this._createDiagnostic(
 				new vscode.Range(lineNumber, startChar, lineNumber, endChar),
-				error.message,
-				vscode.DiagnosticSeverity.Error
+				error.message
 			);
 		});
 	}
