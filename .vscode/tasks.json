@@ -15,7 +15,7 @@
 				"kind": "build",
 				"isDefault": true
 			},
-			"label": "npm: watch",
+			"label": "build-debug",
 			"detail": "npm-watch build-debug"
 		},
 		{
@@ -30,7 +30,7 @@
 				"kind": "build",
 				"isDefault": true
 			},
-			"label": "npm: watch",
+			"label": "build-debug:attach-server",
 			"detail": "npm-watch build-debug:attach-server"
 		}
 	]
