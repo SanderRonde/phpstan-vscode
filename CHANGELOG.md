@@ -2,9 +2,13 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.4
+
+-   Add PHPStan tag to errors in the `Problems` tab for easier filtering.
+
 ### 2.2.3
 
-- Publish previous version of the extension to the stable channel.
+-   Publish previous version of the extension to the stable channel.
 
 ### 2.2.2 (pre-release)
 
