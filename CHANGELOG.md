@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.5
+
+-   Support older PHP versions too (<= 7.3)
+
 ### 2.2.4
 
 -   Add PHPStan tag to errors in the `Problems` tab for easier filtering.
