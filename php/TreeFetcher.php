@@ -27,7 +27,7 @@ class TreeFetcher implements Rule {
 	// Replaced at runtime with a tmp file
 	public const REPORTER_FILE = 'reported.json';
 	public const DEV = true;
-	private array $_visitedNodes = [];
+	private $_visitedNodes = [];
 
 	public function __construct() {
 		if (self::DEV) {
@@ -42,7 +42,7 @@ class TreeFetcher implements Rule {
 	}
 
 	/** @var array<string, string> */
-	private static array $_fileCache = [];
+	private static $_fileCache = [];
 	private static function readFile(string $fileName) {
 		if (isset(self::$_fileCache[$fileName])) {
 			return self::$_fileCache[$fileName];
@@ -51,16 +51,16 @@ class TreeFetcher implements Rule {
 	}
 
 	/** @var array<string, array<int, array<string, int>>> */
-	private array $_varPositions;
+	private $_varPositions;
 	/**
 	 * Unfortunately PHPStan doesn't have the char-in-line setting enabled for PHParser
 	 * so we can't use that. Instead we just get the source string and scan it for `$varName`
 	 * and hope someone doesn't mention the same variable in a comment in a line or something.
 	 */
 	private function bestEffortFindPos(string $fileName, int $lineNumber, string $line, string $varName, bool $isVar): int {
-		$this->_varPositions[$fileName] ??= [];
-		$this->_varPositions[$fileName][$lineNumber] ??= [];
-		$this->_varPositions[$fileName][$lineNumber][$varName] ??= 0;
+		$this->_varPositions[$fileName] = $this->_varPositions[$fileName] ?? [];
+		$this->_varPositions[$fileName][$lineNumber] = $this->_varPositions[$fileName][$lineNumber] ?? [];
+		$this->_varPositions[$fileName][$lineNumber][$varName] = $this->_varPositions[$fileName][$lineNumber][$varName] ?? 0;
 		$positionOnLine = $this->_varPositions[$fileName][$lineNumber][$varName];
 		$this->_varPositions[$fileName][$lineNumber][$varName] = $positionOnLine + 1;
 
