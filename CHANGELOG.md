@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.6
+
+-   Fix bug that caused status bar icon to disappear
+-   Add on-hover tooltip to status bar icon
+
 ### 2.2.5
 
 -   Support older PHP versions too (<= 7.3)
