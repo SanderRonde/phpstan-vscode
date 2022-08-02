@@ -159,30 +159,30 @@ class TextManager implements Disposable {
 		vscode.StatusBarAlignment.Right,
 		1
 	);
-	private _currentStatusBarText: string = '';
-	private _pendingStatusBarText: string = '';
+	private _pendingStatusBarText: string | null = null;
 	private _statusBarInterval: NodeJS.Timeout | null = null;
 
 	public constructor() {}
 
 	private _pushStatusBarText(): void {
-		if (this._statusBar.text === this._pendingStatusBarText) {
-			return;
+		if (this._pendingStatusBarText) {
+			this._statusBar.text = this._pendingStatusBarText;
+			this._pendingStatusBarText = null;
 		}
-		this._statusBar.text = this._pendingStatusBarText;
-		this._currentStatusBarText = this._pendingStatusBarText;
 	}
 
 	public setText(text: string): void {
-		if (this._currentStatusBarText === text) {
+		if (this._statusBar.text === text) {
+			// Bug-like thing where we need to set the text explicitly even though
+			// it was already set to this
+			this._statusBar.text = text;
 			return;
 		}
 		if (!text.includes(TextManager.LOADING_SPIN)) {
 			this._statusBar.text = text;
-			this._currentStatusBarText = text;
 			return;
 		}
-		if (!this._currentStatusBarText.includes(TextManager.LOADING_SPIN)) {
+		if (!this._statusBar.text.includes(TextManager.LOADING_SPIN)) {
 			// This just now started the animation, set an interval
 			if (this._statusBarInterval) {
 				clearInterval(this._statusBarInterval);
@@ -191,7 +191,6 @@ class TextManager implements Disposable {
 				this._pushStatusBarText();
 			}, 1000);
 			this._statusBar.text = text;
-			this._currentStatusBarText = text;
 			return;
 		}
 
@@ -205,6 +204,7 @@ class TextManager implements Disposable {
 			clearInterval(this._statusBarInterval);
 			this._statusBarInterval = null;
 		}
+		this._pendingStatusBarText = null;
 	}
 
 	public show(): void {
