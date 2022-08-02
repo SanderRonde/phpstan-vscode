@@ -19,16 +19,21 @@ export class StatusBar implements Disposable {
 	) {
 		this._opTracker = new OperationTracker(
 			() => this._showStatusBar(),
-			(lastResult: OperationStatus) => this._hideStatusBar(lastResult)
+			(lastResult: OperationStatus) => this._hideStatusBar(lastResult),
+			(tooltips: string[]) => this._textManager.setTooltips(tooltips)
 		);
 		context.subscriptions.push(
 			client.onNotification(statusBarNotification, (params) => {
-				if (params.progress) {
-					this.operationProgress(params.progress);
-				} else if (!params.result) {
-					this.startOperation(params.opId);
-				} else {
-					this.finishOperation(params.opId, params.result);
+				switch (params.type) {
+					case 'new':
+						this.startOperation(params.opId, params.tooltip);
+						break;
+					case 'progress':
+						this.operationProgress(params.progress);
+						this.setTooltip(params.opId, params.tooltip);
+						break;
+					case 'done':
+						this.finishOperation(params.opId, params.result);
 				}
 			})
 		);
@@ -73,8 +78,12 @@ export class StatusBar implements Disposable {
 		);
 	}
 
-	private startOperation(operationId: number): void {
-		this._opTracker.startOperation(operationId);
+	private startOperation(operationId: number, tooltip: string): void {
+		this._opTracker.startOperation(operationId, tooltip);
+	}
+
+	private setTooltip(operationId: number, tooltip: string): void {
+		this._opTracker.setTooltip(operationId, tooltip);
 	}
 
 	private operationProgress(progress: StatusBarProgress): void {
@@ -98,19 +107,30 @@ export class StatusBar implements Disposable {
 }
 
 class OperationTracker implements Disposable {
-	private _runningOperations: Map<number, Resolvable> = new Map();
+	private _runningOperations: Map<
+		number,
+		{
+			promise: Resolvable;
+			tooltip: string;
+		}
+	> = new Map();
+
+	private get _tooltip(): string[] {
+		return [...this._runningOperations.values()].map((o) => o.tooltip);
+	}
 
 	public constructor(
 		private readonly _onHasOperations: () => void,
-		private readonly _onNoOperations: (lastResult: OperationStatus) => void
+		private readonly _onNoOperations: (lastResult: OperationStatus) => void,
+		private readonly _onTooltip: (tooltips: string[]) => void
 	) {}
 
 	private _checkOperations(): void {
 		let lastOperation: OperationStatus | null = null;
 		for (const operationId of this._runningOperations.keys()) {
-			if (this._runningOperations.get(operationId)!.done) {
+			if (this._runningOperations.get(operationId)!.promise.done) {
 				lastOperation =
-					this._runningOperations.get(operationId)!.result;
+					this._runningOperations.get(operationId)!.promise.result;
 				this._runningOperations.delete(operationId);
 			}
 		}
@@ -120,17 +140,30 @@ class OperationTracker implements Disposable {
 		}
 	}
 
-	public startOperation(operationId: number): void {
+	public startOperation(operationId: number, tooltip: string): void {
 		const hadOperations = this._runningOperations.size > 0;
-		this._runningOperations.set(operationId, new Resolvable());
+		this._runningOperations.set(operationId, {
+			promise: new Resolvable(),
+			tooltip,
+		});
 		if (!hadOperations) {
 			this._onHasOperations();
 		}
+		this._onTooltip(this._tooltip);
+	}
+
+	public setTooltip(operationId: number, tooltip: string): void {
+		if (!this._runningOperations.has(operationId)) {
+			return;
+		}
+		this._runningOperations.get(operationId)!.tooltip = tooltip;
+		this._onTooltip(this._tooltip);
 	}
 
 	public finishOperation(operationId: number, result: OperationStatus): void {
-		this._runningOperations.get(operationId)?.complete(result);
+		this._runningOperations.get(operationId)?.promise.complete(result);
 		this._checkOperations();
+		this._onTooltip(this._tooltip);
 	}
 
 	public dispose(): void {
@@ -196,6 +229,10 @@ class TextManager implements Disposable {
 
 		// Queue this new text
 		this._pendingStatusBarText = text;
+	}
+
+	public setTooltips(tooltips: string[]): void {
+		this._statusBar.tooltip = tooltips.join('\n');
 	}
 
 	public hide(): void {

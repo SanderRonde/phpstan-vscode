@@ -63,11 +63,23 @@ export interface StatusBarProgress {
 	done: number;
 }
 
-export interface StatusBarNotificationType {
-	opId: number;
-	progress?: StatusBarProgress;
-	result?: OperationStatus;
-}
+export type StatusBarNotificationType =
+	| {
+			opId: number;
+			type: 'new';
+			tooltip: string;
+	  }
+	| {
+			opId: number;
+			progress: StatusBarProgress;
+			type: 'progress';
+			tooltip: string;
+	  }
+	| {
+			opId: number;
+			type: 'done';
+			result: OperationStatus;
+	  };
 
 export interface ReadyNotificationType {
 	ready: boolean;

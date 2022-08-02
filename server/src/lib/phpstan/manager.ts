@@ -14,6 +14,8 @@ import { getConfiguration } from '../config';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
+import { URI } from 'vscode-uri';
+import path = require('path');
 
 export interface ClassConfig {
 	statusBar: StatusBar;
@@ -97,6 +99,7 @@ export class PHPStanCheckManager implements Disposable {
 	private async _checkShared(
 		applyErrors: boolean,
 		description: string,
+		descriptionShort: string,
 		e?: PartialDocument
 	): Promise<void> {
 		// Prep check
@@ -114,10 +117,13 @@ export class PHPStanCheckManager implements Disposable {
 
 		// Create statusbar operation
 		const operation = this._config.statusBar.createOperation();
-		await operation.start();
+		await operation.start(`Checking ${descriptionShort}`);
 
 		check.onProgress((progress) => {
-			void operation.progress(progress);
+			void operation.progress(
+				progress,
+				`Checking ${descriptionShort} - ${progress.done}/${progress.total} (${progress.percentage}%)`
+			);
 		});
 
 		// Do check
@@ -231,7 +237,12 @@ export class PHPStanCheckManager implements Disposable {
 			operation.check.dispose();
 		}
 
-		const check = this._checkShared(applyErrors, e.uri, e);
+		const fileFsPath = URI.parse(e.uri).fsPath;
+		const filePath = path.relative(
+			this._config.getWorkspaceFolder()!.fsPath,
+			fileFsPath
+		);
+		const check = this._checkShared(applyErrors, e.uri, filePath, e);
 		await this._withRecursivePromise(e.uri, check);
 		return this._getFilePromise(e.uri);
 	}
@@ -244,7 +255,7 @@ export class PHPStanCheckManager implements Disposable {
 			operation.check.dispose();
 		}
 
-		const check = this._checkShared(true, 'Project');
+		const check = this._checkShared(true, 'Project', 'project');
 		await this._withRecursivePromise(PROJECT_CHECK_STR, check);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}

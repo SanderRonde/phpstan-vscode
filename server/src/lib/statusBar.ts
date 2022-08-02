@@ -11,21 +11,26 @@ export class StatusBar {
 	public createOperation(): StatusBarOperation {
 		const id = this._lastOperationId++;
 		return {
-			start: async () => {
+			start: async (tooltip: string) => {
 				await this._connection.sendNotification(statusBarNotification, {
 					opId: id,
+					type: 'new',
+					tooltip,
 				});
 			},
-			progress: async (progress: StatusBarProgress) => {
+			progress: async (progress: StatusBarProgress, tooltip: string) => {
 				await this._connection.sendNotification(statusBarNotification, {
 					progress: progress,
 					opId: id,
+					type: 'progress',
+					tooltip,
 				});
 			},
 			finish: async (result: OperationStatus) => {
 				await this._connection.sendNotification(statusBarNotification, {
 					opId: id,
 					result,
+					type: 'done',
 				});
 			},
 		};
@@ -33,7 +38,7 @@ export class StatusBar {
 }
 
 export interface StatusBarOperation {
-	start: () => Promise<void>;
-	progress: (progress: StatusBarProgress) => Promise<void>;
+	start: (tooltip: string) => Promise<void>;
+	progress: (progress: StatusBarProgress, tooltip: string) => Promise<void>;
 	finish: (result: OperationStatus) => Promise<void>;
 }
