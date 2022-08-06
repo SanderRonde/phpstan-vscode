@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.7
+
+-   Fix bug that caused hover info to stop working when a file contained an array desturing inside a foreach loop
+-   Attempt to fix bug with status bar entry never disappearing
+
 ### 2.2.6
 
 -   Fix bug that caused status bar icon to disappear
