@@ -89,6 +89,7 @@ function runCommand(prep: CommandPrep, args: Args): Promise<void> {
 			prep.autoloadFile,
 			'--debug',
 			args.input,
+			'--memory-limit=4G',
 		];
 
 		const proc = spawn(
