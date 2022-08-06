@@ -134,10 +134,10 @@ class TreeFetcher implements Rule {
 			if (!($exprType instanceof ArrayType)) {
 				return [];
 			}
-			if ($keyVar) {
+			if ($keyVar && $keyVar instanceof Variable) {
 				$this->processNodeWithType($keyVar, $scope, $exprType->getKeyType());
 			}
-			if ($valueVar) {
+			if ($valueVar && $valueVar instanceof Variable) {
 				$this->processNodeWithType($valueVar, $scope, $exprType->getItemType());
 			}
 			return [];
