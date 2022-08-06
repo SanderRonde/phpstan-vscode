@@ -82,7 +82,7 @@ export function createPromise<R>(): Promise<PromiseObject<R>> {
 }
 
 export function withTimeout<P, R>(config: {
-	onKill: () => R;
+	onTimeout: () => R;
 	promise: Promise<P>;
 	timeout: number;
 }): Disposable & {
@@ -91,7 +91,7 @@ export function withTimeout<P, R>(config: {
 	let timeout: NodeJS.Timeout | null = null;
 	const promise = new Promise<P | R>((resolve) => {
 		timeout = setTimeout(() => {
-			resolve(config.onKill());
+			resolve(config.onTimeout());
 		}, config.timeout);
 		void config.promise.then((result) => {
 			resolve(result);

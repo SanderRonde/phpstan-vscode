@@ -161,7 +161,9 @@ class OperationTracker implements Disposable {
 	}
 
 	public finishOperation(operationId: number, result: OperationStatus): void {
-		this._runningOperations.get(operationId)?.promise.complete(result);
+		if (this._runningOperations.has(operationId)) {
+			this._runningOperations.get(operationId)?.promise.complete(result);
+		}
 		this._checkOperations();
 		this._onTooltip(this._tooltip);
 	}

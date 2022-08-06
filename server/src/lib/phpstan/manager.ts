@@ -16,6 +16,7 @@ import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
 import { URI } from 'vscode-uri';
 import path = require('path');
+import { OperationStatus } from '../../../../shared/statusBar';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
@@ -133,13 +134,14 @@ export class PHPStanCheckManager implements Disposable {
 		);
 		const runningCheck = withTimeout<
 			ReturnResult<Record<string, PHPStanError[]>>,
-			ReturnResult<Record<string, PHPStanError[]>>
+			Promise<ReturnResult<Record<string, PHPStanError[]>>>
 		>({
 			promise: check.check(applyErrors, e),
 			timeout: config.timeout,
-			onKill: () => {
+			onTimeout: async () => {
 				check.dispose();
 				void this._onTimeout(check);
+				await operation.finish(OperationStatus.KILLED);
 
 				return ReturnResult.killed();
 			},
