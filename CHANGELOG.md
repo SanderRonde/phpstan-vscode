@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.8
+
+-   Fix issue that would crash language server sometimes
+-   When language server crashes, clear all running operations (should fix infinitely loading statusbar)
+
 ### 2.2.7
 
 -   Fix bug that caused hover info to stop working when a file contained an array desturing inside a foreach loop
