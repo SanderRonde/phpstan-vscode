@@ -100,6 +100,11 @@ export class StatusBar implements Disposable {
 		this._opTracker.finishOperation(operationId, result);
 	}
 
+	public clearAllRunning(): void {
+		this._opTracker.clearAllRunning();
+		this._textManager.hide();
+	}
+
 	public dispose(): void {
 		this._opTracker.dispose();
 		this._textManager.dispose();
@@ -163,6 +168,14 @@ class OperationTracker implements Disposable {
 	public finishOperation(operationId: number, result: OperationStatus): void {
 		if (this._runningOperations.has(operationId)) {
 			this._runningOperations.get(operationId)?.promise.complete(result);
+		}
+		this._checkOperations();
+		this._onTooltip(this._tooltip);
+	}
+
+	public clearAllRunning(): void {
+		for (const operation of this._runningOperations.values()) {
+			operation.promise.complete(OperationStatus.KILLED);
 		}
 		this._checkOperations();
 		this._onTooltip(this._tooltip);

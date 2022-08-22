@@ -77,10 +77,22 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	registerLogMessager(context, client);
 	context.subscriptions.push(statusBar, watcher, errorManager);
 
+	let wasReady = false;
 	context.subscriptions.push(
 		client.onNotification(readyNotification, ({ ready }) => {
 			if (ready) {
-				void watcher.watch();
+				if (!wasReady) {
+					// First time it's ready, start watching
+					log(EXTENSION_PREFIX, 'Language server started');
+					void watcher.watch();
+				} else {
+					// Language server was already alive but then died
+					// and restarted. Clear local state that depends
+					// on language server.
+					log(EXTENSION_PREFIX, 'Language server restarted...');
+					statusBar.clearAllRunning();
+				}
+				wasReady = true;
 			}
 		})
 	);
