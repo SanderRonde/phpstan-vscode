@@ -216,7 +216,10 @@ export class ProviderCheckHooks {
 		const tmpDir = await tmp.dir();
 		disposables.push(
 			Disposable.create(() => {
-				void fs.rm(tmpDir.path, { recursive: true });
+				void fs.rm(tmpDir.path, { recursive: true }).catch((err) => {
+					// No reason to really do anything else here, it's a tmp file anyway
+					console.log('Error while deleting tmp folder', err);
+				});
 			})
 		);
 
