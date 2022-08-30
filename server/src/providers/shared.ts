@@ -164,9 +164,9 @@ export class ProviderCheckHooks {
 			autoloadFileContent += `chdir('${path.dirname(
 				userAutoloadFile
 			)}');\n`;
-			autoloadFileContent += `require_once "${userAutoloadFile}";\n`;
+			autoloadFileContent += `require_once '${userAutoloadFile}';\n`;
 		}
-		autoloadFileContent += `require_once "${treeFetcherTmpFilePath}";`;
+		autoloadFileContent += `require_once '${treeFetcherTmpFilePath}';`;
 		await fs.writeFile(autoloadFilePath, autoloadFileContent, {
 			encoding: 'utf-8',
 		});
