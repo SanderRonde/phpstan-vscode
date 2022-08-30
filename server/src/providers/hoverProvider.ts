@@ -4,6 +4,7 @@ import type {
 	ServerRequestHandler,
 } from 'vscode-languageserver';
 import { HOVER_PROVIDER_PREFIX, log } from '../lib/log';
+import { getConfiguration } from '../lib/config';
 import type { ProviderArgs } from './shared';
 import { getFileReport } from './shared';
 
@@ -11,6 +12,18 @@ export function createHoverProvider(
 	providerArgs: ProviderArgs
 ): ServerRequestHandler<HoverParams, Hover | undefined | null, never, void> {
 	return async (hoverParams, cancelToken) => {
+		if (
+			!(await providerArgs.enabled.isEnabled()) ||
+			!(
+				await getConfiguration(
+					providerArgs.connection,
+					providerArgs.getWorkspaceFolder
+				)
+			).enableLanguageServer
+		) {
+			return null;
+		}
+
 		const fileReport = await getFileReport(
 			providerArgs,
 			cancelToken,

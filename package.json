@@ -107,6 +107,11 @@
 						"type": "boolean",
 						"description": "Show checking progress for single-file checks",
 						"default": false
+					},
+					"phpstan.enableLanguageServer": {
+						"type": "boolean",
+						"description": "Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker)",
+						"default": true
 					}
 				}
 			}

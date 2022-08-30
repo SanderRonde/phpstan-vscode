@@ -28,6 +28,7 @@ Automatically performs static analysis of your code and highlights errors as you
 
 -   `phpstan.enabled` - whether to enable the on-save checker (defaults to `true`)
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
+-   `phpstan.enableLanguageServer` - Whether to enable the language server that provides on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `true`)
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 
 ## Development

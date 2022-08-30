@@ -14,6 +14,7 @@ export interface PHPStanConfig {
 	suppressTimeoutMessage: boolean;
 	paths: Record<string, string>;
 	showProgress: boolean;
+	enableLanguageServer: boolean;
 }
 
 export type ConfigSettings = {

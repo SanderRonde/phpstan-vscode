@@ -51,7 +51,10 @@ async function main(): Promise<void> {
 		};
 	});
 
-	const providerHooks = new ProviderCheckHooks();
+	const providerHooks = new ProviderCheckHooks(
+		connection,
+		getWorkspaceFolder
+	);
 	const { phpstan } = createDiagnosticsProvider(
 		connection,
 		onConnectionInitialized,

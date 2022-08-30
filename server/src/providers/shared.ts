@@ -13,6 +13,7 @@ import type { ProviderEnabled } from '../lib/providerUtil';
 import type { WorkspaceFolderGetter } from '../server';
 import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
+import { getConfiguration } from '../lib/config';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -98,6 +99,22 @@ export class ProviderCheckHooks {
 		}
 	> = new Map();
 	private _reports: Map<string, FileReport | null> = new Map();
+
+	private get _lsEnabled(): Promise<boolean> {
+		return (async () => {
+			return (
+				await getConfiguration(
+					this._connection,
+					this._getWorkspaceFolder
+				)
+			).enableLanguageServer;
+		})();
+	}
+
+	public constructor(
+		private readonly _connection: _Connection,
+		private readonly _getWorkspaceFolder: WorkspaceFolderGetter
+	) {}
 
 	private async _getFileReport(uri: string): Promise<FileReport | null> {
 		if (!this._operationMap.has(uri)) {
@@ -213,6 +230,10 @@ export class ProviderCheckHooks {
 		filePath: string,
 		disposables: Disposable[]
 	): Promise<string[]> {
+		if (!(await this._lsEnabled)) {
+			return args;
+		}
+
 		const tmpDir = await tmp.dir();
 		disposables.push(
 			Disposable.create(() => {
@@ -245,6 +266,10 @@ export class ProviderCheckHooks {
 	}
 
 	public async onCheckDone(uri: string): Promise<void> {
+		if (!(await this._lsEnabled)) {
+			return;
+		}
+
 		const report = await this._getFileReport(uri);
 		this._reports.set(uri, report);
 	}
