@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.10
+
+-   Jump bump version
+
 ### 2.2.9
 
 -   Add option for enabling/disabling language server (can help with docker setups)
