@@ -1,4 +1,5 @@
 import type { PHPStanError } from '../../../../shared/notificationChannels';
+import { normalizePath } from '../../../../shared/util';
 
 export class OutputParser {
 	public constructor(private readonly _output: string) {}
@@ -21,7 +22,7 @@ export class OutputParser {
 
 				const [, file, lineNumber, message] = match;
 				return {
-					file,
+					file: normalizePath(file),
 					lineNumber: parseInt(lineNumber, 10),
 					message,
 				};

@@ -3,6 +3,7 @@ import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { EXTENSION_ID } from '../../../../shared/constants';
+import { normalizePath } from '../../../../shared/util';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
@@ -289,7 +290,9 @@ export class PHPStanRunner implements Disposable {
 
 		return result.chain((output) => {
 			return {
-				[filePath]: new OutputParser(output).parse()[filePath] ?? [],
+				[doc.uri]:
+					new OutputParser(output).parse()[normalizePath(filePath)] ??
+					[],
 			};
 		});
 	}
@@ -319,7 +322,19 @@ export class PHPStanRunner implements Disposable {
 		});
 
 		return result.chain((output) => {
-			return new OutputParser(output).parse();
+			const parsed = new OutputParser(output).parse();
+
+			// Turn raw fs paths into URIs
+			const normalized: Record<string, PHPStanError[]> = {};
+			for (const filePath in parsed) {
+				normalized[
+					URI.from({
+						scheme: 'file',
+						path: filePath,
+					}).toString()
+				] = parsed[filePath];
+			}
+			return normalized;
 		});
 	}
 

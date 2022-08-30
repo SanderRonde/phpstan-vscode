@@ -49,12 +49,12 @@ export class ErrorManager implements Disposable {
 	}
 
 	private _getDiagnosticsForURI(
-		uri: string,
+		uri: vscode.Uri,
 		errors: PHPStanError[]
 	): vscode.Diagnostic[] {
 		return errors.map((error) => {
 			const file = vscode.workspace.textDocuments.find(
-				(doc) => doc.fileName === uri
+				(doc) => doc.uri.toString() === uri.toString()
 			);
 
 			const lineNumber = error.lineNumber - 1;
@@ -93,8 +93,9 @@ export class ErrorManager implements Disposable {
 	}
 
 	private _showErrors(uri: string, errors: PHPStanError[]): void {
-		const diagnostics = this._getDiagnosticsForURI(uri, errors);
-		this._diagnosticsCollection.set(vscode.Uri.parse(uri), diagnostics);
+		const parsedURI = vscode.Uri.parse(uri);
+		const diagnostics = this._getDiagnosticsForURI(parsedURI, errors);
+		this._diagnosticsCollection.set(parsedURI, diagnostics);
 	}
 
 	public dispose(): void {
