@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.9
+
+-   Add option for enabling/disabling language server (can help with docker setups)
+-   Fix file path issues on windows
+
 ### 2.2.8
 
 -   Fix issue that would crash language server sometimes
