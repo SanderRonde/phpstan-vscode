@@ -121,3 +121,10 @@ export function toCheckablePromise<R>(promise: Promise<R>): {
 		},
 	};
 }
+
+export function normalizePath(filePath: string): string {
+	if (process.platform !== 'win32') {
+		return filePath;
+	}
+	return filePath.replace(/\\/g, '/');
+}
