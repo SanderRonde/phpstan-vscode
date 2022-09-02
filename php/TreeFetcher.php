@@ -13,7 +13,7 @@ use PHPStan\Type\ErrorType;
 use PHPStan\Type\Type;
 use PHPStan\Type\VerbosityLevel;
 
-class Logger {
+class PHPStanVSCodeLogger {
 	public static function log(...$args) {
 		foreach ($args as $arg) {
 			print_r($arg);
@@ -23,7 +23,7 @@ class Logger {
 	}
 }
 
-class TreeFetcher implements Rule {
+class PHPStanVSCodeTreeFetcher implements Rule {
 	// Replaced at runtime with a tmp file
 	public const REPORTER_FILE = 'reported.json';
 	public const DEV = true;

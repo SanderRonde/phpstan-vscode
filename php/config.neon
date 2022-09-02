@@ -3,5 +3,5 @@ includes:
 	- ../test/demo/phpstan.neon
 
 rules:
-	- TreeFetcher
+	- PHPStanVSCodeTreeFetcher
 
