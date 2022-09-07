@@ -1,12 +1,15 @@
-# PHPStan-vscode
-
-Scans for PHPStan errors as you are working on your PHP code.
+[![](https://vsmarketplacebadge.apphb.com/version/SanderRonde.phpstan-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=SanderRonde.phpstan-vscode)
+[![](https://vsmarketplacebadge.apphb.com/installs-short/SanderRonde.phpstan-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=SanderRonde.phpstan-vscode)
+[![](https://vsmarketplacebadge.apphb.com/rating-short/SanderRonde.phpstan-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=SanderRonde.phpstan-vscode)
 
 ## Features
 
-Automatically performs static analysis of your code and highlights errors as you type.
+- Automatically runs PHPStan of your code and highlights errors as you type.
+- Adds command for running project-wide analysis and displays all errors in the `Diagnostics` tab.
+- Shows the values of variables according to PHPStan at the point of hovering.
 
-## Extension Settings
+
+## Configuration
 
 ### Main Config
 
