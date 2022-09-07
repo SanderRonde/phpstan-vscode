@@ -8,6 +8,7 @@
 - Adds command for running project-wide analysis and displays all errors in the `Diagnostics` tab.
 - Shows the values of variables according to PHPStan at the point of hovering.
 
+https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9ed7-eb892da1fe0f.mp4
 
 ## Configuration
 
