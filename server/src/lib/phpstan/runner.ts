@@ -10,6 +10,7 @@ import type { CheckConfig } from './configManager';
 import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
 import type { ClassConfig } from './manager';
+import { getConfiguration } from '../config';
 import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
@@ -174,20 +175,34 @@ export class PHPStanRunner implements Disposable {
 			onProgress
 		);
 
-		const getLogData = (): string[] => [
-			' err=',
-			getErr(),
-			' data=',
-			getData(),
+		const getFilteredErr = async (): Promise<string> =>
+			(
+				await getConfiguration(
+					this._config.connection,
+					this._config.getWorkspaceFolder
+				)
+			).ignoreErrors
+				.reduce((err, toIgnore) => {
+					while (err.includes(toIgnore)) {
+						err = err.replace(toIgnore, '');
+					}
+					return err;
+				}, getErr())
+				.trim();
+
+		const getLogData = async (): Promise<string[]> => [
+			' filteredErr=' + (await getFilteredErr()),
+			' rawErr=' + getErr(),
+			' data=' + getData(),
 		];
 
-		const onError = (extraData: string[] = []): void => {
+		const onError = async (extraData: string[] = []): Promise<void> => {
 			// On error
 			void log(
 				this._config.connection,
 				checkPrefix(check),
 				'PHPStan process exited with error',
-				...getLogData(),
+				...(await getLogData()),
 				...extraData
 			);
 			showError(
@@ -198,7 +213,7 @@ export class PHPStanRunner implements Disposable {
 
 		return await new Promise<ReturnResult<string>>((resolve) => {
 			phpstan.on('error', (e) => {
-				onError([' errMsg=', e.message]);
+				void onError([' errMsg=' + e.message]);
 				resolve(ReturnResult.error());
 			});
 			// eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -209,8 +224,8 @@ export class PHPStanRunner implements Disposable {
 					return;
 				}
 
-				if (getErr().trim()) {
-					onError();
+				if (await getFilteredErr()) {
+					await onError();
 					resolve(ReturnResult.error());
 					return;
 				}

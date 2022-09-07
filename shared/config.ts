@@ -15,6 +15,7 @@ export interface PHPStanConfig {
 	paths: Record<string, string>;
 	showProgress: boolean;
 	enableLanguageServer: boolean;
+	ignoreErrors: string[];
 }
 
 export type ConfigSettings = {

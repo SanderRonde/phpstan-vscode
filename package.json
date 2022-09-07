@@ -112,6 +112,11 @@
 						"type": "boolean",
 						"description": "Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker)",
 						"default": true
+					},
+					"phpstan.ignoreErrors": {
+						"type": "array",
+						"description": "An array of strings to ignore in PHPStan's error output. If PHPStan outputs some warnings/errors in stderr that can be ignored, put them in here and they'll no longer the process to exit with an error.",
+						"default": []
 					}
 				}
 			}
