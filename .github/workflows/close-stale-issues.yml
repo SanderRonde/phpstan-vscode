@@ -1,13 +1,14 @@
 name: 'Close stale issues and PRs'
 on:
-    - schedule:
-          - cron: '30 1 * * *'
-    - workflow_dispatch
+  - schedule:
+    - cron: '30 1 * * *'
+  - workflow_dispatch
+      
 
 jobs:
-    stale:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/stale@v5
-              with:
-                  stale-issue-message: 'Issues go stale after too much time without activity. If inactive for another 7 days this issue will be closed.'
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v5
+        with:
+          stale-issue-message: 'Issues go stale after too much time without activity. If inactive for another 7 days this issue will be closed.'
