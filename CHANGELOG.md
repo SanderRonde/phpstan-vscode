@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.12
+
+-   Add option for ignoring errors occuring during execution of PHPStan
+
 ### 2.2.11
 
 -   Use names that are less prone to collissions in code injected in PHPStan extension.
