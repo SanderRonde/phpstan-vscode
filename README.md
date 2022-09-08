@@ -48,6 +48,6 @@ This command installs all JS and PHP dependencies and ensures you're ready to go
 
 ### Good-to-know commands
 
-The following command will run PHPStan on a demo file, this is handy for testing out changes to the PHPStan extension.
+The following command will run PHPStan on a demo file, this is handy for testing out changes to the PHPStan plugin that collects hover data.
 
-`php/vendor/bin/phpstan analyze -c php/config.neon -a php/TreeFetcher.php --debug test/demo/DemoClass.php`
+`php/vendor/bin/phpstan analyze -c php/config.neon -a php/TreeFetcher.php --debug test/demo/php/DemoClass.php`
