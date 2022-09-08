@@ -148,6 +148,50 @@ export class PHPStanRunner implements Disposable {
 		return () => data;
 	}
 
+	private async _showIgnoredErrorRegexWarning(
+		ignoredError: string
+	): Promise<void> {
+		const OPEN_SETTINGS = 'Fix in settings';
+		const choice = await this._config.connection.window.showErrorMessage(
+			`To-ignore error "${ignoredError}" is not a valid regular expression`,
+			{
+				title: OPEN_SETTINGS,
+			},
+			{
+				title: 'Close',
+			}
+		);
+		if (choice?.title === OPEN_SETTINGS) {
+			await executeCommand(
+				this._config.connection,
+				'workbench.action.openSettings',
+				'phpstan.ignoreErrors'
+			);
+		}
+	}
+
+	private _filterIgnoredErrors(
+		errors: string[],
+		ignoredErrors: string[]
+	): string[] {
+		for (const ignoreError of ignoredErrors) {
+			const regExp = (() => {
+				try {
+					return new RegExp(ignoreError);
+				} catch (e) {
+					void this._showIgnoredErrorRegexWarning(ignoreError);
+					return null;
+				}
+			})();
+			if (!regExp) {
+				continue;
+			}
+
+			errors = errors.filter((error) => !regExp.test(error));
+		}
+		return errors;
+	}
+
 	private async _getProcessOutput(
 		config: CheckConfig,
 		check: PHPStanCheck,
@@ -175,20 +219,19 @@ export class PHPStanRunner implements Disposable {
 			onProgress
 		);
 
-		const getFilteredErr = async (): Promise<string> =>
-			(
-				await getConfiguration(
-					this._config.connection,
-					this._config.getWorkspaceFolder
-				)
-			).ignoreErrors
-				.reduce((err, toIgnore) => {
-					while (err.includes(toIgnore)) {
-						err = err.replace(toIgnore, '');
-					}
-					return err;
-				}, getErr())
-				.trim();
+		const getFilteredErr = async (): Promise<string> => {
+			const config = await getConfiguration(
+				this._config.connection,
+				this._config.getWorkspaceFolder
+			);
+			const errLines = getErr()
+				.split('\n')
+				.map((line) => line.trim())
+				.filter((line) => line.length);
+			return this._filterIgnoredErrors(errLines, config.ignoreErrors)
+				.map((line) => line.trim())
+				.join('\n');
+		};
 
 		const getLogData = async (): Promise<string[]> => [
 			' filteredErr=' + (await getFilteredErr()),

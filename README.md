@@ -27,7 +27,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.projectTimeout` - timeout for checking the entire project after which the PHPStan process is killed in ms (defaults to 60000ms)
 -   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
 -   `phpstan.paths` - path mapping that allows for rewriting paths. Can be useful when developing inside a docker container or over SSH. Unset by default.
--   `phpstan.ignoreErrors` - Strings to ignore in error messages. If you find the PHPStan process erroring often because of a warning that can be ignored, paste the warning in here and it'll be ignored in the future.
+-   `phpstan.ignoreErrors` - An array of regular expressions to ignore in error messages. If you find the PHPStan process erroring often because of a warning that can be ignored, put the warning in here and it'll be ignored in the future.
 
 ### Customization
 
