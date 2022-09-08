@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.13
+
+-   List of to-ignore errors now takes regular expressions
+
 ### 2.2.12
 
 -   Add option for ignoring errors occuring during execution of PHPStan
