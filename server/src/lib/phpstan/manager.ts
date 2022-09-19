@@ -198,7 +198,7 @@ export class PHPStanCheckManager implements Disposable {
 			force?: boolean;
 		} = {}
 	): Promise<void> {
-		if (e.languageId !== 'php') {
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
 
