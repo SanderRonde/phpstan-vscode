@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.14
+
+-   Don't check files that end with `.git` (appears to be a VSCode quirk)
+
 ### 2.2.13
 
 -   List of to-ignore errors now takes regular expressions
