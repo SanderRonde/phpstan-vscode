@@ -110,7 +110,7 @@ export class PHPStanRunner implements Disposable {
 			windowsVerbatimArguments: true,
 		});
 		this._disposables.push(
-			Disposable.create(() => !phpstan.killed && phpstan.kill())
+			Disposable.create(() => !phpstan.killed && phpstan.kill('SIGINT'))
 		);
 		return phpstan;
 	}
@@ -419,7 +419,7 @@ export class PHPStanRunner implements Disposable {
 		this._cancelled = true;
 		this._disposables.forEach((d) => d.dispose());
 		if (this._process && !this._process.killed) {
-			this._process.kill();
+			this._process.kill('SIGINT');
 		}
 		this._disposables = [];
 	}
