@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.15
+
+-   Kill PHPStan process with SIGINT instead of SIGKILL to allow for graceful shutdown
+
 ### 2.2.14
 
 -   Don't check files that end with `.git` (appears to be a VSCode quirk)
