@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.16
+
+-   Kill with SIGKILL if process does not respond to SIGINT
+-   Fix bug in TreeFetcher
+
 ### 2.2.15
 
 -   Kill PHPStan process with SIGINT instead of SIGKILL to allow for graceful shutdown
