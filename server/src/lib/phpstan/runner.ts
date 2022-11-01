@@ -87,6 +87,29 @@ export class PHPStanRunner implements Disposable {
 		return args;
 	}
 
+	private _kill(proc: ChildProcessWithoutNullStreams): void {
+		let killed = false;
+		proc.once('exit', () => {
+			killed = true;
+		});
+		// Give it 2 seconds to exit gracefully
+		proc.kill('SIGINT');
+		setTimeout(() => {
+			// Then less gracefully
+			if (killed) {
+				return;
+			}
+			proc.kill('SIGTERM');
+			setTimeout(() => {
+				if (killed) {
+					return;
+				}
+				// Then we force it
+				proc.kill('SIGKILL');
+			}, 2000);
+		}, 2000);
+	}
+
 	private async _spawnProcess(
 		config: CheckConfig,
 		check: PHPStanCheck,
@@ -110,7 +133,7 @@ export class PHPStanRunner implements Disposable {
 			windowsVerbatimArguments: true,
 		});
 		this._disposables.push(
-			Disposable.create(() => !phpstan.killed && phpstan.kill('SIGINT'))
+			Disposable.create(() => !phpstan.killed && this._kill(phpstan))
 		);
 		return phpstan;
 	}
@@ -419,7 +442,7 @@ export class PHPStanRunner implements Disposable {
 		this._cancelled = true;
 		this._disposables.forEach((d) => d.dispose());
 		if (this._process && !this._process.killed) {
-			this._process.kill('SIGINT');
+			this._kill(this._process);
 		}
 		this._disposables = [];
 	}
