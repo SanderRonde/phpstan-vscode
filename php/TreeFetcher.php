@@ -107,11 +107,12 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 
 		$lineNumber = $node->getStartLine();
 		$line = $this->getLine($scope, $lineNumber);
-		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $node->name, $isVar);
+		$varName = $isVar ? $node->name : $node->name->name;
+		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $varName, $isVar);
 		$typeDescr = $type->describe(VerbosityLevel::precise());
 		self::reportVariable([
 			'typeDescription' => $typeDescr,
-			'name' => $isVar ? $node->name : $node->name->name,
+			'name' => $varName,
 			'pos' => [
 				'start' => [
 					'line' => $lineNumber - 1,
@@ -119,7 +120,7 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 				],
 				'end' => [
 					'line' => $node->getEndLine(),
-					'char' => $index + strlen($node->name) + ($isVar ? 1 : 0) // +1 for the $
+					'char' => $index + strlen($varName) + ($isVar ? 1 : 0) // +1 for the $
 				]
 			]
 		]);
