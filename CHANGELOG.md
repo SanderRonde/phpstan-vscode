@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.17
+
+-   Don't do unnecessary checks on closing files
+
 ### 2.2.16
 
 -   Kill with SIGKILL if process does not respond to SIGINT
