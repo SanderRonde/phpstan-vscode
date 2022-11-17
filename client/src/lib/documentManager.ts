@@ -122,12 +122,6 @@ export class DocumentManager implements Disposable {
 			})
 		);
 
-		this._disposables.push(
-			vscode.workspace.onDidCloseTextDocument((e) => {
-				void this._onDocumentOpen(e, true);
-			})
-		);
-
 		if (vscode.window.activeTextEditor) {
 			void this._onDocumentActive(
 				vscode.window.activeTextEditor.document
