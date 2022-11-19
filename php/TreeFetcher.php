@@ -71,7 +71,7 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 			$remainingPositions -= 1;
 			$matches = [];
 			$name = $isVar ? '\$' . $varName : $varName;
-			preg_match("/${name}[^a-zA-Z0-9_]/", $line, $matches, PREG_OFFSET_CAPTURE, $offset + 1);
+			preg_match("/{$name}[^a-zA-Z0-9_]/", $line, $matches, PREG_OFFSET_CAPTURE, $offset + 1);
 			if (!$matches[0]) {
 				$offset = false;
 				break;
