@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.18
+
+- Fix deprecated string iterpolation (thanks to [priyadi](https://github.com/SanderRonde/phpstan-vscode/pull/21))
+
 ### 2.2.17
 
 -   Don't do unnecessary checks on closing files
