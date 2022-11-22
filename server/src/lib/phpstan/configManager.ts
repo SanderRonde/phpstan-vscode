@@ -163,22 +163,30 @@ export class ConfigurationManager {
 			this._config.connection,
 			this._config.getWorkspaceFolder
 		);
-		const defaultConfigFile = this._getAbsolutePath(
-			extensionConfig.configFile,
-			cwd
-		);
-		if (
-			defaultConfigFile &&
-			!(await this._fileIfExists(defaultConfigFile))
-		) {
-			await showErrorOnce(
-				this._config.connection,
-				`PHPStan: failed to find config file at "${defaultConfigFile}"`
-			);
-			return null;
+		const absoluteConfigPaths = extensionConfig.configFile
+			? extensionConfig.configFile
+					.split(',')
+					.map((c) => c.trim())
+					.map((c) => this._getAbsolutePath(c, cwd))
+			: [];
+		for (const absoluteConfigPath of absoluteConfigPaths) {
+			if (
+				absoluteConfigPath &&
+				(await this._fileIfExists(absoluteConfigPath))
+			) {
+				return absoluteConfigPath;
+			}
 		}
 
-		return defaultConfigFile;
+		// Config file was set but not found
+		if (extensionConfig.configFile) {
+			await showErrorOnce(
+				this._config.connection,
+				`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
+			);
+		}
+
+		return null;
 	}
 
 	public async collectConfiguration(): Promise<CheckConfig | null> {

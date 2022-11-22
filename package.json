@@ -56,7 +56,12 @@
 					"phpstan.configFile": {
 						"type": "string",
 						"default": "phpstan.neon",
-						"description": "Path to the config file (leave empty to disable)"
+						"examples": [
+							"phpstan.neon",
+							"backend/phpstan.neon",
+							"phpstan.neon,phpstan.neon.dist"
+						],
+						"description": "Path to the config file (leave empty to disable, use a comma-separated list to resolve in order)"
 					},
 					"phpstan.paths": {
 						"type": "object",

@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 
 ### Main Config
 
--   `phpstan.configFile` (**required**) : path to the config file, either relative to `phpstan.rootDir` or absolute
+-   `phpstan.configFile` - path to the config file, either relative to `phpstan.rootDir` or absolute. Use a comma-separated list to resolve in the listed order. For example if `phpstan.neon,phpstan.neon.dist` is used, the extension will first try to use `phpstan.neon` if it exists and fall back to `phpstan.neon.dist`.
 -   `phpstan.rootDir` - path to the root directory of your PHP project (defaults to `workspaceFolder`)
 -   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
 -   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. Unset by default.
