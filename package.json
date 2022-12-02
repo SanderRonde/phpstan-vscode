@@ -66,6 +66,11 @@
 					"phpstan.paths": {
 						"type": "object",
 						"default": {},
+						"examples": [
+							{
+								"/path/to/hostFolder": "/path/in/dockerContainer"
+							}
+						],
 						"description": "Path mapping for scanned files. Allows for rewriting paths for for example SSH or Docker."
 					},
 					"phpstan.rootDir": {
