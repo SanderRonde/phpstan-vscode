@@ -23,10 +23,7 @@
 	},
 	"publisher": "SanderRonde",
 	"activationEvents": [
-		"onLanguage:php",
-		"onCommand:cmd.phpstan.scanFileForErrors",
-		"onCommand:cmd.phpstan.scanProjectForErrors",
-		"onCommand:cmd.phpstan.reload"
+		"onLanguage:php"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
@@ -246,7 +243,7 @@
 		"tsx": "^3.7.0",
 		"typescript": "^4.5.5",
 		"vsce": "^2.10.0",
-		"vscode-generate-package-json": "^1.0.5",
+		"vscode-generate-package-json": "^1.0.7",
 		"vscode-languageclient": "^8.0.1",
 		"vscode-test": "^1.6.1"
 	},
