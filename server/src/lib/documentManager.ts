@@ -82,8 +82,6 @@ export class DocumentManager implements Disposable {
 	): Promise<void> {
 		this._documents.set(e.uri, e);
 		if (check) {
-			await this._watcher.onDocumentCheck(e);
-		} else {
 			await this._watcher.onDocumentOpen(e);
 		}
 	}
