@@ -4,7 +4,7 @@ import { errorNotification } from './notificationChannels';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
-export class ErrorManager implements Disposable {
+export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	private readonly _diagnosticsCollection: vscode.DiagnosticCollection;
 	private readonly _errors: Map<string, PHPStanError[]> = new Map();
 	private _disposables: Disposable[] = [];
@@ -31,6 +31,11 @@ export class ErrorManager implements Disposable {
 					// Refresh, we might have some info on the chars
 					this._showErrors(e.fileName, this._errors.get(e.fileName)!);
 				}
+			})
+		);
+		this._disposables.push(
+			vscode.languages.registerCodeActionsProvider('php', this, {
+				providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
 			})
 		);
 	}
@@ -98,7 +103,70 @@ export class ErrorManager implements Disposable {
 		this._diagnosticsCollection.set(parsedURI, diagnostics);
 	}
 
+	public provideCodeActions(
+		document: vscode.TextDocument,
+		range: vscode.Range | vscode.Selection
+	): vscode.ProviderResult<(vscode.CodeAction | vscode.Command)[]> {
+		const uri = document.uri.toString();
+		if (!this._errors.has(uri)) {
+			return [];
+		}
+
+		const errors = this._errors.get(uri)!;
+
+		const actions: ErrorCodeAction[] = [];
+
+		for (const error of errors) {
+			if (error.lineNumber !== range.start.line + 1) {
+				continue;
+			}
+			const action = new ErrorCodeAction(document, error);
+			actions.push(action);
+		}
+
+		return actions;
+	}
+
+	public resolveCodeAction(
+		codeAction: ErrorCodeAction
+	): vscode.ProviderResult<vscode.CodeAction> {
+		codeAction.resolveEdit();
+		return codeAction;
+	}
+
 	public dispose(): void {
 		this._diagnosticsCollection.dispose();
+	}
+}
+
+class ErrorCodeAction extends vscode.CodeAction {
+	public constructor(
+		private readonly _document: vscode.TextDocument,
+		private readonly _error: PHPStanError
+	) {
+		super('Ignore PHPStan error', vscode.CodeActionKind.QuickFix);
+	}
+
+	public resolveEdit(): void {
+		this.edit = new vscode.WorkspaceEdit();
+		const errorRange = new vscode.Range(
+			this._error.lineNumber - 1,
+			0,
+			this._error.lineNumber - 1,
+			this._document.lineAt(this._error.lineNumber - 1).text.length
+		);
+		const originalText = this._document.getText(errorRange);
+		const lineIndent = /^(\s*)/.exec(originalText);
+		this.edit.replace(
+			this._document.uri,
+			errorRange,
+			`${
+				lineIndent?.[1] ?? ''
+			}// @phpstan-ignore-next-line\n${originalText}`,
+			{
+				label: 'Ignore PHPStan error',
+				needsConfirmation: false,
+			}
+		);
 	}
 }
