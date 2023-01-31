@@ -390,6 +390,9 @@ export class PHPStanRunner implements Disposable {
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
+		const pathMapper = await ConfigurationManager.getPathMapper(
+			this._config
+		);
 
 		// Get args
 		const args = await this._getArgs(config, {
@@ -411,7 +414,7 @@ export class PHPStanRunner implements Disposable {
 				normalized[
 					URI.from({
 						scheme: 'file',
-						path: filePath,
+						path: pathMapper(filePath),
 					}).toString()
 				] = parsed[filePath];
 			}
