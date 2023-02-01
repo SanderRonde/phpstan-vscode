@@ -414,7 +414,7 @@ export class PHPStanRunner implements Disposable {
 				normalized[
 					URI.from({
 						scheme: 'file',
-						path: pathMapper(filePath),
+						path: pathMapper(filePath, true),
 					}).toString()
 				] = parsed[filePath];
 			}

@@ -32,7 +32,7 @@ export class ConfigurationManager {
 
 	public static async getPathMapper(
 		config: ClassConfig
-	): Promise<(filePath: string) => string> {
+	): Promise<(filePath: string, inverse?: boolean) => string> {
 		const pathMapping =
 			(
 				await getConfiguration(
@@ -41,12 +41,15 @@ export class ConfigurationManager {
 				)
 			).paths ?? {};
 
-		return (filePath: string) => {
+		return (filePath: string, inverse: boolean = false) => {
 			if (Object.keys(pathMapping).length === 0) {
 				return filePath;
 			}
 			const expandedFilePath = filePath.replace(/^~/, os.homedir());
-			for (const [from, to] of Object.entries(pathMapping)) {
+			for (const [fromPath, toPath] of Object.entries(pathMapping)) {
+				const [from, to] = inverse
+					? [toPath, fromPath]
+					: [fromPath, toPath];
 				const expandedFromPath = from.replace(/^~/, os.homedir());
 				if (expandedFilePath.startsWith(expandedFromPath)) {
 					return expandedFilePath.replace(
