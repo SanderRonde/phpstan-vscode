@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.20
+
+-   Fix paths not mapping when scanning entire project. Thanks to [raustin-m](https://github.com/SanderRonde/phpstan-vscode/pull/28) for the PR.
+
 ### 2.2.19
 
 -   Provide quick fix for ignoring errors (thanks to [FrankySnow](https://github.com/SanderRonde/phpstan-vscode/issues/25))
