@@ -26,6 +26,13 @@ export class ConfigurationManager {
 		config: ClassConfig,
 		filePath: string
 	): Promise<string> {
+		const pathMapper = await this.getPathMapper(config);
+		return pathMapper(filePath);
+	}
+
+	public static async getPathMapper(
+		config: ClassConfig
+	): Promise<(filePath: string, inverse?: boolean) => string> {
 		const pathMapping =
 			(
 				await getConfiguration(
@@ -33,20 +40,26 @@ export class ConfigurationManager {
 					config.getWorkspaceFolder
 				)
 			).paths ?? {};
-		if (Object.keys(pathMapping).length === 0) {
-			return filePath;
-		}
-		const expandedFilePath = filePath.replace(/^~/, os.homedir());
-		for (const [from, to] of Object.entries(pathMapping)) {
-			const expandedFromPath = from.replace(/^~/, os.homedir());
-			if (expandedFilePath.startsWith(expandedFromPath)) {
-				return expandedFilePath.replace(
-					expandedFromPath,
-					to.replace(/^~/, os.homedir())
-				);
+
+		return (filePath: string, inverse: boolean = false) => {
+			if (Object.keys(pathMapping).length === 0) {
+				return filePath;
 			}
-		}
-		return filePath;
+			const expandedFilePath = filePath.replace(/^~/, os.homedir());
+			for (const [fromPath, toPath] of Object.entries(pathMapping)) {
+				const [from, to] = inverse
+					? [toPath, fromPath]
+					: [fromPath, toPath];
+				const expandedFromPath = from.replace(/^~/, os.homedir());
+				if (expandedFilePath.startsWith(expandedFromPath)) {
+					return expandedFilePath.replace(
+						expandedFromPath,
+						to.replace(/^~/, os.homedir())
+					);
+				}
+			}
+			return filePath;
+		};
 	}
 
 	private async _fileIfExists(filePath: string): Promise<string | null> {
