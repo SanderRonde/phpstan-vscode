@@ -1,7 +1,3 @@
-[![](https://vsmarketplacebadge.apphb.com/version/SanderRonde.phpstan-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=SanderRonde.phpstan-vscode)
-[![](https://vsmarketplacebadge.apphb.com/installs-short/SanderRonde.phpstan-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=SanderRonde.phpstan-vscode)
-[![](https://vsmarketplacebadge.apphb.com/rating-short/SanderRonde.phpstan-vscode.svg)](https://marketplace.visualstudio.com/items?itemName=SanderRonde.phpstan-vscode)
-
 ## Features
 
 -   Automatically runs PHPStan of your code and highlights errors as you type.
