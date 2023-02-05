@@ -110,9 +110,10 @@ export const config = {
 	},
 	'phpstan.timeout': {
 		jsonDefinition: {
-			type: 'boolean',
-			description: 'Whether to enable the on-save checker',
-			default: true,
+			type: 'number',
+			description:
+				'Timeout in milliseconds for a single file check. After this time the checking process is canceled',
+			default: 10000,
 		},
 	},
 	'phpstan.projectTimeout': {

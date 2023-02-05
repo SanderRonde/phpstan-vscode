@@ -3,6 +3,7 @@ import {
 	watcherNotification,
 } from './notificationChannels';
 import { commands, Commands } from '../../../shared/commands/defs';
+// eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { showError } from './errorUtil';
