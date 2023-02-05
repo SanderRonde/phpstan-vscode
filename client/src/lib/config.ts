@@ -20,9 +20,7 @@ export function registerConfigListeners(): void {
 	const config = getConfiguration();
 	const configValues: Record<string, unknown> = {};
 	for (const key of CONFIG_KEYS) {
-		configValues[key] = config.get(
-			`phpstan.${key}` as keyof ConfigSettings
-		);
+		configValues[key] = config.get(`phpstan.${key}`);
 	}
 	log(
 		CLIENT_PREFIX,
