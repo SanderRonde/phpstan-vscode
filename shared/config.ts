@@ -18,6 +18,28 @@ export interface PHPStanConfig {
 	ignoreErrors: string[];
 }
 
+export const CONFIG_KEYS = [
+	'binPath',
+	'binCommand',
+	'configFile',
+	'rootDir',
+	'options',
+	'enableStatusBar',
+	'memoryLimit',
+	'enabled',
+	'timeout',
+	'projectTimeout',
+	'suppressTimeoutMessage',
+	'paths',
+	'showProgress',
+	'enableLanguageServer',
+	'ignoreErrors',
+] as const;
+// Ideally we'd use `satisifies` here but the tooling (prettier & eslint) don't seem to support it yet.
+const __typeCheck: (keyof PHPStanConfig)[] = ['binPath'];
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+__typeCheck;
+
 export type ConfigSettings = {
 	[K in keyof PHPStanConfig as `phpstan.${K}`]: PHPStanConfig[K];
 };

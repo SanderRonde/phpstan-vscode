@@ -1,9 +1,15 @@
+import {
+	createOutputChannel,
+	SERVER_PREFIX,
+	log,
+	registerLogMessager,
+	CLIENT_PREFIX,
+} from './lib/log';
 import type {
 	LanguageClientOptions,
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
-import { EXTENSION_PREFIX, log, registerLogMessager } from './lib/log';
 import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
 import { registerConfigListeners } from './lib/config';
@@ -66,7 +72,8 @@ async function startLanguageServer(
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
-	log(EXTENSION_PREFIX, 'Initializing PHPStan extension');
+	log(CLIENT_PREFIX, 'Initializing PHPStan extension');
+	createOutputChannel();
 	const client = await startLanguageServer(context);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
@@ -83,20 +90,20 @@ export async function activate(context: ExtensionContext): Promise<void> {
 			if (ready) {
 				if (!wasReady) {
 					// First time it's ready, start watching
-					log(EXTENSION_PREFIX, 'Language server started');
+					log(SERVER_PREFIX, 'Language server started');
 					void watcher.watch();
 				} else {
 					// Language server was already alive but then died
 					// and restarted. Clear local state that depends
 					// on language server.
-					log(EXTENSION_PREFIX, 'Language server restarted...');
+					log(SERVER_PREFIX, 'Language server restarted...');
 					statusBar.clearAllRunning();
 				}
 				wasReady = true;
 			}
 		})
 	);
-	log(EXTENSION_PREFIX, 'Initializing done');
+	log(CLIENT_PREFIX, 'Initializing done');
 }
 
 export function deactivate(): Thenable<void> | undefined {

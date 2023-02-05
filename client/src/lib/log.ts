@@ -7,7 +7,7 @@ import { DEBUG } from './dev';
 let channel: OutputChannel | null;
 
 export function createOutputChannel(): void {
-	channel = window.createOutputChannel('PHPStan');
+	channel = window.createOutputChannel('PHPStan Client');
 }
 
 export function registerLogMessager(
@@ -36,5 +36,6 @@ export function log(prefix: Prefix, ...data: string[]): void {
 }
 
 export const STATUS_BAR_PREFIX = '[status-bar]' as Prefix;
-export const EXTENSION_PREFIX = '[server]' as Prefix;
+export const CLIENT_PREFIX = '[client]' as Prefix;
+export const SERVER_PREFIX = '[server]' as Prefix;
 export const ERROR_PREFIX = '[error]' as Prefix;
