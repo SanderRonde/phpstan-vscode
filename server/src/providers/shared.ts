@@ -9,8 +9,8 @@ import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
 import type { PHPStanCheckManager } from '../lib/phpstan/manager';
 import type { CheckConfig } from '../lib/phpstan/configManager';
-import type { ProviderEnabled } from '../lib/providerUtil';
 import type { WorkspaceFolderGetter } from '../server';
+import { providerEnabled } from '../lib/providerUtil';
 import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
 import { getConfiguration } from '../lib/config';
@@ -42,7 +42,7 @@ export interface ProviderArgs {
 	hooks: ProviderCheckHooks;
 	phpstan: PHPStanCheckManager;
 	getWorkspaceFolder: WorkspaceFolderGetter;
-	enabled: ProviderEnabled;
+	onConnectionInitialized: Promise<void>;
 }
 
 export async function getFileReport(
@@ -50,7 +50,7 @@ export async function getFileReport(
 	cancelToken: CancellationToken,
 	documentURI: string
 ): Promise<FileReport | null> {
-	if (!(await providerArgs.enabled.isEnabled())) {
+	if (!(await providerEnabled(providerArgs))) {
 		return null;
 	}
 

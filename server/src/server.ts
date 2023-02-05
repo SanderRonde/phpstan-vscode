@@ -13,7 +13,7 @@ import { createHoverProvider } from './providers/hoverProvider';
 import { readyNotification } from './lib/notificationChannels';
 import type { Disposable } from 'vscode-languageserver/node';
 import { ProviderCheckHooks } from './providers/shared';
-import { providerEnabled } from './lib/providerUtil';
+import type { ProviderArgs } from './providers/shared';
 import { log, SERVER_PREFIX } from './lib/log';
 import { URI } from 'vscode-uri';
 
@@ -62,18 +62,12 @@ async function main(): Promise<void> {
 		disposables,
 		getWorkspaceFolder
 	);
-	const providersEnabled = providerEnabled(
-		connection,
-		onConnectionInitialized,
-		getWorkspaceFolder,
-		disposables
-	);
-	const providerArgs = {
+	const providerArgs: ProviderArgs = {
 		connection,
 		hooks: providerHooks,
 		phpstan,
 		getWorkspaceFolder,
-		enabled: providersEnabled,
+		onConnectionInitialized,
 	};
 	connection.onHover(createHoverProvider(providerArgs));
 	connection.listen();

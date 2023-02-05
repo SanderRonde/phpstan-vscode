@@ -10,7 +10,21 @@ export class Watcher implements Disposable {
 	private _disposables: Disposable[] = [];
 	private readonly _connection: _Connection;
 	private readonly _phpstan: PHPStanCheckManager;
-	private _enabled: Promise<boolean>;
+	private readonly _getWorkspaceFolder: WorkspaceFolderGetter;
+	private readonly _onConnectionInitialized: Promise<void>;
+
+	private get _enabled(): Promise<boolean> {
+		return new Promise<boolean>((resolve) => {
+			void (async () => {
+				await this._onConnectionInitialized;
+				const config = await getConfiguration(
+					this._connection,
+					this._getWorkspaceFolder
+				);
+				resolve(config.enabled);
+			})();
+		});
+	}
 
 	public constructor({
 		connection,
@@ -25,26 +39,8 @@ export class Watcher implements Disposable {
 	}) {
 		this._connection = connection;
 		this._phpstan = checkManager;
-
-		this._enabled = onConnectionInitialized.then(() => {
-			this._disposables.push(
-				this._connection.onDidChangeConfiguration(() => {
-					void log(
-						this._connection,
-						WATCHER_PREFIX,
-						'Enabled setting changed, re-registering handlers'
-					);
-					this._enabled = getConfiguration(
-						this._connection,
-						getWorkspaceFolder
-					).then((config) => config.enabled);
-				})
-			);
-
-			return getConfiguration(this._connection, getWorkspaceFolder).then(
-				(config) => config.enabled
-			);
-		});
+		this._getWorkspaceFolder = getWorkspaceFolder;
+		this._onConnectionInitialized = onConnectionInitialized;
 	}
 
 	private _toPartialDocument(
