@@ -2,6 +2,15 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.22
+
+-   Log configuration on extension startup (helps in debugging)
+-   Always check current configuration when starting a new check
+
+### 2.2.21
+
+-   Remove badges from README.md (VSCode marketplace did not allow them)
+
 ### 2.2.20
 
 -   Fix paths not mapping when scanning entire project. Thanks to [raustin-m](https://github.com/SanderRonde/phpstan-vscode/pull/28) for the PR.
