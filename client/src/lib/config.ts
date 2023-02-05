@@ -1,7 +1,6 @@
-import type {
-	ConfigSettings,
-	TypedWorkspaceConfiguration,
-} from '../../../shared/config';
+// eslint-disable-next-line node/no-extraneous-import
+import type { TypedWorkspaceConfiguration } from 'vscode-generate-package-json';
+import type { ConfigSettings } from '../../../shared/config';
 import { CONFIG_KEYS } from '../../../shared/config';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';

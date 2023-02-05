@@ -1,22 +1,5 @@
-import type { ConfigurationTarget, WorkspaceConfiguration } from 'vscode';
-
-export interface PHPStanConfig {
-	binPath: string | null;
-	binCommand: string[] | null;
-	configFile: string | null;
-	rootDir: string | null;
-	options: string[];
-	enableStatusBar: boolean;
-	memoryLimit: string;
-	enabled: boolean;
-	timeout: number;
-	projectTimeout: number;
-	suppressTimeoutMessage: boolean;
-	paths: Record<string, string>;
-	showProgress: boolean;
-	enableLanguageServer: boolean;
-	ignoreErrors: string[];
-}
+import type { GetConfigurationType } from 'vscode-generate-package-json';
+import type { config } from './commands/defs';
 
 export const CONFIG_KEYS = [
 	'binPath',
@@ -36,29 +19,13 @@ export const CONFIG_KEYS = [
 	'ignoreErrors',
 ] as const;
 // Ideally we'd use `satisifies` here but the tooling (prettier & eslint) don't seem to support it yet.
-const __typeCheck: (keyof PHPStanConfig)[] = ['binPath'];
+const __typeCheck: readonly (keyof ConfigSettingsWithoutPrefix)[] = CONFIG_KEYS;
 // eslint-disable-next-line @typescript-eslint/no-unused-expressions
 __typeCheck;
 
-export type ConfigSettings = {
-	[K in keyof PHPStanConfig as `phpstan.${K}`]: PHPStanConfig[K];
+export type ConfigSettingsWithoutPrefix = {
+	[K in keyof ConfigSettings as K extends `phpstan.${infer R}`
+		? R
+		: unknown]: ConfigSettings[K];
 };
-
-export interface TypedWorkspaceConfiguration<T> extends WorkspaceConfiguration {
-	get<K extends Extract<keyof T, string>>(
-		section: K,
-		defaultValue: T[K]
-	): T[K];
-	get<K extends Extract<keyof T, string>>(section: K): T[K];
-	get<K extends Extract<keyof T, string>>(
-		section: K,
-		defaultValue?: T[K]
-	): T[K];
-	has<K extends Extract<keyof T, string>>(section: K): boolean;
-	update<K extends Extract<keyof T, string>>(
-		section: K,
-		value: T[K],
-		configurationTarget?: ConfigurationTarget | boolean | null,
-		overrideInLanguage?: boolean
-	): Thenable<void>;
-}
+export type ConfigSettings = GetConfigurationType<typeof config>;
