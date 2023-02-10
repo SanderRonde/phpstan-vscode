@@ -17,6 +17,7 @@ import { registerListeners } from './lib/commands';
 import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
 import { StatusBar } from './lib/statusBar';
+import { ProcessSpawner } from './lib/proc';
 import { INSPECT_BRK } from './lib/dev';
 import { workspace } from 'vscode';
 import * as path from 'path';
@@ -78,11 +79,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
 	const errorManager = new ErrorManager(client);
+	const procSpawner = new ProcessSpawner(client, context);
 
 	registerListeners(context, client);
 	registerConfigListeners();
 	registerLogMessager(context, client);
-	context.subscriptions.push(statusBar, watcher, errorManager);
+	context.subscriptions.push(statusBar, watcher, errorManager, procSpawner);
 
 	let wasReady = false;
 	context.subscriptions.push(

@@ -17,6 +17,7 @@ import { PHPStanCheck } from './check';
 import { URI } from 'vscode-uri';
 import path = require('path');
 import { OperationStatus } from '../../../../shared/statusBar';
+import type { ProcessSpawner } from '../proc';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
@@ -26,6 +27,7 @@ export interface ClassConfig {
 	hooks: {
 		provider: ProviderCheckHooks;
 	};
+	procSpawner: ProcessSpawner;
 }
 
 interface CheckOperation {

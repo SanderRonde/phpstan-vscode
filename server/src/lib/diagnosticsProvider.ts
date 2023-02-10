@@ -3,6 +3,7 @@ import type { ProviderCheckHooks } from '../providers/shared';
 import { PHPStanCheckManager } from './phpstan/manager';
 import type { WorkspaceFolderGetter } from '../server';
 import { DocumentManager } from './documentManager';
+import type { ProcessSpawner } from './proc';
 import { StatusBar } from './statusBar';
 import { Watcher } from './watcher';
 
@@ -11,7 +12,8 @@ export function createDiagnosticsProvider(
 	onConnectionInitialized: Promise<void>,
 	hoverProviderHooks: ProviderCheckHooks,
 	disposables: Disposable[],
-	getWorkspaceFolder: WorkspaceFolderGetter
+	getWorkspaceFolder: WorkspaceFolderGetter,
+	procSpawner: ProcessSpawner
 ): {
 	phpstan: PHPStanCheckManager;
 } {
@@ -26,6 +28,7 @@ export function createDiagnosticsProvider(
 		hooks: {
 			provider: hoverProviderHooks,
 		},
+		procSpawner,
 	});
 	const watcher = new Watcher({
 		connection,

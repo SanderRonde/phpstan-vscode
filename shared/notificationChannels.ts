@@ -7,6 +7,7 @@ export enum NotificationChannel {
 	COMMAND = 'phpstan.command',
 	READY = 'phpstan.ready',
 	ERROR = 'phpstan.error',
+	SPAWNER = 'phpstan.spawner',
 }
 
 export interface WatcherNotificationFileData {
@@ -83,6 +84,11 @@ export type StatusBarNotificationType =
 
 export interface ReadyNotificationType {
 	ready: boolean;
+}
+
+export interface ProcessNotificationType {
+	pid: number;
+	timeout: number;
 }
 
 export interface PHPStanError {

@@ -1,8 +1,8 @@
+import { EXTENSION_ID, PROCESS_TIMEOUT } from '../../../../shared/constants';
 import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
 import type { PHPStanCheck, ProgressListener } from './check';
-import { EXTENSION_ID } from '../../../../shared/constants';
 import { normalizePath } from '../../../../shared/util';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
@@ -14,7 +14,6 @@ import { getConfiguration } from '../config';
 import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
-import { spawn } from 'child_process';
 import { URI } from 'vscode-uri';
 import * as os from 'os';
 
@@ -127,11 +126,16 @@ export class PHPStanRunner implements Disposable {
 				args,
 			})
 		);
-		const phpstan = spawn(binStr, args, {
-			shell: process.platform === 'win32',
-			cwd: config.cwd,
-			windowsVerbatimArguments: true,
-		});
+		const phpstan = await this._config.procSpawner.spawnWithRobustTimeout(
+			binStr,
+			args,
+			PROCESS_TIMEOUT,
+			{
+				shell: process.platform === 'win32',
+				cwd: config.cwd,
+				windowsVerbatimArguments: true,
+			}
+		);
 		this._disposables.push(
 			Disposable.create(() => !phpstan.killed && this._kill(phpstan))
 		);

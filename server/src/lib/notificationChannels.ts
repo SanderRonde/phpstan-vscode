@@ -2,6 +2,7 @@ import type {
 	CommandNotificationType,
 	ErrorNotificationType,
 	LogNotificationType,
+	ProcessNotificationType,
 	ReadyNotificationType,
 	StatusBarNotificationType,
 	WatcherNotificationType,
@@ -31,3 +32,6 @@ export const readyNotification = new NotificationType<ReadyNotificationType>(
 export const errorNotification = new NotificationType<ErrorNotificationType>(
 	NotificationChannel.ERROR
 );
+
+export const processNotification =
+	new NotificationType<ProcessNotificationType>(NotificationChannel.SPAWNER);

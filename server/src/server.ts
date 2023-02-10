@@ -15,6 +15,7 @@ import type { Disposable } from 'vscode-languageserver/node';
 import { ProviderCheckHooks } from './providers/shared';
 import type { ProviderArgs } from './providers/shared';
 import { log, SERVER_PREFIX } from './lib/log';
+import { ProcessSpawner } from './lib/proc';
 import { URI } from 'vscode-uri';
 
 export type WorkspaceFolderGetter = () => URI | null;
@@ -51,6 +52,7 @@ async function main(): Promise<void> {
 		};
 	});
 
+	const procSpawner = new ProcessSpawner(connection);
 	const providerHooks = new ProviderCheckHooks(
 		connection,
 		getWorkspaceFolder
@@ -60,7 +62,8 @@ async function main(): Promise<void> {
 		onConnectionInitialized,
 		providerHooks,
 		disposables,
-		getWorkspaceFolder
+		getWorkspaceFolder,
+		procSpawner
 	);
 	const providerArgs: ProviderArgs = {
 		connection,
