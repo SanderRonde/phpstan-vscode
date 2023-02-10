@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.23
+
+-   Force-kill processes that run too long, even if they outlast VSCode's runtime itself
+
 ### 2.2.22
 
 -   Log configuration on extension startup (helps in debugging)
