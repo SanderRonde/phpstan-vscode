@@ -29,7 +29,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Extension Configuration",
+			"title": "PHPStan",
 			"properties": {
 				"phpstan.binPath": {
 					"type": "string",
@@ -221,7 +221,7 @@
 		"format": "prettier --write client server",
 		"package": "yarn vsce package",
 		"package-dev": "VARIANT=\"debug\" yarn vsce package",
-		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --prefix PHPStan && prettier --write package.json",
+		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --name PHPStan && prettier --write package.json",
 		"prepush": "yarn generate-package && yarn format-staged && yarn lint --fix && yarn compile",
 		"devYarn": "yarn && yarn --cwd client && yarn --cwd server",
 		"postinstall": "yarn --cwd client && yarn --cwd server",
@@ -249,7 +249,7 @@
 		"tsx": "^3.7.0",
 		"typescript": "^4.5.5",
 		"vsce": "^2.10.0",
-		"vscode-generate-package-json": "^1.1.0",
+		"vscode-generate-package-json": "^1.2.0",
 		"vscode-languageclient": "^8.0.1",
 		"vscode-test": "^1.6.1"
 	},

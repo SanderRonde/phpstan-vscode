@@ -3633,10 +3633,10 @@ vsce@^2.10.0:
     yauzl "^2.3.1"
     yazl "^2.2.2"
 
-vscode-generate-package-json@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/vscode-generate-package-json/-/vscode-generate-package-json-1.1.0.tgz#623f810c3bc46fe7c9c5ff16369ec08a3d5bbf3e"
-  integrity sha512-4cExUrB1DRu9kKaaAYZwZCMoh1c/tBrKdi2sfoVG1GL8Iv6oQyw2oBEbqFpQVQ4CvuT6ynjCOLzUcuGDB08RDA==
+vscode-generate-package-json@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/vscode-generate-package-json/-/vscode-generate-package-json-1.2.0.tgz#e9c6e178111ed283cd7dcd3db7dfcb247bd39d60"
+  integrity sha512-9g5QgYCk0DRVjEC3G6TdSPD32N42YjCyhSf+A5F5drFeOiZ9CkZscPuBcfHAxvArxXpAkbzKrduip4wKBxWCng==
   dependencies:
     ts-node "^10.5.0"
 
