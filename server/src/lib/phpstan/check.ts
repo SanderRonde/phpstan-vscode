@@ -31,7 +31,10 @@ export class PHPStanCheck implements Disposable {
 		return this._done;
 	}
 
-	public constructor(private readonly _config: ClassConfig) {}
+	public constructor(
+		private readonly _config: ClassConfig,
+		public readonly checkType: 'project' | 'file'
+	) {}
 
 	private _onProgress(progress: StatusBarProgress): void {
 		this._progressListeners.forEach((c) => c(progress));

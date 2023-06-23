@@ -61,7 +61,9 @@ export class PHPStanCheckManager implements Disposable {
 							await executeCommand(
 								this._config.connection,
 								'workbench.action.openSettings',
-								'phpstan.timeout'
+								check.checkType === 'project'
+									? 'phpstan.projectCheckTimeout'
+									: 'phpstan.timeout'
 							);
 						},
 					},
@@ -100,13 +102,14 @@ export class PHPStanCheckManager implements Disposable {
 	}
 
 	private async _checkShared(
+		checkType: 'file' | 'project',
 		applyErrors: boolean,
 		description: string,
 		descriptionShort: string,
 		e?: PartialDocument
 	): Promise<void> {
 		// Prep check
-		const check = new PHPStanCheck(this._config);
+		const check = new PHPStanCheck(this._config, checkType);
 		void log(
 			this._config.connection,
 			checkPrefix(check),
@@ -139,7 +142,8 @@ export class PHPStanCheckManager implements Disposable {
 			Promise<ReturnResult<Record<string, PHPStanError[]>>>
 		>({
 			promise: check.check(applyErrors, e),
-			timeout: config.timeout,
+			timeout:
+				checkType === 'file' ? config.timeout : config.projectTimeout,
 			onTimeout: async () => {
 				check.dispose();
 				void this._onTimeout(check);
@@ -246,7 +250,13 @@ export class PHPStanCheckManager implements Disposable {
 			this._config.getWorkspaceFolder()!.fsPath,
 			fileFsPath
 		);
-		const check = this._checkShared(applyErrors, e.uri, filePath, e);
+		const check = this._checkShared(
+			'file',
+			applyErrors,
+			e.uri,
+			filePath,
+			e
+		);
 		await this._withRecursivePromise(e.uri, check);
 		return this._getFilePromise(e.uri);
 	}
@@ -259,7 +269,7 @@ export class PHPStanCheckManager implements Disposable {
 			operation.check.dispose();
 		}
 
-		const check = this._checkShared(true, 'Project', 'project');
+		const check = this._checkShared('project', true, 'Project', 'project');
 		await this._withRecursivePromise(PROJECT_CHECK_STR, check);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
