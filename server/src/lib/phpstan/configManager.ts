@@ -1,3 +1,4 @@
+import { replaceVariables } from '../variables';
 import { showErrorOnce } from '../errorUtil';
 import { getConfiguration } from '../config';
 import type { ClassConfig } from './manager';
@@ -234,7 +235,9 @@ export class ConfigurationManager {
 						configFile
 				  )
 				: null,
-			args: extensionConfig.options ?? [],
+			args: (extensionConfig.options ?? []).map((arg) =>
+				replaceVariables(arg, this._config)
+			),
 			memoryLimit: extensionConfig.memoryLimit,
 			...binConfig,
 		};
