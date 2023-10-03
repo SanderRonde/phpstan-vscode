@@ -1,7 +1,8 @@
+import type { PHPStanVersion, WorkspaceFolderGetter } from '../server';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import type { ProviderCheckHooks } from '../providers/shared';
 import { PHPStanCheckManager } from './phpstan/manager';
-import type { WorkspaceFolderGetter } from '../server';
+import type { ClassConfig } from './phpstan/manager';
 import { DocumentManager } from './documentManager';
 import type { ProcessSpawner } from './proc';
 import { StatusBar } from './statusBar';
@@ -13,12 +14,14 @@ export function createDiagnosticsProvider(
 	hoverProviderHooks: ProviderCheckHooks,
 	disposables: Disposable[],
 	getWorkspaceFolder: WorkspaceFolderGetter,
-	procSpawner: ProcessSpawner
+	procSpawner: ProcessSpawner,
+	getVersion: () => PHPStanVersion | null
 ): {
 	phpstan: PHPStanCheckManager;
+	classConfig: ClassConfig;
 } {
 	const statusBar = new StatusBar(connection);
-	const phpstan = new PHPStanCheckManager({
+	const classConfig: ClassConfig = {
 		statusBar,
 		connection,
 		getWorkspaceFolder,
@@ -29,7 +32,9 @@ export function createDiagnosticsProvider(
 			provider: hoverProviderHooks,
 		},
 		procSpawner,
-	});
+		getVersion,
+	};
+	const phpstan = new PHPStanCheckManager(classConfig);
 	const watcher = new Watcher({
 		connection,
 		phpstan,
@@ -45,5 +50,6 @@ export function createDiagnosticsProvider(
 
 	return {
 		phpstan,
+		classConfig,
 	};
 }

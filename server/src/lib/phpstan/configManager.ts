@@ -89,7 +89,38 @@ export class ConfigurationManager {
 		return path.join(cwd, filePath);
 	}
 
-	private async _getCwd(): Promise<string | null> {
+	private async _getConfigFile(cwd: string): Promise<string | null> {
+		const extensionConfig = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
+		const absoluteConfigPaths = extensionConfig.configFile
+			? extensionConfig.configFile
+					.split(',')
+					.map((c) => c.trim())
+					.map((c) => this._getAbsolutePath(c, cwd))
+			: [];
+		for (const absoluteConfigPath of absoluteConfigPaths) {
+			if (
+				absoluteConfigPath &&
+				(await this._fileIfExists(absoluteConfigPath))
+			) {
+				return absoluteConfigPath;
+			}
+		}
+
+		// Config file was set but not found
+		if (extensionConfig.configFile) {
+			await showErrorOnce(
+				this._config.connection,
+				`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
+			);
+		}
+
+		return null;
+	}
+
+	public async getCwd(): Promise<string | null> {
 		const workspaceRoot = this._config.getWorkspaceFolder();
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
@@ -122,7 +153,7 @@ export class ConfigurationManager {
 		return cwd;
 	}
 
-	private async _getBinConfig(
+	public async getBinConfig(
 		cwd: string
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
 		const extensionConfig = await getConfiguration(
@@ -172,37 +203,6 @@ export class ConfigurationManager {
 		};
 	}
 
-	private async _getConfigFile(cwd: string): Promise<string | null> {
-		const extensionConfig = await getConfiguration(
-			this._config.connection,
-			this._config.getWorkspaceFolder
-		);
-		const absoluteConfigPaths = extensionConfig.configFile
-			? extensionConfig.configFile
-					.split(',')
-					.map((c) => c.trim())
-					.map((c) => this._getAbsolutePath(c, cwd))
-			: [];
-		for (const absoluteConfigPath of absoluteConfigPaths) {
-			if (
-				absoluteConfigPath &&
-				(await this._fileIfExists(absoluteConfigPath))
-			) {
-				return absoluteConfigPath;
-			}
-		}
-
-		// Config file was set but not found
-		if (extensionConfig.configFile) {
-			await showErrorOnce(
-				this._config.connection,
-				`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
-			);
-		}
-
-		return null;
-	}
-
 	public async collectConfiguration(): Promise<CheckConfig | null> {
 		if (this.__config) {
 			return this.__config;
@@ -213,11 +213,11 @@ export class ConfigurationManager {
 			this._config.getWorkspaceFolder
 		);
 
-		const cwd = await this._getCwd();
+		const cwd = await this.getCwd();
 		if (!cwd) {
 			return null;
 		}
-		const binConfig = await this._getBinConfig(cwd);
+		const binConfig = await this.getBinConfig(cwd);
 		if (!binConfig) {
 			return null;
 		}

@@ -1,0 +1,10 @@
+includes:
+	# Replaced with location of user file when used
+	- ../test/demo/phpstan.neon
+
+rules:
+	- PHPStanVSCodeTreeFetcher
+
+parameters:
+	# Don't complain when a non-included file is checked
+	- zeroFiles: false

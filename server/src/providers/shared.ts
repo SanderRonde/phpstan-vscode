@@ -1,15 +1,16 @@
 import {
 	HOVER_WAIT_CHUNK_TIME,
 	MAX_HOVER_WAIT_TIME,
-	NEON_FILE,
+	PHPSTAN_1_NEON_FILE,
 	NO_CANCEL_OPERATIONS,
 	TREE_FETCHER_FILE,
+	PHPSTAN_2_NEON_FILE,
 } from '../../../shared/constants';
 import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
+import type { PHPStanVersion, WorkspaceFolderGetter } from '../server';
 import type { PHPStanCheckManager } from '../lib/phpstan/manager';
 import type { CheckConfig } from '../lib/phpstan/configManager';
-import type { WorkspaceFolderGetter } from '../server';
 import { providerEnabled } from '../lib/providerUtil';
 import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
@@ -113,6 +114,7 @@ export class ProviderCheckHooks {
 
 	public constructor(
 		private readonly _connection: _Connection,
+		private readonly _getVersion: () => PHPStanVersion | null,
 		private readonly _getWorkspaceFolder: WorkspaceFolderGetter
 	) {}
 
@@ -136,8 +138,12 @@ export class ProviderCheckHooks {
 		tmpDir: DirectoryResult,
 		userConfigFile: string
 	): Promise<string> {
+		const templateFile =
+			this._getVersion() === '2.*'
+				? PHPSTAN_2_NEON_FILE
+				: PHPSTAN_1_NEON_FILE;
 		const neonFileContent = (
-			await fs.readFile(NEON_FILE, {
+			await fs.readFile(templateFile, {
 				encoding: 'utf-8',
 			})
 		).replace('../test/demo/phpstan.neon', userConfigFile);

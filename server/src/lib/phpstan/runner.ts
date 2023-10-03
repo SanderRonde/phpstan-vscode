@@ -1,4 +1,8 @@
-import { EXTENSION_ID, PROCESS_TIMEOUT } from '../../../../shared/constants';
+import {
+	EXTENSION_ID,
+	PROCESS_TIMEOUT,
+	SPAWN_ARGS,
+} from '../../../../shared/constants';
 import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
@@ -131,9 +135,8 @@ export class PHPStanRunner implements Disposable {
 			args,
 			PROCESS_TIMEOUT,
 			{
-				shell: process.platform === 'win32',
+				...SPAWN_ARGS,
 				cwd: config.cwd,
-				windowsVerbatimArguments: true,
 			}
 		);
 		this._disposables.push(
