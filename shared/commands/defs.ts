@@ -84,7 +84,8 @@ export const config = {
 			items: {
 				type: 'string',
 			},
-			description: 'Extra commandline options to be passed to PHPStan',
+			description:
+				'Extra commandline options to be passed to PHPStan. Supports substituting ${workspaceFolder}',
 		},
 	},
 	'phpstan.enableStatusBar': {

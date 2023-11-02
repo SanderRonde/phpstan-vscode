@@ -32,6 +32,11 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.enableLanguageServer` - Whether to enable the language server that provides on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `true`)
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 
+## FAQ
+
+### XDebug-related issues
+If you find XDebug-related issues (such as checks failing with `The Xdebug PHP extension is active, but "--xdebug" is not used` in the output), see these issues: https://github.com/SanderRonde/phpstan-vscode/issues/17, https://github.com/SanderRonde/phpstan-vscode/issues/19.
+
 ## Development
 
 First get your dev environment started by running `yarn dev`. Note that this expects you to have a few programs installed:

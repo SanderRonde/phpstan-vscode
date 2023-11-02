@@ -1,9 +1,9 @@
 import type { PHPStanError } from '../../../../shared/notificationChannels';
+import type { PHPStanVersion, WorkspaceFolderGetter } from '../../server';
 import { createPromise, withTimeout } from '../../../../shared/util';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
-import type { WorkspaceFolderGetter } from '../../server';
 import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
@@ -28,6 +28,7 @@ export interface ClassConfig {
 		provider: ProviderCheckHooks;
 	};
 	procSpawner: ProcessSpawner;
+	getVersion: () => PHPStanVersion | null;
 }
 
 interface CheckOperation {
