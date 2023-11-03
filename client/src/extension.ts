@@ -10,16 +10,16 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { getConfiguration, registerConfigListeners } from './lib/config';
 import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
-import { registerConfigListeners } from './lib/config';
 import { registerListeners } from './lib/commands';
 import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
 import { StatusBar } from './lib/statusBar';
 import { ProcessSpawner } from './lib/proc';
+import { window, workspace } from 'vscode';
 import { INSPECT_BRK } from './lib/dev';
-import { workspace } from 'vscode';
 import * as path from 'path';
 
 let client: LanguageClient | null = null;
@@ -106,6 +106,24 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		})
 	);
 	log(CLIENT_PREFIX, 'Initializing done');
+
+	if (
+		workspace.workspaceFolders &&
+		workspace.workspaceFolders?.length > 1 &&
+		!getConfiguration().get('phpstan.suppressWorkspaceMessage')
+	) {
+		const SUPPRESS_OPTION = "Don't show again";
+		const choice = await window.showWarningMessage(
+			`PHPStan extension only supports single-workspace projects, it'll only use the first workspace folder (${workspace.workspaceFolders[0].name}`,
+			SUPPRESS_OPTION
+		);
+		if (choice === SUPPRESS_OPTION) {
+			await getConfiguration().update(
+				'phpstan.suppressWorkspaceMessage',
+				true
+			);
+		}
+	}
 }
 
 export function deactivate(): Thenable<void> | undefined {

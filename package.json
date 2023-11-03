@@ -29,7 +29,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "PHPStan",
+			"title": "Extension Configuration",
 			"properties": {
 				"phpstan.binPath": {
 					"type": "string",
@@ -136,6 +136,11 @@
 							"Xdebug: .*"
 						]
 					]
+				},
+				"phpstan.suppressWorkspaceMessage": {
+					"type": "boolean",
+					"description": "Stop showing an error when using a multi-workspace project",
+					"default": false
 				}
 			}
 		},
@@ -221,7 +226,7 @@
 		"format": "prettier --write client server",
 		"package": "yarn vsce package",
 		"package-dev": "VARIANT=\"debug\" yarn vsce package",
-		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --name PHPStan && prettier --write package.json",
+		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --name PHPStan --prefix PHPStan && prettier --write package.json",
 		"prepush": "yarn generate-package && yarn format-staged && yarn lint --fix && yarn compile",
 		"devYarn": "yarn && yarn --cwd client && yarn --cwd server",
 		"postinstall": "yarn --cwd client && yarn --cwd server",

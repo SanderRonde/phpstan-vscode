@@ -159,6 +159,14 @@ export const config = {
 			examples: [['Xdebug: .*']],
 		},
 	},
+	'phpstan.suppressWorkspaceMessage': {
+		jsonDefinition: {
+			type: 'boolean',
+			description:
+				'Stop showing an error when using a multi-workspace project',
+			default: false,
+		},
+	},
 } as const;
 
 export const views: Record<string, ViewDefinition> = {};
