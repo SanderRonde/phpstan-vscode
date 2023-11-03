@@ -158,6 +158,14 @@
 				"title": "Reload language server"
 			},
 			{
+				"command": "phpstan.nextError",
+				"title": "Go to next error"
+			},
+			{
+				"command": "phpstan.previousError",
+				"title": "Go to previous error"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
 			},
@@ -168,6 +176,14 @@
 			{
 				"command": "cmd.phpstan.reload",
 				"title": "PHPStan: Reload language server"
+			},
+			{
+				"command": "cmd.phpstan.nextError",
+				"title": "PHPStan: Go to next error"
+			},
+			{
+				"command": "cmd.phpstan.previousError",
+				"title": "PHPStan: Go to previous error"
 			}
 		],
 		"menus": {
@@ -185,6 +201,14 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.nextError",
+					"when": "false"
+				},
+				{
+					"command": "phpstan.previousError",
+					"when": "false"
+				},
+				{
 					"command": "cmd.phpstan.scanFileForErrors",
 					"when": "true"
 				},
@@ -194,6 +218,14 @@
 				},
 				{
 					"command": "cmd.phpstan.reload",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.nextError",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.previousError",
 					"when": "true"
 				}
 			]

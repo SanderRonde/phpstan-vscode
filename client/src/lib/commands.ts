@@ -6,12 +6,14 @@ import { commands, Commands } from '../../../shared/commands/defs';
 // eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
+import type { ErrorManager } from './errorManager';
 import { showError } from './errorUtil';
 import * as vscode from 'vscode';
 
 export function registerListeners(
 	context: vscode.ExtensionContext,
-	client: LanguageClient
+	client: LanguageClient,
+	errorManager: ErrorManager
 ): void {
 	context.subscriptions.push(
 		autoRegisterCommand(
@@ -45,6 +47,26 @@ export function registerListeners(
 				await client.sendNotification(watcherNotification, {
 					operation: 'checkProject',
 				});
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.NEXT_ERROR,
+			() => {
+				return errorManager.jumpToError('next');
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.PREVIOUS_ERROR,
+			() => {
+				return errorManager.jumpToError('prev');
 			},
 			commands
 		)

@@ -8,6 +8,8 @@ export enum Commands {
 	SCAN_CURRENT_FOR_ERRORS = 'phpstan.scanFileForErrors',
 	SCAN_PROJECT = 'phpstan.scanProjectForErrors',
 	RELOAD = 'phpstan.reload',
+	NEXT_ERROR = 'phpstan.nextError',
+	PREVIOUS_ERROR = 'phpstan.previousError',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -21,6 +23,14 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.RELOAD]: {
 		title: 'Reload language server',
+		inCommandPalette: true,
+	},
+	[Commands.NEXT_ERROR]: {
+		title: 'Go to next error',
+		inCommandPalette: true,
+	},
+	[Commands.PREVIOUS_ERROR]: {
+		title: 'Go to previous error',
 		inCommandPalette: true,
 	},
 };

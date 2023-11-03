@@ -103,6 +103,70 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		this._diagnosticsCollection.set(parsedURI, diagnostics);
 	}
 
+	public async jumpToError(direction: 'next' | 'prev'): Promise<void> {
+		const editor = vscode.window.activeTextEditor;
+		if (!editor) {
+			return;
+		}
+
+		const diagnostisByUri: Record<string, readonly vscode.Diagnostic[]> =
+			{};
+		this._diagnosticsCollection.forEach((uri, diagnostics) => {
+			diagnostisByUri[uri.toString()] = diagnostics;
+		});
+
+		const diagnosticsForFile =
+			diagnostisByUri[editor.document.uri.toString()] ?? [];
+		for (const diagnostic of diagnosticsForFile) {
+			if (
+				direction === 'next'
+					? diagnostic.range.start.line > editor.selection.start.line
+					: diagnostic.range.start.line < editor.selection.start.line
+			) {
+				editor.selection = new vscode.Selection(
+					diagnostic.range.start,
+					diagnostic.range.end
+				);
+				editor.revealRange(diagnostic.range);
+				return;
+			}
+		}
+
+		// Current file is done, move on to next/prev file
+		const sortedURIs = Object.keys(diagnostisByUri).sort();
+		const currentIndex = sortedURIs.indexOf(editor.document.uri.toString());
+		const nextUri = (() => {
+			if (direction === 'next') {
+				return sortedURIs[currentIndex + 1] ?? sortedURIs[0];
+			} else if (currentIndex === -1) {
+				return sortedURIs[sortedURIs.length - 1];
+			} else {
+				return (
+					sortedURIs[currentIndex - 1] ??
+					sortedURIs[sortedURIs.length - 1]
+				);
+			}
+		})();
+
+		if (!nextUri) {
+			await vscode.window.showInformationMessage('No more errors');
+			return;
+		}
+
+		await vscode.commands.executeCommand(
+			'vscode.open',
+			vscode.Uri.parse(nextUri)
+		);
+
+		vscode.window.activeTextEditor!.selection = new vscode.Selection(
+			diagnostisByUri[nextUri][0].range.start,
+			diagnostisByUri[nextUri][0].range.end
+		);
+		vscode.window.activeTextEditor!.revealRange(
+			diagnostisByUri[nextUri][0].range
+		);
+	}
+
 	public provideCodeActions(
 		document: vscode.TextDocument,
 		range: vscode.Range | vscode.Selection

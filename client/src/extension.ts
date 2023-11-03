@@ -81,7 +81,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const errorManager = new ErrorManager(client);
 	const procSpawner = new ProcessSpawner(client, context);
 
-	registerListeners(context, client);
+	registerListeners(context, client, errorManager);
 	registerConfigListeners();
 	registerLogMessager(context, client);
 	context.subscriptions.push(statusBar, watcher, errorManager, procSpawner);
