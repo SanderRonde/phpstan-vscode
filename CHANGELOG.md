@@ -2,6 +2,15 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 2.2.26
+
+-   Add warning for multi-workspace projects
+-   Add commands for going to the next and previous PHPStan error
+
+### 2.2.25
+
+-   Fix bug where projectTimeout was not being used
+
 ### 2.2.24
 
 -   Fix wrong title for extension configuration

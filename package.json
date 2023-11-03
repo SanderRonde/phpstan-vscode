@@ -2,7 +2,7 @@
 	"name": "phpstan-vscode",
 	"displayName": "phpstan",
 	"description": "PHPStan language server and inline error provider",
-	"version": "2.2.25",
+	"version": "2.2.26",
 	"engines": {
 		"vscode": "^1.64.0",
 		"node": ">=14.16.0"
@@ -29,7 +29,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Extension Configuration",
+			"title": "PHPStan",
 			"properties": {
 				"phpstan.binPath": {
 					"type": "string",
