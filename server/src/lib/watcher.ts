@@ -99,18 +99,14 @@ export class Watcher implements Disposable {
 			WATCHER_PREFIX,
 			'Document opened, checking and re-applying errors'
 		);
-		await this._phpstan.checkFile(this._toPartialDocument(e), true, {
-			applyErrorsOnAlreadyDone: true,
-		});
+		await this._phpstan.checkFile(this._toPartialDocument(e), true);
 	}
 
 	public async onDocumentCheck(
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		await log(this._connection, WATCHER_PREFIX, 'Force checking document');
-		await this._phpstan.checkFile(this._toPartialDocument(e), true, {
-			force: true,
-		});
+		await log(this._connection, WATCHER_PREFIX, 'Force checking project');
+		await this._phpstan.checkFile(this._toPartialDocument(e), true);
 	}
 
 	public async onScanProject(): Promise<void> {

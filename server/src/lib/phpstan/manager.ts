@@ -4,13 +4,13 @@ import { createPromise, withTimeout } from '../../../../shared/util';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
-import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
 import type { PartialDocument } from './runner';
 import type { StatusBar } from '../statusBar';
 import { executeCommand } from '../commands';
 import { getConfiguration } from '../config';
+import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
@@ -32,15 +32,13 @@ export interface ClassConfig {
 }
 
 interface CheckOperation {
-	fileContent: string;
 	check: PHPStanCheck;
-	applyErrors: boolean;
 }
 type RecursivePromiseObject = PromiseObject<RecursivePromiseObject> | null;
 
 const PROJECT_CHECK_STR = '__project__';
 export class PHPStanCheckManager implements Disposable {
-	private _operations: Map<string, CheckOperation> = new Map();
+	private _operation: CheckOperation | null = null;
 	private _filePromises: Map<string, RecursivePromiseObject> = new Map();
 	private readonly _disposables: Disposable[] = [];
 
@@ -106,8 +104,7 @@ export class PHPStanCheckManager implements Disposable {
 		checkType: 'file' | 'project',
 		applyErrors: boolean,
 		description: string,
-		descriptionShort: string,
-		e?: PartialDocument
+		descriptionShort: string
 	): Promise<void> {
 		// Prep check
 		const check = new PHPStanCheck(this._config, checkType);
@@ -116,11 +113,9 @@ export class PHPStanCheckManager implements Disposable {
 			checkPrefix(check),
 			`Check started for ${description}`
 		);
-		this._operations.set(e?.uri ?? PROJECT_CHECK_STR, {
+		this._operation = {
 			check,
-			fileContent: e?.getText() ?? '',
-			applyErrors: true,
-		});
+		};
 
 		// Create statusbar operation
 		const operation = this._config.statusBar.createOperation();
@@ -142,7 +137,7 @@ export class PHPStanCheckManager implements Disposable {
 			ReturnResult<Record<string, PHPStanError[]>>,
 			Promise<ReturnResult<Record<string, PHPStanError[]>>>
 		>({
-			promise: check.check(applyErrors, e),
+			promise: check.check(applyErrors),
 			timeout:
 				checkType === 'file' ? config.timeout : config.projectTimeout,
 			onTimeout: async () => {
@@ -196,54 +191,16 @@ export class PHPStanCheckManager implements Disposable {
 
 	public async checkFile(
 		e: PartialDocument,
-		applyErrors: boolean,
-		{
-			applyErrorsOnAlreadyDone = false,
-			force = false,
-		}: {
-			applyErrorsOnAlreadyDone?: boolean;
-			force?: boolean;
-		} = {}
+		applyErrors: boolean
 	): Promise<void> {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
 
-		// Kill current running instances for this file
-		const operation = this._operations.get(e.uri);
-		if (operation) {
-			if (operation.fileContent === e.getText() && !force) {
-				if (applyErrorsOnAlreadyDone) {
-					await log(
-						this._config.connection,
-						MANAGER_PREFIX,
-						`Re-applying previous errors due to re-open (checkId=${operation.check.id})`
-					);
-					await operation.check.reApplyErrors(e.uri);
-				} else if (operation.check.done) {
-					// Same text, no need to run at all
-					await log(
-						this._config.connection,
-						MANAGER_PREFIX,
-						`Not checking file "${e.uri}", file has already been checked (checkId=${operation.check.id})`
-					);
-				} else {
-					await log(
-						this._config.connection,
-						MANAGER_PREFIX,
-						`Not checking file "${e.uri}", file check is pending (checkId=${operation.check.id})`
-					);
-				}
-
-				return this._getFilePromise(e.uri);
-			}
-
-			// Different content, kill previous check and start new one
-			if (!operation.check.done) {
-				// If we are canceling a running apply-errors operation, take over its errors
-				applyErrors = operation.applyErrors;
-			}
-			operation.check.dispose();
+		// Kill current running checks
+		if (this._operation) {
+			this._operation.check.dispose();
+			this._operation = null;
 		}
 
 		const fileFsPath = URI.parse(e.uri).fsPath;
@@ -251,23 +208,17 @@ export class PHPStanCheckManager implements Disposable {
 			this._config.getWorkspaceFolder()!.fsPath,
 			fileFsPath
 		);
-		const check = this._checkShared(
-			'file',
-			applyErrors,
-			e.uri,
-			filePath,
-			e
-		);
+		const check = this._checkShared('file', applyErrors, e.uri, filePath);
 		await this._withRecursivePromise(e.uri, check);
 		return this._getFilePromise(e.uri);
 	}
 
 	public async checkProject(): Promise<void> {
 		// Kill current running instances for this project
-		const operation = this._operations.get(PROJECT_CHECK_STR);
-		if (operation) {
+		if (this._operation) {
 			// Different content, kill previous check and start new one
-			operation.check.dispose();
+			this._operation.check.dispose();
+			this._operation = null;
 		}
 
 		const check = this._checkShared('project', true, 'Project', 'project');
@@ -299,7 +250,7 @@ export class PHPStanCheckManager implements Disposable {
 	}
 
 	public dispose(): void {
-		this._operations.forEach((op) => op.check.dispose());
-		this._operations.clear();
+		this._operation?.check.dispose();
+		this._operation = null;
 	}
 }

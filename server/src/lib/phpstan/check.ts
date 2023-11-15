@@ -5,9 +5,7 @@ import type {
 import { OperationStatus } from '../../../../shared/statusBar';
 import { errorNotification } from '../notificationChannels';
 import type { Disposable } from 'vscode-languageserver';
-import type { PartialDocument } from './runner';
 import type { ClassConfig } from './manager';
-import { getConfiguration } from '../config';
 import { PHPStanRunner } from './runner';
 import { ReturnResult } from './result';
 
@@ -19,8 +17,6 @@ export class PHPStanCheck implements Disposable {
 	private _done: boolean = false;
 	private _disposed: boolean = false;
 	private _progressListeners: ProgressListener[] = [];
-	private _lastResult: ReturnResult<Record<string, PHPStanError[]>> =
-		ReturnResult.success({});
 	private _id: number = PHPStanCheck._lastCheckId++;
 
 	public get id(): number {
@@ -41,8 +37,7 @@ export class PHPStanCheck implements Disposable {
 	}
 
 	public async check(
-		applyErrors: boolean,
-		e?: PartialDocument
+		applyErrors: boolean
 	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
 		if (this._disposed) {
 			return ReturnResult.canceled();
@@ -51,41 +46,18 @@ export class PHPStanCheck implements Disposable {
 		const errorManager = new PHPStanCheckErrorManager(this._config);
 		this._disposables.push(runner);
 
-		const useProgress = (
-			await getConfiguration(
-				this._config.connection,
-				this._config.getWorkspaceFolder
-			)
-		).showProgress;
-		const result = await (async () => {
-			if (!e) {
-				return await runner.checkProject(
-					this,
-					this._onProgress.bind(this)
-				);
-			}
-			const progressArg = useProgress
-				? this._onProgress.bind(this)
-				: undefined;
-			return await runner.check(e, this, progressArg);
-		})();
-		this._lastResult = result;
+		const result = await runner.checkProject(
+			this,
+			this._onProgress.bind(this)
+		);
 		if (applyErrors) {
-			await errorManager.handleResult(result, !e, e?.uri);
+			await errorManager.handleResult(result);
 		}
 
 		this.dispose();
 		this._done = true;
 
 		return result;
-	}
-
-	public reApplyErrors(uri: string): Promise<void> {
-		return new PHPStanCheckErrorManager(this._config).handleResult(
-			this._lastResult,
-			false,
-			uri
-		);
 	}
 
 	public onProgress(callback: (progress: StatusBarProgress) => void): void {
@@ -104,38 +76,27 @@ class PHPStanCheckErrorManager {
 	public constructor(private readonly _config: ClassConfig) {}
 
 	private async _showErrors(
-		errors: Record<string, PHPStanError[]>,
-		isProjectCheck: boolean
+		errors: Record<string, PHPStanError[]>
 	): Promise<void> {
 		await this._config.connection.sendNotification(errorNotification, {
 			diagnostics: errors,
-			isProjectCheck,
 		});
 	}
 
-	private async _clearErrors(
-		isProjectCheck: boolean,
-		uri?: string
-	): Promise<void> {
-		const jsonErrors: Record<string, PHPStanError[]> = {};
-		if (uri) {
-			jsonErrors[uri] = [];
-		}
+	private async _clearErrors(): Promise<void> {
 		await this._config.connection.sendNotification(errorNotification, {
-			diagnostics: jsonErrors,
-			isProjectCheck,
+			diagnostics: {},
 		});
 	}
 
 	public async handleResult(
-		result: ReturnResult<Record<string, PHPStanError[]>>,
-		isProjectCheck: boolean,
-		uri?: string
+		result: ReturnResult<Record<string, PHPStanError[]>>
 	): Promise<void> {
 		if (result.success()) {
-			await this._showErrors(result.value, isProjectCheck);
+			await this._showErrors(result.value);
 		} else if (result.status === OperationStatus.ERROR) {
-			await this._clearErrors(isProjectCheck, uri);
+			// TODO:(sander) do this
+			await this._clearErrors();
 		}
 	}
 }

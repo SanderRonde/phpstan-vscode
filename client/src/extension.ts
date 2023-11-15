@@ -5,6 +5,10 @@ import {
 	registerLogMessager,
 	CLIENT_PREFIX,
 } from './lib/log';
+import {
+	getInstallationConfig,
+	writeInstallationConfig,
+} from './lib/installationConfig';
 import type {
 	LanguageClientOptions,
 	ServerOptions,
@@ -107,23 +111,43 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	);
 	log(CLIENT_PREFIX, 'Initializing done');
 
-	if (
-		workspace.workspaceFolders &&
-		workspace.workspaceFolders?.length > 1 &&
-		!getConfiguration().get('phpstan.suppressWorkspaceMessage')
-	) {
-		const SUPPRESS_OPTION = "Don't show again";
-		const choice = await window.showWarningMessage(
-			`PHPStan extension only supports single-workspace projects, it'll only use the first workspace folder (${workspace.workspaceFolders[0].name}`,
-			SUPPRESS_OPTION
-		);
-		if (choice === SUPPRESS_OPTION) {
-			await getConfiguration().update(
-				'phpstan.suppressWorkspaceMessage',
-				true
+	void (async () => {
+		if (
+			workspace.workspaceFolders &&
+			workspace.workspaceFolders?.length > 1 &&
+			!getConfiguration().get('phpstan.suppressWorkspaceMessage')
+		) {
+			const SUPPRESS_OPTION = "Don't show again";
+			const choice = await window.showWarningMessage(
+				`PHPStan extension only supports single-workspace projects, it'll only use the first workspace folder (${workspace.workspaceFolders[0].name}`,
+				SUPPRESS_OPTION
 			);
+			if (choice === SUPPRESS_OPTION) {
+				await getConfiguration().update(
+					'phpstan.suppressWorkspaceMessage',
+					true
+				);
+			}
 		}
+	})();
+
+	log(CLIENT_PREFIX, 'Showing one-time messages (if needed)');
+	const installationConfig = await getInstallationConfig(context);
+	const version = (context.extension.packageJSON as { version: string })
+		.version;
+	if (
+		installationConfig.version === '2.2.26' &&
+		installationConfig.version !== version
+	) {
+		// Updated! Show message
+		void window.showInformationMessage(
+			'PHPStan extension updated! Now always checks full project instead of a single file, which ensures it utilizes the cache. Uncached checks may take longer but performance & UX is better'
+		);
 	}
+	await writeInstallationConfig(context, {
+		...installationConfig,
+		version,
+	});
 }
 
 export function deactivate(): Thenable<void> | undefined {

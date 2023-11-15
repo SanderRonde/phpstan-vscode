@@ -12,10 +12,8 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	public constructor(client: LanguageClient) {
 		this._disposables.push(
 			client.onNotification(errorNotification, (params) => {
-				if (params.isProjectCheck) {
-					this._errors.clear();
-					this._diagnosticsCollection.clear();
-				}
+				this._errors.clear();
+				this._diagnosticsCollection.clear();
 				for (const uri in params.diagnostics) {
 					this._errors.set(uri, params.diagnostics[uri]);
 					this._showErrors(uri, params.diagnostics[uri]);

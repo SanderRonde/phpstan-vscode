@@ -17,31 +17,6 @@ export function registerListeners(
 ): void {
 	context.subscriptions.push(
 		autoRegisterCommand(
-			Commands.SCAN_CURRENT_FOR_ERRORS,
-			async () => {
-				const doc = vscode.window.activeTextEditor?.document;
-				if (doc) {
-					if (doc.languageId !== 'php') {
-						showError('Only PHP files can be scanned for errors');
-						return;
-					}
-
-					await client.sendNotification(watcherNotification, {
-						operation: 'check',
-						file: {
-							content: doc.getText(),
-							uri: doc.uri.toString(),
-							languageId: doc.languageId,
-						},
-					});
-				}
-			},
-			commands
-		)
-	);
-
-	context.subscriptions.push(
-		autoRegisterCommand(
 			Commands.SCAN_PROJECT,
 			async () => {
 				await client.sendNotification(watcherNotification, {

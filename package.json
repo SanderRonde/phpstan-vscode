@@ -29,7 +29,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "PHPStan",
+			"title": "Extension Configuration",
 			"properties": {
 				"phpstan.binPath": {
 					"type": "string",
@@ -146,10 +146,6 @@
 		},
 		"commands": [
 			{
-				"command": "phpstan.scanFileForErrors",
-				"title": "Scan current file for errors"
-			},
-			{
 				"command": "phpstan.scanProjectForErrors",
 				"title": "Scan project for errors"
 			},
@@ -164,10 +160,6 @@
 			{
 				"command": "phpstan.previousError",
 				"title": "Go to previous error"
-			},
-			{
-				"command": "cmd.phpstan.scanFileForErrors",
-				"title": "PHPStan: Scan current file for errors"
 			},
 			{
 				"command": "cmd.phpstan.scanProjectForErrors",
@@ -189,10 +181,6 @@
 		"menus": {
 			"commandPalette": [
 				{
-					"command": "phpstan.scanFileForErrors",
-					"when": "false"
-				},
-				{
 					"command": "phpstan.scanProjectForErrors",
 					"when": "false"
 				},
@@ -207,10 +195,6 @@
 				{
 					"command": "phpstan.previousError",
 					"when": "false"
-				},
-				{
-					"command": "cmd.phpstan.scanFileForErrors",
-					"when": "true"
 				},
 				{
 					"command": "cmd.phpstan.scanProjectForErrors",

@@ -99,5 +99,4 @@ export interface PHPStanError {
 
 export interface ErrorNotificationType {
 	diagnostics: Record<string, PHPStanError[]>;
-	isProjectCheck: boolean;
 }

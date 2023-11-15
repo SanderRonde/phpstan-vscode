@@ -7,7 +7,6 @@ import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
 import type { PHPStanCheck, ProgressListener } from './check';
-import { normalizePath } from '../../../../shared/util';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
@@ -340,51 +339,6 @@ export class PHPStanRunner implements Disposable {
 		});
 	}
 
-	private async _check(
-		doc: PartialDocument,
-		check: PHPStanCheck,
-		onProgress?: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		// Get config
-		const config = await this._configManager.collectConfiguration();
-		if (!config) {
-			return ReturnResult.error();
-		}
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-
-		// Get file
-		const filePath = await ConfigurationManager.applyPathMapping(
-			this._config,
-			URI.parse(doc.uri).fsPath
-		);
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-
-		const args = await this._getArgs(config, {
-			filePath: filePath,
-			doc,
-			progress: !!onProgress,
-		});
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-		const result = await this._getProcessOutput(config, check, args, {
-			doc,
-			onProgress,
-		});
-
-		return result.chain((output) => {
-			return {
-				[doc.uri]:
-					new OutputParser(output).parse()[normalizePath(filePath)] ??
-					[],
-			};
-		});
-	}
-
 	private async _checkProject(
 		check: PHPStanCheck,
 		onProgress: ProgressListener
@@ -427,16 +381,6 @@ export class PHPStanRunner implements Disposable {
 			}
 			return normalized;
 		});
-	}
-
-	public async check(
-		file: PartialDocument,
-		check: PHPStanCheck,
-		onProgress?: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
-		const errors = await this._check(file, check, onProgress);
-		this.dispose();
-		return errors;
 	}
 
 	public async checkProject(
