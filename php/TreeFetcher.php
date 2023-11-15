@@ -85,13 +85,14 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 	/**
 	 * Records a variable usage and its associated data
 	 */
-	private static function reportVariable(array $data) {
+	private static function reportVariable(string $filePath, array $data) {
 		$reporterData = file_get_contents(self::REPORTER_FILE);
 		if ($reporterData === false) {
-			$reporterData = '{"varValues": []}';
+			$reporterData = '{}';
 		}
 		$parsedData = json_decode($reporterData, true);
-		$parsedData['varValues'][] = $data;
+		$parsedData[$filePath] ??= ['varValues' => []];
+		$parsedData[$filePath]['varValues'][] = $data;
 		$json = json_encode($parsedData, self::DEV ? JSON_PRETTY_PRINT : 0);
 		file_put_contents(self::REPORTER_FILE, $json);
 	}
@@ -110,7 +111,7 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 		$varName = $isVar ? $node->name : $node->name->name;
 		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $varName, $isVar);
 		$typeDescr = $type->describe(VerbosityLevel::precise());
-		self::reportVariable([
+		self::reportVariable($scope->getFile(), [
 			'typeDescription' => $typeDescr,
 			'name' => $varName,
 			'pos' => [

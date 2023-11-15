@@ -1,21 +1,20 @@
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
-import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { PHPStanVersion, WorkspaceFolderGetter } from '../../server';
 import type { ProviderCheckHooks } from '../../providers/shared';
+import { OperationStatus } from '../../../../shared/statusBar';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
+import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
+import type { ReportedErrors } from './outputParser';
 import type { StatusBar } from '../statusBar';
+import type { ProcessSpawner } from '../proc';
 import { executeCommand } from '../commands';
 import { getConfiguration } from '../config';
-import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
-import path = require('path');
-import { OperationStatus } from '../../../../shared/statusBar';
-import type { ProcessSpawner } from '../proc';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
@@ -51,7 +50,7 @@ export class PHPStanCheckManager implements Disposable {
 		if (!config.suppressTimeoutMessage) {
 			showError(
 				this._config.connection,
-				`PHPStan check timed out after ${config.timeout}ms`,
+				`PHPStan check timed out after ${config.projectTimeout}ms`,
 				[
 					{
 						title: 'Adjust timeout',
@@ -59,9 +58,7 @@ export class PHPStanCheckManager implements Disposable {
 							await executeCommand(
 								this._config.connection,
 								'workbench.action.openSettings',
-								check.checkType === 'project'
-									? 'phpstan.projectCheckTimeout'
-									: 'phpstan.timeout'
+								'phpstan.projectCheckTimeout'
 							);
 						},
 					},
@@ -81,93 +78,30 @@ export class PHPStanCheckManager implements Disposable {
 		void log(
 			this._config.connection,
 			checkPrefix(check),
-			`PHPStan check timed out after ${config.timeout}ms`
+			`PHPStan check timed out after ${config.projectTimeout}ms`
 		);
 	}
 
-	private _toErrorMessageMap(
-		result: ReturnResult<Record<string, PHPStanError[]>>
-	): Record<string, string[]> {
-		const errorMessageMap: Record<string, string[]> = {};
+	private _toErrorMessageMap(result: ReturnResult<ReportedErrors>): {
+		fileSpecificErrors: Record<string, string[]>;
+		notFileSpecificErrors: string[];
+	} {
 		if (result.success()) {
+			const fileSpecificErrors: Record<string, string[]> = {};
 			for (const uri of Object.keys(result.value)) {
-				errorMessageMap[uri] = result.value[uri].map(
-					(err) => err.message
-				);
+				fileSpecificErrors[uri] = result.value.fileSpecificErrors[
+					uri
+				].map((err) => err.message);
 			}
+			return {
+				fileSpecificErrors,
+				notFileSpecificErrors: result.value.notFileSpecificErrors,
+			};
 		}
-		return errorMessageMap;
-	}
-
-	private async _checkShared(
-		checkType: 'file' | 'project',
-		applyErrors: boolean,
-		description: string,
-		descriptionShort: string
-	): Promise<void> {
-		// Prep check
-		const check = new PHPStanCheck(this._config, checkType);
-		void log(
-			this._config.connection,
-			checkPrefix(check),
-			`Check started for ${description}`
-		);
-
-		const hashes: Record<string, string> = {};
-		const allContents = this._config.documents.getAll();
-		for (const uri in allContents) {
-			const content = allContents[uri];
-			hashes[uri] = basicHash(content);
-		}
-		this._operation = {
-			check,
-			hashes,
+		return {
+			fileSpecificErrors: {},
+			notFileSpecificErrors: [],
 		};
-
-		// Create statusbar operation
-		const operation = this._config.statusBar.createOperation();
-		await operation.start(`Checking ${descriptionShort}`);
-
-		check.onProgress((progress) => {
-			void operation.progress(
-				progress,
-				`Checking ${descriptionShort} - ${progress.done}/${progress.total} (${progress.percentage}%)`
-			);
-		});
-
-		// Do check
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.getWorkspaceFolder
-		);
-		const runningCheck = withTimeout<
-			ReturnResult<Record<string, PHPStanError[]>>,
-			Promise<ReturnResult<Record<string, PHPStanError[]>>>
-		>({
-			promise: check.check(applyErrors),
-			timeout:
-				checkType === 'file' ? config.timeout : config.projectTimeout,
-			onTimeout: async () => {
-				check.dispose();
-				void this._onTimeout(check);
-				await operation.finish(OperationStatus.KILLED);
-
-				return ReturnResult.killed();
-			},
-		});
-		this._disposables.push(runningCheck);
-		const result = await runningCheck.promise;
-
-		// Show result of operation in statusbar
-		await operation.finish(result.status);
-
-		void log(
-			this._config.connection,
-			checkPrefix(check),
-			`Check completed for ${description}`,
-			'errors=',
-			JSON.stringify(this._toErrorMessageMap(result))
-		);
 	}
 
 	private async _getFilePromise(uri: string): Promise<void> {
@@ -196,6 +130,72 @@ export class PHPStanCheckManager implements Disposable {
 		});
 	}
 
+	private async _performCheck(): Promise<void> {
+		// Prep check
+		const check = new PHPStanCheck(this._config);
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			'Check started for project'
+		);
+
+		const hashes: Record<string, string> = {};
+		const allContents = this._config.documents.getAll();
+
+		for (const uri in allContents) {
+			const content = allContents[uri];
+			hashes[uri] = basicHash(content);
+		}
+		this._operation = {
+			check,
+			hashes,
+		};
+
+		// Create statusbar operation
+		const operation = this._config.statusBar.createOperation();
+		await operation.start('Checking project');
+
+		check.onProgress((progress) => {
+			void operation.progress(
+				progress,
+				`Checking project - ${progress.done}/${progress.total} (${progress.percentage}%)`
+			);
+		});
+
+		// Do check
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.getWorkspaceFolder
+		);
+		const runningCheck = withTimeout<
+			ReturnResult<ReportedErrors>,
+			Promise<ReturnResult<ReportedErrors>>
+		>({
+			promise: check.check(true),
+			timeout: config.projectTimeout,
+			onTimeout: async () => {
+				check.dispose();
+				void this._onTimeout(check);
+				await operation.finish(OperationStatus.KILLED);
+
+				return ReturnResult.killed();
+			},
+		});
+		this._disposables.push(runningCheck);
+		const result = await runningCheck.promise;
+
+		// Show result of operation in statusbar
+		await operation.finish(result.status);
+
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			'Check completed for project',
+			'errors=',
+			JSON.stringify(this._toErrorMessageMap(result))
+		);
+	}
+
 	public async checkProject(): Promise<void> {
 		// Kill current running instances for this project
 		if (this._operation) {
@@ -204,8 +204,20 @@ export class PHPStanCheckManager implements Disposable {
 			this._operation = null;
 		}
 
-		const check = this._checkShared('project', true, 'Project', 'project');
-		await this._withRecursivePromise(PROJECT_CHECK_STR, check);
+		const invalidFile = this._config.documents.getInvalidFile();
+		if (invalidFile) {
+			void log(
+				this._config.connection,
+				MANAGER_PREFIX,
+				`Not checking project because of invalid PHP file: ${invalidFile}`
+			);
+			return;
+		}
+
+		await this._withRecursivePromise(
+			PROJECT_CHECK_STR,
+			this._performCheck()
+		);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
 

@@ -18,6 +18,7 @@ import type { DirectoryResult } from 'tmp-promise';
 import { getConfiguration } from '../lib/config';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
+import { URI } from 'vscode-uri';
 import * as path from 'path';
 
 interface VariableData {
@@ -35,9 +36,11 @@ interface VariableData {
 	};
 }
 
-export interface FileReport {
+interface FileReport {
 	varValues: VariableData[];
 }
+
+type ProjectReport = Record<string, FileReport>;
 
 export interface ProviderArgs {
 	connection: _Connection;
@@ -67,7 +70,11 @@ export async function getFileReport(
 
 	// Ensure the file has been checked
 	if (!providerArgs.phpstan) {
-		return providerArgs.hooks.getFileReport();
+		return (
+			providerArgs.hooks.getProjectReport()?.[
+				URI.parse(documentURI).fsPath
+			] ?? null
+		);
 	}
 	const fileContent = providerArgs.documents.get(documentURI)?.content;
 	const promise = toCheckablePromise(
@@ -94,14 +101,18 @@ export async function getFileReport(
 		return null;
 	}
 
-	return providerArgs.hooks.getFileReport();
+	return (
+		providerArgs.hooks.getProjectReport()?.[
+			URI.parse(documentURI).fsPath
+		] ?? null
+	);
 }
 
 export class ProviderCheckHooks {
 	private _lastOperation: {
 		reportPath: string;
 	} | null = null;
-	private _lastReport: FileReport | null = null;
+	private _lastReport: ProjectReport | null = null;
 
 	private get _lsEnabled(): Promise<boolean> {
 		return (async () => {
@@ -120,7 +131,7 @@ export class ProviderCheckHooks {
 		private readonly _getWorkspaceFolder: WorkspaceFolderGetter
 	) {}
 
-	private async _getFileReport(): Promise<FileReport | null> {
+	private async _getFileReport(): Promise<ProjectReport | null> {
 		if (!this._lastOperation) {
 			return null;
 		}
@@ -128,11 +139,10 @@ export class ProviderCheckHooks {
 			const file = await fs.readFile(this._lastOperation.reportPath, {
 				encoding: 'utf-8',
 			});
-			return JSON.parse(file) as FileReport;
+			await fs.rm(this._lastOperation.reportPath);
+			return JSON.parse(file) as ProjectReport;
 		} catch (e) {
 			return null;
-		} finally {
-			this._lastOperation = null;
 		}
 	}
 
@@ -220,11 +230,16 @@ export class ProviderCheckHooks {
 		return null;
 	}
 
-	public getFileReport(): FileReport | null {
+	public getProjectReport(): ProjectReport | null {
 		return this._lastReport;
 	}
 
 	public clearReport(): void {
+		this._lastReport = null;
+	}
+
+	public prepareForCheck(): void {
+		// Clear
 		this._lastReport = null;
 	}
 

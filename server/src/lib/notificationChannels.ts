@@ -2,6 +2,7 @@ import type {
 	CommandNotificationType,
 	ErrorNotificationType,
 	LogNotificationType,
+	PHPStanProNotificationType,
 	ProcessNotificationType,
 	ReadyNotificationType,
 	StatusBarNotificationType,
@@ -35,3 +36,8 @@ export const errorNotification = new NotificationType<ErrorNotificationType>(
 
 export const processNotification =
 	new NotificationType<ProcessNotificationType>(NotificationChannel.SPAWNER);
+
+export const phpstanProNotification =
+	new NotificationType<PHPStanProNotificationType>(
+		NotificationChannel.PHPSTAN_PRO
+	);

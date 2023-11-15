@@ -1,33 +1,90 @@
-import type { PHPStanError } from '../../../shared/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { errorNotification } from './notificationChannels';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
+interface PHPStanError {
+	message: string;
+	lineNumber: number;
+}
+
 export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	private readonly _diagnosticsCollection: vscode.DiagnosticCollection;
-	private readonly _errors: Map<string, PHPStanError[]> = new Map();
+	private _errors: {
+		fileSpecificErrors: Map<
+			string,
+			{
+				message: string;
+				lineNumber: number;
+			}[]
+		>;
+		notFileSpecificErrors: string[];
+	} = {
+		fileSpecificErrors: new Map(),
+		notFileSpecificErrors: [],
+	};
 	private _disposables: Disposable[] = [];
 
 	public constructor(client: LanguageClient) {
 		this._disposables.push(
 			client.onNotification(errorNotification, (params) => {
-				this._errors.clear();
+				this._errors = {
+					fileSpecificErrors: new Map(),
+					notFileSpecificErrors: [],
+				};
 				this._diagnosticsCollection.clear();
-				for (const uri in params.diagnostics) {
-					this._errors.set(uri, params.diagnostics[uri]);
-					this._showErrors(uri, params.diagnostics[uri]);
+				for (const uri in params.diagnostics.fileSpecificErrors) {
+					this._errors.fileSpecificErrors.set(
+						uri,
+						params.diagnostics.fileSpecificErrors[uri]
+					);
+					this._showErrors(
+						uri,
+						params.diagnostics.fileSpecificErrors[uri]
+					);
 				}
 			})
 		);
 		this._diagnosticsCollection =
 			vscode.languages.createDiagnosticCollection('PHPStan');
 		this._disposables.push(this._diagnosticsCollection);
+
+		let lastEditor: vscode.TextEditor | undefined = undefined;
+		this._disposables.push(
+			vscode.window.onDidChangeActiveTextEditor((editor) => {
+				if (lastEditor) {
+					this._showErrors(
+						lastEditor.document.fileName,
+						this._errors.fileSpecificErrors.get(
+							lastEditor.document.fileName
+						) ?? []
+					);
+				}
+
+				if (editor) {
+					this._showErrors(editor.document.fileName, [
+						...(this._errors.fileSpecificErrors.get(
+							editor.document.fileName
+						) ?? []),
+						...this._errors.notFileSpecificErrors.map(
+							(message) => ({
+								lineNumber: 0,
+								message,
+							})
+						),
+					]);
+				}
+				lastEditor = editor;
+			})
+		);
 		this._disposables.push(
 			vscode.workspace.onDidOpenTextDocument((e) => {
-				if (this._errors.has(e.fileName)) {
+				if (this._errors.fileSpecificErrors.has(e.fileName)) {
 					// Refresh, we might have some info on the chars
-					this._showErrors(e.fileName, this._errors.get(e.fileName)!);
+					this._showErrors(
+						e.fileName,
+						this._errors.fileSpecificErrors.get(e.fileName)!
+					);
 				}
 			})
 		);
@@ -170,11 +227,11 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		range: vscode.Range | vscode.Selection
 	): vscode.ProviderResult<(vscode.CodeAction | vscode.Command)[]> {
 		const uri = document.uri.toString();
-		if (!this._errors.has(uri)) {
+		if (!this._errors.fileSpecificErrors.has(uri)) {
 			return [];
 		}
 
-		const errors = this._errors.get(uri)!;
+		const errors = this._errors.fileSpecificErrors.get(uri)!;
 
 		const actions: ErrorCodeAction[] = [];
 

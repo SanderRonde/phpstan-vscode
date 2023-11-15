@@ -1,4 +1,6 @@
+import type { ReportedErrors } from '../server/src/lib/phpstan/outputParser';
 import type { OperationStatus } from './statusBar';
+import type { Commands } from './commands/defs';
 
 export enum NotificationChannel {
 	LOG = 'phpstan.log',
@@ -8,6 +10,7 @@ export enum NotificationChannel {
 	READY = 'phpstan.ready',
 	ERROR = 'phpstan.error',
 	SPAWNER = 'phpstan.spawner',
+	PHPSTAN_PRO = 'phpstan.phpstanPro',
 }
 
 export interface WatcherNotificationFileData {
@@ -80,6 +83,11 @@ export type StatusBarNotificationType =
 			opId: number;
 			type: 'done';
 			result: OperationStatus;
+	  }
+	| {
+			type: 'fallback';
+			text: string;
+			command?: Commands;
 	  };
 
 export interface ReadyNotificationType {
@@ -91,12 +99,15 @@ export interface ProcessNotificationType {
 	timeout: number;
 }
 
-export interface PHPStanError {
-	message: string;
-	lineNumber: number;
-	file: string;
-}
+export type PHPStanProNotificationType =
+	| {
+			type: 'setPort';
+			port: number;
+	  }
+	| {
+			type: 'requireLogin';
+	  };
 
 export interface ErrorNotificationType {
-	diagnostics: Record<string, PHPStanError[]>;
+	diagnostics: ReportedErrors;
 }

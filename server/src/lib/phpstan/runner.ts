@@ -3,11 +3,11 @@ import {
 	PROCESS_TIMEOUT,
 	SPAWN_ARGS,
 } from '../../../../shared/constants';
-import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { ChildProcessWithoutNullStreams } from 'child_process';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from './configManager';
+import type { ReportedErrors } from './outputParser';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
 import { OutputParser } from './outputParser';
@@ -290,7 +290,7 @@ export class PHPStanRunner implements Disposable {
 	private async _checkProject(
 		check: PHPStanCheck,
 		onProgress: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+	): Promise<ReturnResult<ReportedErrors>> {
 		// Get config
 		const config = await this._configManager.collectConfiguration();
 		if (!config) {
@@ -315,14 +315,17 @@ export class PHPStanRunner implements Disposable {
 			const parsed = new OutputParser(output).parse();
 
 			// Turn raw fs paths into URIs
-			const normalized: Record<string, PHPStanError[]> = {};
+			const normalized: ReportedErrors = {
+				fileSpecificErrors: {},
+				notFileSpecificErrors: parsed.notFileSpecificErrors,
+			};
 			for (const filePath in parsed) {
-				normalized[
+				normalized.fileSpecificErrors[
 					URI.from({
 						scheme: 'file',
 						path: pathMapper(filePath, true),
 					}).toString()
-				] = parsed[filePath];
+				] = parsed.fileSpecificErrors[filePath];
 			}
 			return normalized;
 		});
@@ -331,7 +334,7 @@ export class PHPStanRunner implements Disposable {
 	public async checkProject(
 		check: PHPStanCheck,
 		onProgress: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+	): Promise<ReturnResult<ReportedErrors>> {
 		const errors = await this._checkProject(check, onProgress);
 		this.dispose();
 		return errors;

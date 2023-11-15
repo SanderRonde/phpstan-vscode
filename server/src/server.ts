@@ -11,18 +11,23 @@ import type {
 	_Connection,
 } from 'vscode-languageserver/node';
 import {
+	phpstanProNotification,
+	readyNotification,
+	statusBarNotification,
+} from './lib/notificationChannels';
+import {
 	createConnection,
 	ProposedFeatures,
 	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
 import { ConfigurationManager } from './lib/phpstan/configManager';
 import { createHoverProvider } from './providers/hoverProvider';
-import { readyNotification } from './lib/notificationChannels';
 import { PHPStanCheckManager } from './lib/phpstan/manager';
 import type { ClassConfig } from './lib/phpstan/manager';
 import { DocumentManager } from './lib/documentManager';
 import { ProviderCheckHooks } from './providers/shared';
 import type { ProviderArgs } from './providers/shared';
+import { Commands } from '../../shared/commands/defs';
 import { SPAWN_ARGS } from '../../shared/constants';
 import { launchPro } from './lib/phpstan/pro/pro';
 import { getConfiguration } from './lib/config';
@@ -125,6 +130,7 @@ function startIntegratedChecker(
 
 async function startPro(
 	connection: _Connection,
+	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
 	getWorkspaceFolder: WorkspaceFolderGetter,
 	getVersion: () => PHPStanVersion | null
@@ -147,12 +153,30 @@ async function startPro(
 
 	const pro = await launchPro(connection, getWorkspaceFolder, classConfig);
 	if (!pro.success()) {
-		// TODO:(sander) error!
-		void connection.sendNotification(readyNotification, {
-			ready: true,
-		});
+		void connection.window.showErrorMessage(
+			`Failed to start PHPStan Pro: ${pro.error ?? '?'}`
+		);
+	} else if (!(await pro.value.getPort())) {
+		void connection.window.showErrorMessage(
+			'Failed to find PHPStan Pro port'
+		);
 	} else {
-		// TODO:(sander) success
+		disposables.push(pro.value);
+		const port = (await pro.value.getPort())!;
+		void connection.sendNotification(phpstanProNotification, {
+			type: 'setPort',
+			port: port,
+		});
+		if (!(await pro.value.isLoggedIn())) {
+			void connection.sendNotification(phpstanProNotification, {
+				type: 'requireLogin',
+			});
+		}
+		void connection.sendNotification(statusBarNotification, {
+			type: 'fallback',
+			text: 'PHPStan Pro running',
+			command: Commands.OPEN_PHPSTAN_PRO,
+		});
 	}
 
 	const providerArgs: ProviderArgs = {
@@ -222,6 +246,7 @@ async function main(): Promise<void> {
 	const { classConfig, hoverProvider: _hoverProvider } = config.pro
 		? await startPro(
 				connection,
+				disposables,
 				onConnectionInitialized,
 				getWorkspaceFolder,
 				getVersion
@@ -282,5 +307,3 @@ async function main(): Promise<void> {
 }
 
 void main();
-
-// TODO:(sander) if pro is enabled, `getFileReport` shouldn't queue a check

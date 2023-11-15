@@ -9,6 +9,7 @@ export enum Commands {
 	RELOAD = 'phpstan.reload',
 	NEXT_ERROR = 'phpstan.nextError',
 	PREVIOUS_ERROR = 'phpstan.previousError',
+	OPEN_PHPSTAN_PRO = 'phpstan.openPhpstanPro',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -26,6 +27,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.PREVIOUS_ERROR]: {
 		title: 'Go to previous error',
+		inCommandPalette: true,
+	},
+	[Commands.OPEN_PHPSTAN_PRO]: {
+		title: 'Open PHPStan Pro in browser',
 		inCommandPalette: true,
 	},
 };
@@ -112,14 +117,6 @@ export const config = {
 			type: 'boolean',
 			description: 'Whether to enable the on-save checker',
 			default: true,
-		},
-	},
-	'phpstan.timeout': {
-		jsonDefinition: {
-			type: 'number',
-			description:
-				'Timeout in milliseconds for a single file check. After this time the checking process is canceled',
-			default: 10000,
 		},
 	},
 	'phpstan.projectTimeout': {

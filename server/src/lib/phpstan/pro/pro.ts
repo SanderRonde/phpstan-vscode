@@ -1,8 +1,8 @@
 import { pathExists, tryReadJSON, wait } from '../../../../../shared/util';
-import type { ChildProcessWithoutNullStreams } from 'child_process';
+import type { Disposable, _Connection } from 'vscode-languageserver';
 import { SPAWN_ARGS } from '../../../../../shared/constants';
 import type { WorkspaceFolderGetter } from '../../../server';
-import type { _Connection } from 'vscode-languageserver';
+import { PHPStanProErrorManager } from './proErrorManager';
 import { ConfigurationManager } from '../configManager';
 import { getConfiguration } from '../../config';
 import type { ClassConfig } from '../manager';
@@ -65,7 +65,10 @@ export async function launchPro(
 					} else {
 						resolve(
 							ReturnResult.success(
-								new PHPStanProProcess(process, configDirPath)
+								new PHPStanProProcess(
+									classConfig,
+									configDirPath
+								)
 							)
 						);
 					}
@@ -89,13 +92,24 @@ export async function launchPro(
 	});
 }
 
-class PHPStanProProcess {
-	public constructor(
-		private readonly _process: ChildProcessWithoutNullStreams,
-		private readonly _configDirPath: string
-	) {}
+class PHPStanProProcess implements Disposable {
+	private _disposables: Disposable[] = [];
 
-	public async isLoggedIn(): Promise<boolean> {
+	public constructor(
+		classConfig: ClassConfig,
+		private readonly _configDirPath: string
+	) {
+		void this.getPort().then((port) => {
+			if (!port) {
+				return;
+			}
+			this._disposables.push(
+				new PHPStanProErrorManager(classConfig, port)
+			);
+		});
+	}
+
+	public isLoggedIn(): Promise<boolean> {
 		return pathExists(path.join(this._configDirPath, 'login_payload.jwt'));
 	}
 
@@ -104,5 +118,11 @@ class PHPStanProProcess {
 			port: number;
 		}>(path.join(this._configDirPath, 'port.json'));
 		return portFile?.port ?? null;
+	}
+
+	public dispose(): void {
+		for (const disposable of this._disposables) {
+			disposable.dispose();
+		}
 	}
 }

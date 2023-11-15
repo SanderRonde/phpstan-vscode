@@ -1,51 +1,74 @@
-import type { PHPStanError } from '../../../../shared/notificationChannels';
 import { normalizePath } from '../../../../shared/util';
+
+interface PartialPHPStanError {
+	message: string;
+	lineNumber?: number;
+	file?: string;
+}
 
 export class OutputParser {
 	public constructor(private readonly _output: string) {}
 
-	private _toLines(): {
-		file: string;
-		lineNumber: number;
-		message: string;
-	}[] {
-		return this._output
+	private _toLines(): PartialPHPStanError[] {
+		const lines = this._output
 			.split('\n')
-			.map((l) => l.trim())
-			.filter((l) => l.length > 0)
-			.map((line) => {
-				// Parse
-				const match = /^(.*):(\d+):(.*)$/.exec(line);
-				if (!match) {
-					return null;
-				}
+			.map((line) => line.trim())
+			.filter((line) => line.length > 0);
+		const errors: PartialPHPStanError[] = [];
+		for (const line of lines) {
+			// Parse
+			const match = /^(.*):(\d+|\?):(.*)$/.exec(line);
+			if (!match) {
+				continue;
+			}
 
-				const [, file, lineNumber, message] = match;
-				return {
-					file: normalizePath(file),
-					lineNumber: parseInt(lineNumber, 10),
+			const [, file, lineNumber, message] = match;
+			if (file === '?' || lineNumber === '?') {
+				errors.push({
 					message,
-				};
-			})
-			.filter(
-				(
-					result
-				): result is {
-					file: string;
-					lineNumber: number;
-					message: string;
-				} => result !== null
-			);
-	}
+				});
+			}
 
-	public parse(): Record<string, PHPStanError[]> {
-		const lines = this._toLines();
-		const errors: Record<string, PHPStanError[]> = {};
-		for (const error of lines) {
-			errors[error.file] ??= [];
-			errors[error.file].push(error);
+			errors.push({
+				file: normalizePath(file),
+				lineNumber: parseInt(lineNumber, 10),
+				message,
+			});
 		}
 
 		return errors;
 	}
+
+	public parse(): ReportedErrors {
+		const lines = this._toLines();
+		const notFileSpecificErrors: string[] = [];
+		const fileSpecificErrors: ReportedErrors['fileSpecificErrors'] = {};
+		for (const error of lines) {
+			if (error.lineNumber && error.file) {
+				fileSpecificErrors[error.file] ??= [];
+				fileSpecificErrors[error.file].push({
+					lineNumber: error.lineNumber,
+					message: error.message,
+				});
+			} else {
+				notFileSpecificErrors.push(error.message);
+			}
+		}
+
+		return {
+			fileSpecificErrors,
+			notFileSpecificErrors,
+		};
+	}
+}
+
+export interface ReportedErrors {
+	fileSpecificErrors: Record<
+		string,
+		{
+			message: string;
+			lineNumber: number;
+		}[]
+	>;
+	notFileSpecificErrors: string[];
 }
