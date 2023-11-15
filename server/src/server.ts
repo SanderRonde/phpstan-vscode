@@ -3,26 +3,171 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
+import type {
+	Disposable,
+	Hover,
+	HoverParams,
+	ServerRequestHandler,
+	_Connection,
+} from 'vscode-languageserver/node';
 import {
 	createConnection,
 	ProposedFeatures,
 	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
-import { createDiagnosticsProvider } from './lib/diagnosticsProvider';
 import { ConfigurationManager } from './lib/phpstan/configManager';
 import { createHoverProvider } from './providers/hoverProvider';
 import { readyNotification } from './lib/notificationChannels';
-import type { Disposable } from 'vscode-languageserver/node';
+import { PHPStanCheckManager } from './lib/phpstan/manager';
+import type { ClassConfig } from './lib/phpstan/manager';
+import { DocumentManager } from './lib/documentManager';
 import { ProviderCheckHooks } from './providers/shared';
 import type { ProviderArgs } from './providers/shared';
 import { SPAWN_ARGS } from '../../shared/constants';
+import { launchPro } from './lib/phpstan/pro/pro';
+import { getConfiguration } from './lib/config';
 import { log, SERVER_PREFIX } from './lib/log';
+import { StatusBar } from './lib/statusBar';
 import { ProcessSpawner } from './lib/proc';
+import { Watcher } from './lib/watcher';
 import { spawn } from 'child_process';
 import { URI } from 'vscode-uri';
 
 export type WorkspaceFolderGetter = () => URI | null;
 export type PHPStanVersion = '1.*' | '2.*';
+
+function getClassConfig(
+	connection: _Connection,
+	getWorkspaceFolder: WorkspaceFolderGetter,
+	getVersion: () => PHPStanVersion | null,
+	getDocumentManager: () => DocumentManager
+): ClassConfig {
+	const procSpawner = new ProcessSpawner(connection);
+	const providerHooks = new ProviderCheckHooks(
+		connection,
+		getVersion,
+		getWorkspaceFolder
+	);
+
+	const statusBar = new StatusBar(connection);
+	return {
+		statusBar,
+		connection,
+		getWorkspaceFolder,
+		get documents() {
+			return getDocumentManager();
+		},
+		hooks: {
+			provider: providerHooks,
+		},
+		procSpawner,
+		getVersion,
+	};
+}
+
+interface StartReturn {
+	hoverProvider: ServerRequestHandler<
+		HoverParams,
+		Hover | undefined | null,
+		never,
+		void
+	>;
+	classConfig: ClassConfig;
+}
+
+function startIntegratedChecker(
+	connection: _Connection,
+	disposables: Disposable[],
+	onConnectionInitialized: Promise<void>,
+	getWorkspaceFolder: WorkspaceFolderGetter,
+	getVersion: () => PHPStanVersion | null
+): StartReturn {
+	const providerHooks = new ProviderCheckHooks(
+		connection,
+		getVersion,
+		getWorkspaceFolder
+	);
+
+	const classConfig = getClassConfig(
+		connection,
+		getWorkspaceFolder,
+		getVersion,
+		() => documentManager
+	);
+	const phpstan = new PHPStanCheckManager(classConfig);
+	const watcher = new Watcher({
+		connection,
+		phpstan,
+		onConnectionInitialized,
+		getWorkspaceFolder,
+	});
+	const documentManager: DocumentManager = new DocumentManager({
+		connection,
+		watcher,
+	});
+
+	disposables.push(phpstan, watcher, documentManager);
+
+	const providerArgs: ProviderArgs = {
+		connection,
+		hooks: providerHooks,
+		phpstan,
+		getWorkspaceFolder,
+		onConnectionInitialized,
+		documents: classConfig.documents,
+	};
+
+	return {
+		hoverProvider: createHoverProvider(providerArgs),
+		classConfig,
+	};
+}
+
+async function startPro(
+	connection: _Connection,
+	onConnectionInitialized: Promise<void>,
+	getWorkspaceFolder: WorkspaceFolderGetter,
+	getVersion: () => PHPStanVersion | null
+): Promise<StartReturn> {
+	const providerHooks = new ProviderCheckHooks(
+		connection,
+		getVersion,
+		getWorkspaceFolder
+	);
+
+	const classConfig = getClassConfig(
+		connection,
+		getWorkspaceFolder,
+		getVersion,
+		() => documentManager
+	);
+	const documentManager: DocumentManager = new DocumentManager({
+		connection,
+	});
+
+	const pro = await launchPro(connection, getWorkspaceFolder, classConfig);
+	if (!pro.success()) {
+		// TODO:(sander) error!
+		void connection.sendNotification(readyNotification, {
+			ready: true,
+		});
+	} else {
+		// TODO:(sander) success
+	}
+
+	const providerArgs: ProviderArgs = {
+		connection,
+		hooks: providerHooks,
+		getWorkspaceFolder,
+		onConnectionInitialized,
+		documents: classConfig.documents,
+	};
+
+	return {
+		hoverProvider: createHoverProvider(providerArgs),
+		classConfig,
+	};
+}
 
 async function main(): Promise<void> {
 	// Creates the LSP connection
@@ -58,29 +203,13 @@ async function main(): Promise<void> {
 		};
 	});
 
-	const procSpawner = new ProcessSpawner(connection);
-	const providerHooks = new ProviderCheckHooks(
-		connection,
-		getVersion,
-		getWorkspaceFolder
-	);
-	const { phpstan, classConfig } = createDiagnosticsProvider(
-		connection,
-		onConnectionInitialized,
-		providerHooks,
-		disposables,
-		getWorkspaceFolder,
-		procSpawner,
-		getVersion
-	);
-	const providerArgs: ProviderArgs = {
-		connection,
-		hooks: providerHooks,
-		phpstan,
-		getWorkspaceFolder,
-		onConnectionInitialized,
-	};
-	connection.onHover(createHoverProvider(providerArgs));
+	let hoverProvider: ServerRequestHandler<
+		HoverParams,
+		Hover | undefined | null,
+		never,
+		void
+	> = () => null;
+	connection.onHover(hoverProvider);
 	connection.listen();
 
 	await onConnectionInitialized;
@@ -89,8 +218,26 @@ async function main(): Promise<void> {
 		ready: true,
 	});
 
+	const config = await getConfiguration(connection, getWorkspaceFolder);
+	const { classConfig, hoverProvider: _hoverProvider } = config.pro
+		? await startPro(
+				connection,
+				onConnectionInitialized,
+				getWorkspaceFolder,
+				getVersion
+		  )
+		: startIntegratedChecker(
+				connection,
+				disposables,
+				onConnectionInitialized,
+				getWorkspaceFolder,
+				getVersion
+		  );
+	hoverProvider = _hoverProvider;
+
 	// Test if we can get the PHPStan version
 	const configManager = new ConfigurationManager(classConfig);
+	disposables.push(configManager);
 	const cwd = await configManager.getCwd();
 	if (cwd) {
 		const binConfig = await configManager.getBinConfig(cwd);
@@ -135,3 +282,5 @@ async function main(): Promise<void> {
 }
 
 void main();
+
+// TODO:(sander) if pro is enabled, `getFileReport` shouldn't queue a check

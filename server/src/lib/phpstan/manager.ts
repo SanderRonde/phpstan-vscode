@@ -1,12 +1,11 @@
+import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
 import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { PHPStanVersion, WorkspaceFolderGetter } from '../../server';
-import { createPromise, withTimeout } from '../../../../shared/util';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
-import type { PartialDocument } from './runner';
 import type { StatusBar } from '../statusBar';
 import { executeCommand } from '../commands';
 import { getConfiguration } from '../config';
@@ -14,7 +13,6 @@ import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
-import { URI } from 'vscode-uri';
 import path = require('path');
 import { OperationStatus } from '../../../../shared/statusBar';
 import type { ProcessSpawner } from '../proc';
@@ -33,6 +31,7 @@ export interface ClassConfig {
 
 interface CheckOperation {
 	check: PHPStanCheck;
+	hashes: Record<string, string>;
 }
 type RecursivePromiseObject = PromiseObject<RecursivePromiseObject> | null;
 
@@ -113,8 +112,16 @@ export class PHPStanCheckManager implements Disposable {
 			checkPrefix(check),
 			`Check started for ${description}`
 		);
+
+		const hashes: Record<string, string> = {};
+		const allContents = this._config.documents.getAll();
+		for (const uri in allContents) {
+			const content = allContents[uri];
+			hashes[uri] = basicHash(content);
+		}
 		this._operation = {
 			check,
+			hashes,
 		};
 
 		// Create statusbar operation
@@ -189,30 +196,6 @@ export class PHPStanCheckManager implements Disposable {
 		});
 	}
 
-	public async checkFile(
-		e: PartialDocument,
-		applyErrors: boolean
-	): Promise<void> {
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
-			return;
-		}
-
-		// Kill current running checks
-		if (this._operation) {
-			this._operation.check.dispose();
-			this._operation = null;
-		}
-
-		const fileFsPath = URI.parse(e.uri).fsPath;
-		const filePath = path.relative(
-			this._config.getWorkspaceFolder()!.fsPath,
-			fileFsPath
-		);
-		const check = this._checkShared('file', applyErrors, e.uri, filePath);
-		await this._withRecursivePromise(e.uri, check);
-		return this._getFilePromise(e.uri);
-	}
-
 	public async checkProject(): Promise<void> {
 		// Kill current running instances for this project
 		if (this._operation) {
@@ -226,27 +209,28 @@ export class PHPStanCheckManager implements Disposable {
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
 
-	public async checkFileFromURI(
+	public async checkProjectIfFileChanged(
 		uri: string,
-		applyErrors: boolean
+		fileContent: string | undefined
 	): Promise<void> {
-		const file = this._config.documents.get(uri);
-		if (!file) {
+		if (!this._operation) {
+			return this.checkProject();
+		}
+		if (!fileContent) {
+			// Already checked if part of any operation
 			return;
 		}
-		return this.checkFile(
-			{
-				getText: () => file.content,
-				uri: file.uri,
-				languageId: file.languageId,
-			},
-			applyErrors
-		);
+		if (
+			this._operation.hashes[uri] &&
+			this._operation.hashes[uri] !== basicHash(fileContent)
+		) {
+			return this.checkProject();
+		}
 	}
 
 	public clear(): void {
 		this.dispose();
-		this._config.hooks.provider.clearReports();
+		this._config.hooks.provider.clearReport();
 	}
 
 	public dispose(): void {

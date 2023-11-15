@@ -29,7 +29,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Extension Configuration",
+			"title": "PHPStan",
 			"properties": {
 				"phpstan.binPath": {
 					"type": "string",
@@ -140,6 +140,11 @@
 				"phpstan.suppressWorkspaceMessage": {
 					"type": "boolean",
 					"description": "Stop showing an error when using a multi-workspace project",
+					"default": false
+				},
+				"phpstan.pro": {
+					"type": "boolean",
+					"description": "Use PHPStan Pro under the hood (if you have a license)",
 					"default": false
 				}
 			}

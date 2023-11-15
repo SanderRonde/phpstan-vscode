@@ -28,14 +28,14 @@ export type PartialDocument = Pick<
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
 	private _process: ChildProcessWithoutNullStreams | null = null;
-	private _disposables: Disposable[] = [];
 	private _configManager: ConfigurationManager = new ConfigurationManager(
 		this._config
 	);
+	private _disposables: Disposable[] = [this._configManager];
 
 	public constructor(private readonly _config: ClassConfig) {}
 
-	private _escapeFilePath(filePath: string): string {
+	public static escapeFilePath(filePath: string): string {
 		if (os.platform() !== 'win32') {
 			return filePath;
 		}
@@ -43,50 +43,6 @@ export class PHPStanRunner implements Disposable {
 			filePath = '"' + filePath + '"';
 		}
 		return filePath;
-	}
-
-	private async _getArgs(
-		config: CheckConfig,
-		{
-			doc,
-			filePath,
-			progress,
-		}: {
-			filePath?: string;
-			doc?: PartialDocument;
-			progress?: boolean;
-		}
-	): Promise<string[]> {
-		const args = [...config.initialArgs, 'analyse'];
-		if (config.remoteConfigFile) {
-			args.push(...['-c', this._escapeFilePath(config.remoteConfigFile)]);
-		} else if (config.configFile) {
-			args.push('-c', config.configFile);
-		}
-
-		args.push(
-			'--error-format=raw',
-			'--no-interaction',
-			`--memory-limit=${config.memoryLimit}`
-		);
-		if (!progress) {
-			args.push('--no-progress');
-		}
-		args.push(...config.args);
-		if (filePath) {
-			args.push(this._escapeFilePath(filePath));
-		}
-
-		if (filePath && doc) {
-			return await this._config.hooks.provider.transformArgs(
-				config,
-				args,
-				doc.uri,
-				filePath,
-				this._disposables
-			);
-		}
-		return args;
 	}
 
 	private _kill(proc: ChildProcessWithoutNullStreams): void {
@@ -114,19 +70,16 @@ export class PHPStanRunner implements Disposable {
 
 	private async _spawnProcess(
 		config: CheckConfig,
-		check: PHPStanCheck,
-		args: string[]
+		check: PHPStanCheck
 	): Promise<ChildProcessWithoutNullStreams> {
-		const binStr = config.binCmd
-			? config.binCmd
-			: this._escapeFilePath(config.binPath!);
+		const [binStr, ...args] = await this._configManager.getArgs(config);
 		await log(
 			this._config.connection,
 			checkPrefix(check),
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify({
-				binCmd: binStr,
-				args,
+				binStr,
+				args: args,
 			})
 		);
 		const phpstan = await this._config.procSpawner.spawnWithRobustTimeout(
@@ -224,16 +177,13 @@ export class PHPStanRunner implements Disposable {
 	private async _getProcessOutput(
 		config: CheckConfig,
 		check: PHPStanCheck,
-		args: string[],
 		{
-			doc,
 			onProgress,
 		}: {
-			doc?: PartialDocument;
 			onProgress?: ProgressListener;
 		}
 	): Promise<ReturnResult<string>> {
-		const phpstan = await this._spawnProcess(config, check, args);
+		const phpstan = await this._spawnProcess(config, check);
 		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(
@@ -330,9 +280,7 @@ export class PHPStanRunner implements Disposable {
 					return;
 				}
 
-				if (doc) {
-					await this._config.hooks.provider.onCheckDone(doc.uri);
-				}
+				await this._config.hooks.provider.onCheckDone();
 
 				resolve(ReturnResult.success(getData()));
 			});
@@ -356,13 +304,10 @@ export class PHPStanRunner implements Disposable {
 		);
 
 		// Get args
-		const args = await this._getArgs(config, {
-			progress: true,
-		});
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		const result = await this._getProcessOutput(config, check, args, {
+		const result = await this._getProcessOutput(config, check, {
 			onProgress,
 		});
 

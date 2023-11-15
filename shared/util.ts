@@ -1,4 +1,7 @@
 import type { Disposable } from 'vscode';
+import * as fs from 'fs/promises';
+import * as crypto from 'crypto';
+import { constants } from 'fs';
 
 export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
 	const result: Partial<A & B> = {};
@@ -127,4 +130,34 @@ export function normalizePath(filePath: string): string {
 		return filePath;
 	}
 	return filePath.replace(/\\/g, '/');
+}
+
+export async function pathExists(filePath: string): Promise<boolean> {
+	try {
+		await fs.access(filePath, constants.F_OK);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
+export async function tryReadFile(filePath: string): Promise<string | null> {
+	try {
+		const contents = await fs.readFile(filePath, 'utf-8');
+		return contents;
+	} catch (error) {
+		return null;
+	}
+}
+
+export async function tryReadJSON<J>(filePath: string): Promise<J | null> {
+	const text = await tryReadFile(filePath);
+	if (text === null) {
+		return null;
+	}
+	return JSON.parse(text) as J;
+}
+
+export function basicHash(content: string): string {
+	return crypto.createHash('md5').update(content).digest('hex');
 }

@@ -2,6 +2,7 @@ import { replaceVariables } from '../variables';
 import { showErrorOnce } from '../errorUtil';
 import { getConfiguration } from '../config';
 import type { ClassConfig } from './manager';
+import type { Disposable } from 'vscode';
 import * as fs from 'fs/promises';
 import { constants } from 'fs';
 import * as path from 'path';
@@ -12,13 +13,15 @@ export interface CheckConfig {
 	configFile: string | null;
 	remoteConfigFile: string | null;
 	binCmd: string | null;
+	binStr: string;
 	binPath: string | null;
 	initialArgs: string[];
 	args: string[];
 	memoryLimit: string;
 }
 
-export class ConfigurationManager {
+export class ConfigurationManager implements Disposable {
+	private _disposables: Disposable[] = [];
 	private __config: CheckConfig | null = null;
 
 	public constructor(private readonly _config: ClassConfig) {}
@@ -29,6 +32,16 @@ export class ConfigurationManager {
 	): Promise<string> {
 		const pathMapper = await this.getPathMapper(config);
 		return pathMapper(filePath);
+	}
+
+	public static escapeFilePath(filePath: string): string {
+		if (os.platform() !== 'win32') {
+			return filePath;
+		}
+		if (filePath.indexOf(' ') !== -1) {
+			filePath = '"' + filePath + '"';
+		}
+		return filePath;
 	}
 
 	public static async getPathMapper(
@@ -239,9 +252,51 @@ export class ConfigurationManager {
 				replaceVariables(arg, this._config)
 			),
 			memoryLimit: extensionConfig.memoryLimit,
+			binStr: binConfig.binCmd
+				? binConfig.binCmd
+				: ConfigurationManager.escapeFilePath(binConfig.binPath!),
 			...binConfig,
 		};
 		this.__config = config;
 		return config;
+	}
+
+	public async getArgs(
+		config: CheckConfig,
+		progress: boolean = true
+	): Promise<string[]> {
+		const args = [...config.initialArgs, 'analyse'];
+		if (config.remoteConfigFile) {
+			args.push(
+				...[
+					'-c',
+					ConfigurationManager.escapeFilePath(
+						config.remoteConfigFile
+					),
+				]
+			);
+		} else if (config.configFile) {
+			args.push('-c', config.configFile);
+		}
+
+		args.push(
+			'--error-format=raw',
+			'--no-interaction',
+			`--memory-limit=${config.memoryLimit}`
+		);
+		if (!progress) {
+			args.push('--no-progress');
+		}
+		args.push(...config.args);
+		return await this._config.hooks.provider.transformArgs(
+			config,
+			[config.binStr, ...args],
+			this._disposables
+		);
+	}
+
+	public dispose(): void {
+		this._disposables.forEach((d) => void d.dispose());
+		this._disposables = [];
 	}
 }

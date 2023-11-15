@@ -64,7 +64,10 @@ export class Watcher implements Disposable {
 			WATCHER_PREFIX,
 			'Document changed, checking'
 		);
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		await this._phpstan.checkProject();
 	}
 
 	public async onDocumentSave(e: WatcherNotificationFileData): Promise<void> {
@@ -72,7 +75,10 @@ export class Watcher implements Disposable {
 			return;
 		}
 		await log(this._connection, WATCHER_PREFIX, 'Document saved, checking');
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		await this._phpstan.checkProject();
 	}
 
 	public async onDocumentActive(
@@ -87,7 +93,10 @@ export class Watcher implements Disposable {
 			'Document active, checking'
 		);
 
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		await this._phpstan.checkProject();
 	}
 
 	public async onDocumentOpen(e: WatcherNotificationFileData): Promise<void> {
@@ -99,14 +108,20 @@ export class Watcher implements Disposable {
 			WATCHER_PREFIX,
 			'Document opened, checking and re-applying errors'
 		);
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		await this._phpstan.checkProject();
 	}
 
 	public async onDocumentCheck(
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		await log(this._connection, WATCHER_PREFIX, 'Force checking project');
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		await this._phpstan.checkProject();
 	}
 
 	public async onScanProject(): Promise<void> {

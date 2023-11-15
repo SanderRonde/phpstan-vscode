@@ -39,6 +39,7 @@ async function startLanguageServer(
 		run: {
 			module: serverModule,
 			transport: TransportKind.ipc,
+			
 		},
 		debug: {
 			module: serverModule,

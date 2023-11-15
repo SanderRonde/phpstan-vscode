@@ -9,18 +9,21 @@ export class DocumentManager implements Disposable {
 	private readonly _connection: _Connection;
 	private readonly _documents: Map<string, WatcherNotificationFileData> =
 		new Map();
-	private readonly _watcher: Watcher;
+	private readonly _watcher?: Watcher;
 
 	public constructor({
 		connection,
 		watcher,
 	}: {
 		connection: _Connection;
-		watcher: Watcher;
+		watcher?: Watcher;
 	}) {
 		this._connection = connection;
 		this._watcher = watcher;
 
+		if (!this._watcher) {
+			return;
+		}
 		this._disposables.push(
 			// eslint-disable-next-line @typescript-eslint/no-misused-promises
 			this._connection.onNotification(watcherNotification, (data) => {
@@ -38,9 +41,9 @@ export class DocumentManager implements Disposable {
 					case 'check':
 						return this._onDocumentCheck(data.file);
 					case 'clear':
-						return this._watcher.clearData();
+						return this._watcher!.clearData();
 					case 'checkProject':
-						return this._watcher.onScanProject();
+						return this._watcher!.onScanProject();
 					default:
 						assertUnreachable(data);
 				}
@@ -52,28 +55,28 @@ export class DocumentManager implements Disposable {
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		this._documents.set(e.uri, e);
-		await this._watcher.onDocumentChange(e);
+		await this._watcher!.onDocumentChange(e);
 	}
 
 	private async _onDocumentSave(
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		this._documents.set(e.uri, e);
-		await this._watcher.onDocumentSave(e);
+		await this._watcher!.onDocumentSave(e);
 	}
 
 	private async _onDocumentCheck(
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		this._documents.set(e.uri, e);
-		await this._watcher.onDocumentCheck(e);
+		await this._watcher!.onDocumentCheck(e);
 	}
 
 	private async _onDocumentActive(
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		this._documents.set(e.uri, e);
-		await this._watcher.onDocumentActive(e);
+		await this._watcher!.onDocumentActive(e);
 	}
 
 	private async _onDocumentOpen(
@@ -82,7 +85,7 @@ export class DocumentManager implements Disposable {
 	): Promise<void> {
 		this._documents.set(e.uri, e);
 		if (check) {
-			await this._watcher.onDocumentOpen(e);
+			await this._watcher!.onDocumentOpen(e);
 		}
 	}
 
@@ -92,6 +95,15 @@ export class DocumentManager implements Disposable {
 
 	public get(uri: string): WatcherNotificationFileData | null {
 		return this._documents.get(uri) ?? null;
+	}
+
+	public getAll(): Record<string, string> {
+		const result: Record<string, string> = {};
+		for (const [uri, data] of this._documents.entries()) {
+			result[uri] = data.content;
+		}
+
+		return result;
 	}
 
 	public dispose(): void {

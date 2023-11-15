@@ -11,6 +11,7 @@ import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
 import type { PHPStanVersion, WorkspaceFolderGetter } from '../server';
 import type { PHPStanCheckManager } from '../lib/phpstan/manager';
 import type { CheckConfig } from '../lib/phpstan/configManager';
+import type { DocumentManager } from '../lib/documentManager';
 import { providerEnabled } from '../lib/providerUtil';
 import { Disposable } from 'vscode-languageserver';
 import type { DirectoryResult } from 'tmp-promise';
@@ -41,9 +42,10 @@ export interface FileReport {
 export interface ProviderArgs {
 	connection: _Connection;
 	hooks: ProviderCheckHooks;
-	phpstan: PHPStanCheckManager;
+	phpstan?: PHPStanCheckManager;
 	getWorkspaceFolder: WorkspaceFolderGetter;
 	onConnectionInitialized: Promise<void>;
+	documents: DocumentManager;
 }
 
 export async function getFileReport(
@@ -64,8 +66,12 @@ export async function getFileReport(
 	}
 
 	// Ensure the file has been checked
+	if (!providerArgs.phpstan) {
+		return providerArgs.hooks.getFileReport();
+	}
+	const fileContent = providerArgs.documents.get(documentURI)?.content;
 	const promise = toCheckablePromise(
-		providerArgs.phpstan.checkFileFromURI(documentURI, false)
+		providerArgs.phpstan.checkProjectIfFileChanged(documentURI, fileContent)
 	);
 
 	// Check if the file is currently being checked. If so, wait for that to end.
@@ -88,18 +94,14 @@ export async function getFileReport(
 		return null;
 	}
 
-	return providerArgs.hooks.getFileReport(documentURI) ?? null;
+	return providerArgs.hooks.getFileReport();
 }
 
 export class ProviderCheckHooks {
-	private _operationMap: Map<
-		string,
-		{
-			reportPath: string;
-			sourceFilePath: string;
-		}
-	> = new Map();
-	private _reports: Map<string, FileReport | null> = new Map();
+	private _lastOperation: {
+		reportPath: string;
+	} | null = null;
+	private _lastReport: FileReport | null = null;
 
 	private get _lsEnabled(): Promise<boolean> {
 		return (async () => {
@@ -118,19 +120,19 @@ export class ProviderCheckHooks {
 		private readonly _getWorkspaceFolder: WorkspaceFolderGetter
 	) {}
 
-	private async _getFileReport(uri: string): Promise<FileReport | null> {
-		if (!this._operationMap.has(uri)) {
+	private async _getFileReport(): Promise<FileReport | null> {
+		if (!this._lastOperation) {
 			return null;
 		}
-		const match = this._operationMap.get(uri)!;
-		this._operationMap.delete(uri);
 		try {
-			const file = await fs.readFile(match.reportPath, {
+			const file = await fs.readFile(this._lastOperation.reportPath, {
 				encoding: 'utf-8',
 			});
 			return JSON.parse(file) as FileReport;
 		} catch (e) {
 			return null;
+		} finally {
+			this._lastOperation = null;
 		}
 	}
 
@@ -157,8 +159,6 @@ export class ProviderCheckHooks {
 
 	private async _getAutoloadFile(
 		tmpDir: DirectoryResult,
-		uri: string,
-		filePath: string,
 		userAutoloadFile: string | null
 	): Promise<string> {
 		const treeFetcherTmpFilePath = path.join(
@@ -194,10 +194,9 @@ export class ProviderCheckHooks {
 			encoding: 'utf-8',
 		});
 
-		this._operationMap.set(uri, {
+		this._lastOperation = {
 			reportPath: treeFetcherReportedFilePath,
-			sourceFilePath: filePath,
-		});
+		};
 
 		return autoloadFilePath;
 	}
@@ -221,19 +220,17 @@ export class ProviderCheckHooks {
 		return null;
 	}
 
-	public getFileReport(uri: string): FileReport | null | undefined {
-		return this._reports.get(uri);
+	public getFileReport(): FileReport | null {
+		return this._lastReport;
 	}
 
-	public clearReports(): void {
-		this._reports.clear();
+	public clearReport(): void {
+		this._lastReport = null;
 	}
 
 	public async transformArgs(
 		config: CheckConfig,
 		args: string[],
-		uri: string,
-		filePath: string,
 		disposables: Disposable[]
 	): Promise<string[]> {
 		if (!(await this._lsEnabled)) {
@@ -254,8 +251,6 @@ export class ProviderCheckHooks {
 
 		const autoloadFile = await this._getAutoloadFile(
 			tmpDir,
-			uri,
-			filePath,
 			userAutoloadFile
 		);
 
@@ -271,12 +266,12 @@ export class ProviderCheckHooks {
 		return args;
 	}
 
-	public async onCheckDone(uri: string): Promise<void> {
+	public async onCheckDone(): Promise<void> {
 		if (!(await this._lsEnabled)) {
 			return;
 		}
 
-		const report = await this._getFileReport(uri);
-		this._reports.set(uri, report);
+		const report = await this._getFileReport();
+		this._lastReport = report;
 	}
 }

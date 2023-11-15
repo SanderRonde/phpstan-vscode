@@ -148,7 +148,7 @@ export const config = {
 		jsonDefinition: {
 			type: 'boolean',
 			description:
-				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker)',
+				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled.',
 			default: true,
 		},
 	},
@@ -170,6 +170,21 @@ export const config = {
 			description:
 				'Stop showing an error when using a multi-workspace project',
 			default: false,
+		},
+	},
+	'phpstan.pro': {
+		jsonDefinition: {
+			type: 'boolean',
+			description:
+				'Use PHPStan Pro under the hood (if you have a license)',
+			default: false,
+		},
+	},
+	'phpstan.proTmpDir': {
+		jsonDefinition: {
+			type: 'string',
+			description:
+				"Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan-fixer)",
 		},
 	},
 } as const;
