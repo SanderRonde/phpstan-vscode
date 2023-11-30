@@ -145,7 +145,7 @@ export const config = {
 		jsonDefinition: {
 			type: 'boolean',
 			description:
-				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled.',
+				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
 			default: true,
 		},
 	},

@@ -1,5 +1,5 @@
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
-import type { PHPStanVersion, WorkspaceFolderGetter } from '../../server';
+import type { PHPStanVersion, PromisedValue } from '../../server';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import { OperationStatus } from '../../../../shared/statusBar';
 import type { PromiseObject } from '../../../../shared/util';
@@ -15,17 +15,18 @@ import { getConfiguration } from '../config';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
+import type { URI } from 'vscode-uri';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
 	connection: _Connection;
-	getWorkspaceFolder: WorkspaceFolderGetter;
+	workspaceFolder: PromisedValue<URI | null>;
 	documents: DocumentManager;
 	hooks: {
 		provider: ProviderCheckHooks;
 	};
 	procSpawner: ProcessSpawner;
-	getVersion: () => PHPStanVersion | null;
+	version: PromisedValue<PHPStanVersion | null>;
 }
 
 interface CheckOperation {
@@ -45,7 +46,7 @@ export class PHPStanCheckManager implements Disposable {
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.workspaceFolder
 		);
 		if (!config.suppressTimeoutMessage) {
 			showError(
@@ -88,7 +89,7 @@ export class PHPStanCheckManager implements Disposable {
 	} {
 		if (result.success()) {
 			const fileSpecificErrors: Record<string, string[]> = {};
-			for (const uri of Object.keys(result.value)) {
+			for (const uri in result.value.fileSpecificErrors) {
 				fileSpecificErrors[uri] = result.value.fileSpecificErrors[
 					uri
 				].map((err) => err.message);
@@ -165,7 +166,7 @@ export class PHPStanCheckManager implements Disposable {
 		// Do check
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.workspaceFolder
 		);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
@@ -190,8 +191,7 @@ export class PHPStanCheckManager implements Disposable {
 		void log(
 			this._config.connection,
 			checkPrefix(check),
-			'Check completed for project',
-			'errors=',
+			'Check completed for project, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
 		);
 	}
@@ -233,11 +233,17 @@ export class PHPStanCheckManager implements Disposable {
 			return;
 		}
 		if (
-			this._operation.hashes[uri] &&
-			this._operation.hashes[uri] !== basicHash(fileContent)
+			!this._operation.hashes[uri] ||
+			this._operation.hashes[uri] === basicHash(fileContent)
 		) {
-			return this.checkProject();
+			await log(
+				this._config.connection,
+				MANAGER_PREFIX,
+				'No file changes, not checking'
+			);
+			return;
 		}
+		return this.checkProject();
 	}
 
 	public clear(): void {

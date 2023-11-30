@@ -6,6 +6,8 @@ use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\Param;
 use PHPStan\Analyser\Scope;
+use PHPStan\Collectors\Collector;
+use PHPStan\Node\CollectedDataNode;
 use PHPStan\Node\InForeachNode;
 use PHPStan\Rules\Rule;
 use PHPStan\Type\ArrayType;
@@ -26,29 +28,42 @@ class PHPStanVSCodeLogger {
 class PHPStanVSCodeTreeFetcher implements Rule {
 	// Replaced at runtime with a tmp file
 	public const REPORTER_FILE = 'reported.json';
-	public const DEV = true;
-	private $_visitedNodes = [];
 
-	public function __construct() {
-		if (self::DEV) {
-			if (file_exists(self::REPORTER_FILE)) {
-				unlink(self::REPORTER_FILE);
-			}
-		}
+	public function getNodeType(): string {
+		return CollectedDataNode::class;
 	}
+
+	/** @param CollectedDataNode $node */
+	public function processNode(Node $node, Scope $scope): array {
+		$collectedData = $node->get(PHPStanVSCodeTreeFetcherCollector::class);
+		file_put_contents(self::REPORTER_FILE, json_encode($collectedData));
+		return [];
+	}
+}
+
+/**
+ * @implements Collector<Node, list<array{
+ *   typeDescr: string,
+ *   name: string,
+ *   pos: array{
+ *     start: array{
+ *       line: int,
+ *       char: int
+ *     },
+ *     end: array{
+ *       line: int,
+ *       char: int
+ *     }
+ *   }
+ * }>>
+ */
+class PHPStanVSCodeTreeFetcherCollector {
+	private $_visitedNodes = [];
 
 	public function getNodeType(): string {
 		return Node::class;
 	}
 
-	/** @var array<string, string> */
-	private static $_fileCache = [];
-	private static function readFile(string $fileName) {
-		if (isset(self::$_fileCache[$fileName])) {
-			return self::$_fileCache[$fileName];
-		}
-		return (self::$_fileCache[$fileName] = file_get_contents($fileName));
-	}
 
 	/** @var array<string, array<int, array<string, int>>> */
 	private $_varPositions;
@@ -82,19 +97,13 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 		return $offset === false ? 0 : $offset;
 	}
 
-	/**
-	 * Records a variable usage and its associated data
-	 */
-	private static function reportVariable(string $filePath, array $data) {
-		$reporterData = file_get_contents(self::REPORTER_FILE);
-		if ($reporterData === false) {
-			$reporterData = '{}';
+	/** @var array<string, string> */
+	private static $_fileCache = [];
+	private static function readFile(string $fileName) {
+		if (isset(self::$_fileCache[$fileName])) {
+			return self::$_fileCache[$fileName];
 		}
-		$parsedData = json_decode($reporterData, true);
-		$parsedData[$filePath] ??= ['varValues' => []];
-		$parsedData[$filePath]['varValues'][] = $data;
-		$json = json_encode($parsedData, self::DEV ? JSON_PRETTY_PRINT : 0);
-		file_put_contents(self::REPORTER_FILE, $json);
+		return (self::$_fileCache[$fileName] = file_get_contents($fileName));
 	}
 
 	private function getLine(Scope $scope, int $lineNumber): string {
@@ -103,7 +112,23 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 		return $line;
 	}
 
-	private function processNodeWithType(Node $node, Scope $scope, Type $type): void {
+	/**
+	 * @return array{
+	 *   typeDescr: string,
+	 *   name: string,
+	 *   pos: array{
+	 *     start: array{
+	 *       line: int,
+	 *       char: int
+	 *     },
+	 *     end: array{
+	 *       line: int,
+	 *       char: int
+	 *     }
+	 *   }
+	 * }
+	 */
+	private function processNodeWithType(Node $node, Scope $scope, Type $type): array {
 		$isVar = $node instanceof Variable;
 
 		$lineNumber = $node->getStartLine();
@@ -111,8 +136,8 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 		$varName = $isVar ? $node->name : $node->name->name;
 		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $varName, $isVar);
 		$typeDescr = $type->describe(VerbosityLevel::precise());
-		self::reportVariable($scope->getFile(), [
-			'typeDescription' => $typeDescr,
+		return [
+			'typeDescr' => $typeDescr,
 			'name' => $varName,
 			'pos' => [
 				'start' => [
@@ -124,37 +149,60 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 					'char' => $index + strlen($varName) + ($isVar ? 1 : 0) // +1 for the $
 				]
 			]
-		]);
+		];
 	}
 
-	public function processNode(Node $node, Scope $scope): array {
+	/**
+	 * @return ?list<array{
+	 *   typeDescr: string,
+	 *   name: string,
+	 *   pos: array{
+	 *     start: array{
+	 *       line: int,
+	 *       char: int
+	 *     },
+	 *     end: array{
+	 *       line: int,
+	 *       char: int
+	 *     }
+	 *   }
+	 * }>
+	 */
+	public function processNode(Node $node, Scope $scope): ?array {
+		if ($scope->getTraitReflection() !== null) {
+			// Inside of a trait being applied to a class. We skip these since
+			// they're not actually inside the current file.
+			return null;
+		}
+
 		$this->_visitedNodes[] = $node;
 		if ($node instanceof InForeachNode) {
 			$keyVar = $node->getOriginalNode()->keyVar;
 			$valueVar = $node->getOriginalNode()->valueVar;
 			$exprType = $scope->getType($node->getOriginalNode()->expr);
 			if (!($exprType instanceof ArrayType)) {
-				return [];
+				return null;
 			}
 			if ($keyVar && $keyVar instanceof Variable) {
-				$this->processNodeWithType($keyVar, $scope, $exprType->getKeyType());
+				return [$this->processNodeWithType($keyVar, $scope, $exprType->getKeyType())];
 			}
 			if ($valueVar && $valueVar instanceof Variable) {
-				$this->processNodeWithType($valueVar, $scope, $exprType->getItemType());
+				return [$this->processNodeWithType($valueVar, $scope, $exprType->getItemType())];
 			}
-			return [];
+			return null;
 		}
 
+		// TODO:(sander) can we find these too?
 		if ($node instanceof Param) {
 			// Only mark these as instances of a variable in our fancy char-index-finder.
 			// PHPStan will somehow always see these are of type *ERROR*
 			$line = $this->getLine($scope, $node->getStartLine());
 			$this->bestEffortFindPos($scope->getFile(), $node->getStartLine(), $line, $node->var->name, true);
-			return [];
+			return null;
 		}
 
 		if (!($node instanceof Variable) && !($node instanceof PropertyFetch)) {
-			return [];
+			return null;
 		}
 
 		$type = $scope->getType($node);
@@ -163,10 +211,9 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 			$type = $scope->getType($parent->expr);
 		}
 		if ($type instanceof ErrorType) {
-			return [];
+			return null;
 		}
 
-		$this->processNodeWithType($node, $scope, $type);
-		return [];
+		return [$this->processNodeWithType($node, $scope, $type)];
 	}
 }

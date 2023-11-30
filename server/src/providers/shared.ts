@@ -8,21 +8,21 @@ import {
 } from '../../../shared/constants';
 import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
-import type { PHPStanVersion, WorkspaceFolderGetter } from '../server';
 import type { PHPStanCheckManager } from '../lib/phpstan/manager';
 import type { CheckConfig } from '../lib/phpstan/configManager';
+import type { PHPStanVersion, PromisedValue } from '../server';
 import type { DocumentManager } from '../lib/documentManager';
 import { providerEnabled } from '../lib/providerUtil';
 import { Disposable } from 'vscode-languageserver';
-import type { DirectoryResult } from 'tmp-promise';
 import { getConfiguration } from '../lib/config';
+import { SERVER_PREFIX, log } from '../lib/log';
 import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
 
 interface VariableData {
-	typeDescription: string;
+	typeDescr: string;
 	name: string;
 	pos: {
 		start: {
@@ -36,17 +36,13 @@ interface VariableData {
 	};
 }
 
-interface FileReport {
-	varValues: VariableData[];
-}
-
-type ProjectReport = Record<string, FileReport>;
+type ProjectReport = Record<string, VariableData[][]>;
 
 export interface ProviderArgs {
 	connection: _Connection;
 	hooks: ProviderCheckHooks;
 	phpstan?: PHPStanCheckManager;
-	getWorkspaceFolder: WorkspaceFolderGetter;
+	workspaceFolder: PromisedValue<URI | null>;
 	onConnectionInitialized: Promise<void>;
 	documents: DocumentManager;
 }
@@ -55,12 +51,12 @@ export async function getFileReport(
 	providerArgs: ProviderArgs,
 	cancelToken: CancellationToken,
 	documentURI: string
-): Promise<FileReport | null> {
+): Promise<VariableData[][] | null> {
 	if (!(await providerEnabled(providerArgs))) {
 		return null;
 	}
 
-	const workspaceFolder = providerArgs.getWorkspaceFolder();
+	const workspaceFolder = await providerArgs.workspaceFolder.get();
 	if (
 		!workspaceFolder ||
 		(!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested)
@@ -117,18 +113,16 @@ export class ProviderCheckHooks {
 	private get _lsEnabled(): Promise<boolean> {
 		return (async () => {
 			return (
-				await getConfiguration(
-					this._connection,
-					this._getWorkspaceFolder
-				)
+				await getConfiguration(this._connection, this._workspaceFolder)
 			).enableLanguageServer;
 		})();
 	}
 
 	public constructor(
 		private readonly _connection: _Connection,
-		private readonly _getVersion: () => PHPStanVersion | null,
-		private readonly _getWorkspaceFolder: WorkspaceFolderGetter
+		private readonly _version: PromisedValue<PHPStanVersion | null>,
+		private readonly _workspaceFolder: PromisedValue<URI | null>,
+		private readonly _extensionPath: PromisedValue<URI>
 	) {}
 
 	private async _getFileReport(): Promise<ProjectReport | null> {
@@ -147,11 +141,11 @@ export class ProviderCheckHooks {
 	}
 
 	private async _getConfigFile(
-		tmpDir: DirectoryResult,
+		baseDir: string,
 		userConfigFile: string
 	): Promise<string> {
 		const templateFile =
-			this._getVersion() === '2.*'
+			(await this._version.get()) === '2.*'
 				? PHPSTAN_2_NEON_FILE
 				: PHPSTAN_1_NEON_FILE;
 		const neonFileContent = (
@@ -159,7 +153,7 @@ export class ProviderCheckHooks {
 				encoding: 'utf-8',
 			})
 		).replace('../test/demo/phpstan.neon', userConfigFile);
-		const tmpNeonFilePath = path.join(tmpDir.path, 'config.neon');
+		const tmpNeonFilePath = path.join(baseDir, 'config.neon');
 		await fs.writeFile(tmpNeonFilePath, neonFileContent, {
 			encoding: 'utf8',
 		});
@@ -168,27 +162,28 @@ export class ProviderCheckHooks {
 	}
 
 	private async _getAutoloadFile(
-		tmpDir: DirectoryResult,
+		baseDir: string,
 		userAutoloadFile: string | null
-	): Promise<string> {
-		const treeFetcherTmpFilePath = path.join(
-			tmpDir.path,
-			'TreeFetcher.php'
-		);
-		const treeFetcherReportedFilePath = path.join(
-			tmpDir.path,
-			'reported.json'
-		);
-		const autoloadFilePath = path.join(tmpDir.path, 'autoload.php');
+	): Promise<{
+		autoloadFilePath: string;
+		treeFetcherReportedFilePath: tmp.FileResult;
+	}> {
+		const treeFetcherFilePath = path.join(baseDir, 'TreeFetcher.php');
+		const treeFetcherReportedFilePath = await tmp.file({
+			postfix: '.json',
+		});
+		const autoloadFilePath = path.join(baseDir, 'autoload.php');
 
 		const treeFetcherContent = (
 			await fs.readFile(TREE_FETCHER_FILE, {
 				encoding: 'utf-8',
 			})
-		)
-			.replace('reported.json', treeFetcherReportedFilePath)
-			.replace('DEV = true', 'DEV = false');
-		await fs.writeFile(treeFetcherTmpFilePath, treeFetcherContent, {
+		).replace('reported.json', treeFetcherReportedFilePath.path);
+
+		await fs.mkdir(baseDir, {
+			recursive: true,
+		});
+		await fs.writeFile(treeFetcherFilePath, treeFetcherContent, {
 			encoding: 'utf-8',
 		});
 
@@ -199,16 +194,19 @@ export class ProviderCheckHooks {
 			)}');\n`;
 			autoloadFileContent += `require_once '${userAutoloadFile}';\n`;
 		}
-		autoloadFileContent += `require_once '${treeFetcherTmpFilePath}';`;
+		autoloadFileContent += `require_once '${treeFetcherFilePath}';`;
 		await fs.writeFile(autoloadFilePath, autoloadFileContent, {
 			encoding: 'utf-8',
 		});
 
 		this._lastOperation = {
-			reportPath: treeFetcherReportedFilePath,
+			reportPath: treeFetcherReportedFilePath.path,
 		};
 
-		return autoloadFilePath;
+		return {
+			autoloadFilePath,
+			treeFetcherReportedFilePath,
+		};
 	}
 
 	private _findArg(
@@ -238,11 +236,6 @@ export class ProviderCheckHooks {
 		this._lastReport = null;
 	}
 
-	public prepareForCheck(): void {
-		// Clear
-		this._lastReport = null;
-	}
-
 	public async transformArgs(
 		config: CheckConfig,
 		args: string[],
@@ -252,32 +245,40 @@ export class ProviderCheckHooks {
 			return args;
 		}
 
-		const tmpDir = await tmp.dir();
+		void log(this._connection, SERVER_PREFIX, 'getting bin 3');
+		const baseDir = path.join(
+			(await this._extensionPath.get()).fsPath,
+			'_config'
+		);
+		void log(this._connection, SERVER_PREFIX, 'getting bin 4');
+
+		const userAutoloadFile = this._findArg(config, '-a', '--autoload-file');
+
+		void log(this._connection, SERVER_PREFIX, 'getting bin 5');
+		const { autoloadFilePath, treeFetcherReportedFilePath } =
+			await this._getAutoloadFile(baseDir, userAutoloadFile);
+		void log(this._connection, SERVER_PREFIX, 'getting bin 6');
+
 		disposables.push(
 			Disposable.create(() => {
-				void fs.rm(tmpDir.path, { recursive: true }).catch((err) => {
+				treeFetcherReportedFilePath.cleanup().catch((err) => {
 					// No reason to really do anything else here, it's a tmp file anyway
 					console.log('Error while deleting tmp folder', err);
 				});
 			})
 		);
 
-		const userAutoloadFile = this._findArg(config, '-a', '--autoload-file');
-
-		const autoloadFile = await this._getAutoloadFile(
-			tmpDir,
-			userAutoloadFile
-		);
-
-		args.push('-a', autoloadFile);
+		args.push('-a', autoloadFilePath);
+		void log(this._connection, SERVER_PREFIX, 'getting bin 7');
 		if (config.configFile) {
 			// No config is invalid anyway so we can just ignore this
 			const configFile = await this._getConfigFile(
-				tmpDir,
+				baseDir,
 				config.configFile
 			);
 			args.push('-c', configFile);
 		}
+		void log(this._connection, SERVER_PREFIX, 'getting bin 8');
 		return args;
 	}
 
@@ -286,6 +287,8 @@ export class ProviderCheckHooks {
 			return;
 		}
 
+		// TODO:(sander) collected data only represents the checked files. Need to merge
+		// with previous report...
 		const report = await this._getFileReport();
 		this._lastReport = report;
 	}

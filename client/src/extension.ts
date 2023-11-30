@@ -15,8 +15,8 @@ import type {
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { getConfiguration, registerConfigListeners } from './lib/config';
-import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
+import { initRequest } from './lib/requestChannels';
 import { registerListeners } from './lib/commands';
 import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
@@ -98,9 +98,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		proManager
 	);
 
+
 	let wasReady = false;
+	const startedAt = Date.now();
 	context.subscriptions.push(
-		client.onNotification(readyNotification, ({ ready }) => {
+		client.onRequest(initRequest, ({ ready }) => {
 			if (ready) {
 				if (!wasReady) {
 					// First time it's ready, start watching
@@ -115,6 +117,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
 				}
 				wasReady = true;
 			}
+
+			return Promise.resolve({
+				extensionPath: context.extensionUri.toString(),
+				startedAt: startedAt,
+			});
 		})
 	);
 	log(CLIENT_PREFIX, 'Initializing done');

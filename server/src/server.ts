@@ -11,15 +11,14 @@ import type {
 	_Connection,
 } from 'vscode-languageserver/node';
 import {
-	phpstanProNotification,
-	readyNotification,
-	statusBarNotification,
-} from './lib/notificationChannels';
-import {
 	createConnection,
 	ProposedFeatures,
 	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
+import {
+	phpstanProNotification,
+	statusBarNotification,
+} from './lib/notificationChannels';
 import { ConfigurationManager } from './lib/phpstan/configManager';
 import { createHoverProvider } from './providers/hoverProvider';
 import { PHPStanCheckManager } from './lib/phpstan/manager';
@@ -29,44 +28,45 @@ import { ProviderCheckHooks } from './providers/shared';
 import type { ProviderArgs } from './providers/shared';
 import { Commands } from '../../shared/commands/defs';
 import { SPAWN_ARGS } from '../../shared/constants';
+import { initRequest } from './lib/requestChannels';
 import { launchPro } from './lib/phpstan/pro/pro';
 import { getConfiguration } from './lib/config';
 import { log, SERVER_PREFIX } from './lib/log';
 import { StatusBar } from './lib/statusBar';
 import { ProcessSpawner } from './lib/proc';
+import { wait } from '../../shared/util';
 import { Watcher } from './lib/watcher';
 import { spawn } from 'child_process';
 import { URI } from 'vscode-uri';
 
-export type WorkspaceFolderGetter = () => URI | null;
 export type PHPStanVersion = '1.*' | '2.*';
 
 function getClassConfig(
 	connection: _Connection,
-	getWorkspaceFolder: WorkspaceFolderGetter,
-	getVersion: () => PHPStanVersion | null,
-	getDocumentManager: () => DocumentManager
+	workspaceFolder: PromisedValue<URI | null>,
+	version: PromisedValue<PHPStanVersion | null>,
+	documentManager: DocumentManager,
+	extensionPath: PromisedValue<URI>
 ): ClassConfig {
 	const procSpawner = new ProcessSpawner(connection);
 	const providerHooks = new ProviderCheckHooks(
 		connection,
-		getVersion,
-		getWorkspaceFolder
+		version,
+		workspaceFolder,
+		extensionPath
 	);
 
 	const statusBar = new StatusBar(connection);
 	return {
 		statusBar,
 		connection,
-		getWorkspaceFolder,
-		get documents() {
-			return getDocumentManager();
-		},
+		workspaceFolder: workspaceFolder,
+		documents: documentManager,
 		hooks: {
 			provider: providerHooks,
 		},
 		procSpawner,
-		getVersion,
+		version,
 	};
 }
 
@@ -81,46 +81,41 @@ interface StartReturn {
 }
 
 function startIntegratedChecker(
+	classConfig: ClassConfig,
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
-	getWorkspaceFolder: WorkspaceFolderGetter,
-	getVersion: () => PHPStanVersion | null
+	workspaceFolder: PromisedValue<URI | null>,
+	startedAt: PromisedValue<Date>
 ): StartReturn {
-	const providerHooks = new ProviderCheckHooks(
-		connection,
-		getVersion,
-		getWorkspaceFolder
-	);
-
-	const classConfig = getClassConfig(
-		connection,
-		getWorkspaceFolder,
-		getVersion,
-		() => documentManager
-	);
 	const phpstan = new PHPStanCheckManager(classConfig);
 	const watcher = new Watcher({
 		connection,
 		phpstan,
 		onConnectionInitialized,
-		getWorkspaceFolder,
-	});
-	const documentManager: DocumentManager = new DocumentManager({
-		connection,
-		watcher,
+		workspaceFolder: workspaceFolder,
 	});
 
-	disposables.push(phpstan, watcher, documentManager);
+	classConfig.documents.setWatcher(watcher);
+
+	disposables.push(phpstan, watcher);
 
 	const providerArgs: ProviderArgs = {
 		connection,
-		hooks: providerHooks,
+		hooks: classConfig.hooks.provider,
 		phpstan,
-		getWorkspaceFolder,
+		workspaceFolder: workspaceFolder,
 		onConnectionInitialized,
 		documents: classConfig.documents,
 	};
+
+	void (async () => {
+		const startedAtTime = await startedAt.get();
+		const serverLiveFor = Date.now() - startedAtTime.getTime();
+		// Wait a while after start with checking so as to now tax the system too much
+		await wait(Math.max(5000 - serverLiveFor, 0));
+		void phpstan.checkProject();
+	})();
 
 	return {
 		hoverProvider: createHoverProvider(providerArgs),
@@ -129,37 +124,33 @@ function startIntegratedChecker(
 }
 
 async function startPro(
+	classConfig: ClassConfig,
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
-	getWorkspaceFolder: WorkspaceFolderGetter,
-	getVersion: () => PHPStanVersion | null
+	workspaceFolder: PromisedValue<URI | null>
 ): Promise<StartReturn> {
-	const providerHooks = new ProviderCheckHooks(
-		connection,
-		getVersion,
-		getWorkspaceFolder
-	);
-
-	const classConfig = getClassConfig(
-		connection,
-		getWorkspaceFolder,
-		getVersion,
-		() => documentManager
-	);
-	const documentManager: DocumentManager = new DocumentManager({
-		connection,
+	void connection.sendNotification(statusBarNotification, {
+		type: 'fallback',
+		text: 'PHPStan Pro starting...',
 	});
-
-	const pro = await launchPro(connection, getWorkspaceFolder, classConfig);
+	const pro = await launchPro(connection, workspaceFolder, classConfig);
 	if (!pro.success()) {
 		void connection.window.showErrorMessage(
 			`Failed to start PHPStan Pro: ${pro.error ?? '?'}`
 		);
+		void connection.sendNotification(statusBarNotification, {
+			type: 'fallback',
+			text: undefined,
+		});
 	} else if (!(await pro.value.getPort())) {
 		void connection.window.showErrorMessage(
 			'Failed to find PHPStan Pro port'
 		);
+		void connection.sendNotification(statusBarNotification, {
+			type: 'fallback',
+			text: undefined,
+		});
 	} else {
 		disposables.push(pro.value);
 		const port = (await pro.value.getPort())!;
@@ -181,8 +172,8 @@ async function startPro(
 
 	const providerArgs: ProviderArgs = {
 		connection,
-		hooks: providerHooks,
-		getWorkspaceFolder,
+		hooks: classConfig.hooks.provider,
+		workspaceFolder: workspaceFolder,
 		onConnectionInitialized,
 		documents: classConfig.documents,
 	};
@@ -207,14 +198,13 @@ async function main(): Promise<void> {
 	});
 
 	// The workspace folder this server is operating on
-	let workspaceFolder: URI | null;
-	const getWorkspaceFolder = (): URI | null => workspaceFolder;
-	let version: PHPStanVersion | null = null;
-	const getVersion = (): PHPStanVersion | null => version;
+	const workspaceFolder = new PromisedValue<URI | null>();
+	const version = new PromisedValue<PHPStanVersion | null>();
+	const extensionPath = new PromisedValue<URI>();
 
 	connection.onInitialize((params) => {
 		const uri = params.workspaceFolders?.[0].uri;
-		workspaceFolder = uri ? URI.parse(uri) : null;
+		workspaceFolder.set(uri ? URI.parse(uri) : null);
 		return {
 			capabilities: {
 				textDocumentSync: {
@@ -227,39 +217,63 @@ async function main(): Promise<void> {
 		};
 	});
 
-	let hoverProvider: ServerRequestHandler<
-		HoverParams,
-		Hover | undefined | null,
-		never,
-		void
-	> = () => null;
-	connection.onHover(hoverProvider);
+	const hoverProvider = new PromisedValue<
+		ServerRequestHandler<HoverParams, Hover | undefined | null, never, void>
+	>();
+	connection.onHover(async (...args) => {
+		if (hoverProvider.isSet()) {
+			const handler = await hoverProvider.get();
+			return handler(...args);
+		}
+		return null;
+	});
 	connection.listen();
 
 	await onConnectionInitialized;
 	void log(connection, SERVER_PREFIX, 'Language server ready');
-	void connection.sendNotification(readyNotification, {
-		ready: true,
-	});
+	const extensionStartedAt = new PromisedValue<Date>();
+	void connection
+		.sendRequest(initRequest, { ready: true })
+		.then((response) => {
+			extensionStartedAt.set(new Date(response.startedAt));
+			extensionPath.set(URI.parse(response.extensionPath));
+		});
 
-	const config = await getConfiguration(connection, getWorkspaceFolder);
-	const { classConfig, hoverProvider: _hoverProvider } = config.pro
+	const config = await getConfiguration(connection, workspaceFolder);
+	const documentManager = new DocumentManager(connection);
+	disposables.push(documentManager);
+	const classConfig = getClassConfig(
+		connection,
+		workspaceFolder,
+		version,
+		documentManager,
+		extensionPath
+	);
+	void getPHPStanVersion(classConfig, disposables);
+
+	const { hoverProvider: _hoverProvider } = config.pro
 		? await startPro(
+				classConfig,
 				connection,
 				disposables,
 				onConnectionInitialized,
-				getWorkspaceFolder,
-				getVersion
+				workspaceFolder
 		  )
 		: startIntegratedChecker(
+				classConfig,
 				connection,
 				disposables,
 				onConnectionInitialized,
-				getWorkspaceFolder,
-				getVersion
+				workspaceFolder,
+				extensionStartedAt
 		  );
-	hoverProvider = _hoverProvider;
+	hoverProvider.set(_hoverProvider);
+}
 
+async function getPHPStanVersion(
+	classConfig: ClassConfig,
+	disposables: Disposable[]
+): Promise<void> {
 	// Test if we can get the PHPStan version
 	const configManager = new ConfigurationManager(classConfig);
 	disposables.push(configManager);
@@ -281,10 +295,9 @@ async function main(): Promise<void> {
 				data += chunk;
 			});
 			proc.on('close', (code) => {
-				console.log(code, data);
 				if (code === 0) {
 					void log(
-						connection,
+						classConfig.connection,
 						SERVER_PREFIX,
 						`PHPStan version: ${data}`
 					);
@@ -296,13 +309,38 @@ async function main(): Promise<void> {
 
 					const [, major] = versionMatch;
 					if (major === '2') {
-						version = '2.*';
+						classConfig.version.set('2.*');
 					} else if (major === '1') {
-						version = '1.*';
+						classConfig.version.set('1.*');
 					}
 				}
 			});
 		}
+	}
+}
+
+export class PromisedValue<V> {
+	private _resolve!: (value: V) => void;
+	private readonly _promise: Promise<V>;
+	private _wasSet: boolean = false;
+
+	public constructor() {
+		this._promise = new Promise<V>((resolve) => {
+			this._resolve = resolve;
+		});
+	}
+
+	public set(value: V): void {
+		this._resolve(value);
+		this._wasSet = true;
+	}
+
+	public get(): Promise<V> {
+		return this._promise;
+	}
+
+	public isSet(): boolean {
+		return this._wasSet;
 	}
 }
 

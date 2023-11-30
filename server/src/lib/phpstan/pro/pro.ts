@@ -1,13 +1,15 @@
 import { pathExists, tryReadJSON, wait } from '../../../../../shared/util';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { SPAWN_ARGS } from '../../../../../shared/constants';
-import type { WorkspaceFolderGetter } from '../../../server';
 import { PHPStanProErrorManager } from './proErrorManager';
 import { ConfigurationManager } from '../configManager';
+import type { PromisedValue } from '../../../server';
 import { getConfiguration } from '../../config';
+import { SERVER_PREFIX, log } from '../../log';
 import type { ClassConfig } from '../manager';
 import { ProcessSpawner } from '../../proc';
 import { ReturnResult } from '../result';
+import type { URI } from 'vscode-uri';
 import * as path from 'path';
 import * as os from 'os';
 
@@ -17,13 +19,18 @@ function getDefaultConfigDirPath(): string {
 
 export async function launchPro(
 	connection: _Connection,
-	getWorkspaceFolder: WorkspaceFolderGetter,
+	getWorkspaceFolder: PromisedValue<URI | null>,
 	classConfig: ClassConfig
 ): Promise<ReturnResult<PHPStanProProcess, string>> {
 	const settings = await getConfiguration(connection, getWorkspaceFolder);
-	const configDirPath = settings.proTmpDir || getDefaultConfigDirPath();
+	const tmpPath = settings.proTmpDir || getDefaultConfigDirPath();
 
 	const configManager = new ConfigurationManager(classConfig);
+	void log(
+		connection,
+		SERVER_PREFIX,
+		'Getting config=' + JSON.stringify(settings)
+	);
 	const launchConfig = await configManager.collectConfiguration();
 	if (!launchConfig) {
 		return ReturnResult.error('Failed to find launch configuration');
@@ -31,7 +38,7 @@ export async function launchPro(
 
 	const [binStr, ...args] = await configManager.getArgs(launchConfig, false);
 	const procSpawner = new ProcessSpawner(connection);
-	const process = await procSpawner.spawnWithRobustTimeout(
+	const proc = await procSpawner.spawnWithRobustTimeout(
 		binStr,
 		[...args, '--watch'],
 		0,
@@ -39,21 +46,24 @@ export async function launchPro(
 			...SPAWN_ARGS,
 			cwd: launchConfig.cwd,
 			env: {
-				TMPDIR: configDirPath,
+				...process.env,
+				TMPDIR: tmpPath,
 			},
 		}
 	);
 	configManager.dispose();
 
 	return new Promise<ReturnResult<PHPStanProProcess, string>>((resolve) => {
-		let data: string = '';
-		process.stdout.on('data', (chunk: string | Buffer) => {
-			data += chunk.toString();
-			if (data.trim().length) {
+		let stdout: string = '';
+		let stderr: string = '';
+		proc.stdout.on('data', (chunk: string | Buffer) => {
+			stdout += chunk.toString();
+			if (stdout.includes('Open your web browser at:')) {
 				// We got some text, the process is running.
 				// Wait a slight while for PHPStan to move to the pro part
 				void wait(100).then(async () => {
 					// Check if config folder exists
+					const configDirPath = path.join(tmpPath, 'phpstan-fixer');
 					const folderExists = await pathExists(configDirPath);
 
 					if (!folderExists) {
@@ -75,17 +85,20 @@ export async function launchPro(
 				});
 			}
 		});
-		process.on('error', (error) => {
+		proc.stderr.on('data', (chunk: string | Buffer) => {
+			stderr += chunk.toString();
+		});
+		proc.on('error', (error) => {
 			resolve(
 				ReturnResult.error(
-					`Failed to launch PHPStan Pro: ${error.message}`
+					`Failed to launch PHPStan Pro: ${error.message} - ${stderr}`
 				)
 			);
 		});
-		process.on('exit', (code) => {
+		proc.on('exit', (code) => {
 			resolve(
 				ReturnResult.error(
-					`PHPStan Pro exited with code ${code ?? '?'}`
+					`PHPStan Pro exited with code ${code ?? '?'}: ${stderr}`
 				)
 			);
 		});

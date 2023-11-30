@@ -2,15 +2,17 @@ import type { WatcherNotificationFileData } from '../../../shared/notificationCh
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import type { PHPStanCheckManager } from './phpstan/manager';
 import type { PartialDocument } from './phpstan/runner';
-import type { WorkspaceFolderGetter } from '../server';
+import type { PromisedValue } from '../server';
 import { getConfiguration } from './config';
 import { log, WATCHER_PREFIX } from './log';
+import type { URI } from 'vscode-uri';
 
 export class Watcher implements Disposable {
 	private _disposables: Disposable[] = [];
+	private _lastActiveDocument: PartialDocument | null = null;
 	private readonly _connection: _Connection;
 	private readonly _phpstan: PHPStanCheckManager;
-	private readonly _getWorkspaceFolder: WorkspaceFolderGetter;
+	private readonly _workspaceFolder: PromisedValue<URI | null>;
 	private readonly _onConnectionInitialized: Promise<void>;
 
 	private get _enabled(): Promise<boolean> {
@@ -19,7 +21,7 @@ export class Watcher implements Disposable {
 				await this._onConnectionInitialized;
 				const config = await getConfiguration(
 					this._connection,
-					this._getWorkspaceFolder
+					this._workspaceFolder
 				);
 				resolve(config.enabled);
 			})();
@@ -30,16 +32,16 @@ export class Watcher implements Disposable {
 		connection,
 		phpstan: checkManager,
 		onConnectionInitialized,
-		getWorkspaceFolder,
+		workspaceFolder: getWorkspaceFolder,
 	}: {
 		connection: _Connection;
 		phpstan: PHPStanCheckManager;
 		onConnectionInitialized: Promise<void>;
-		getWorkspaceFolder: WorkspaceFolderGetter;
+		workspaceFolder: PromisedValue<URI | null>;
 	}) {
 		this._connection = connection;
 		this._phpstan = checkManager;
-		this._getWorkspaceFolder = getWorkspaceFolder;
+		this._workspaceFolder = getWorkspaceFolder;
 		this._onConnectionInitialized = onConnectionInitialized;
 	}
 
@@ -62,7 +64,7 @@ export class Watcher implements Disposable {
 		await log(
 			this._connection,
 			WATCHER_PREFIX,
-			'Document changed, checking'
+			'Document changed, triggering'
 		);
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
@@ -74,7 +76,11 @@ export class Watcher implements Disposable {
 		if (!(await this._enabled)) {
 			return;
 		}
-		await log(this._connection, WATCHER_PREFIX, 'Document saved, checking');
+		await log(
+			this._connection,
+			WATCHER_PREFIX,
+			'Document saved, triggering'
+		);
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
@@ -87,16 +93,21 @@ export class Watcher implements Disposable {
 		if (!(await this._enabled)) {
 			return;
 		}
-		await log(
-			this._connection,
-			WATCHER_PREFIX,
-			'Document active, checking'
-		);
 
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await this._phpstan.checkProject();
+
+		if (e.uri === this._lastActiveDocument?.uri) {
+			return;
+		}
+		await log(
+			this._connection,
+			WATCHER_PREFIX,
+			`New document active (${e.uri}), triggering`
+		);
+		this._lastActiveDocument = this._toPartialDocument(e);
+		await this._phpstan.checkProjectIfFileChanged(e.uri, e.content);
 	}
 
 	public async onDocumentOpen(e: WatcherNotificationFileData): Promise<void> {
@@ -106,7 +117,7 @@ export class Watcher implements Disposable {
 		await log(
 			this._connection,
 			WATCHER_PREFIX,
-			'Document opened, checking and re-applying errors'
+			'Document opened, triggering and re-applying errors'
 		);
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
@@ -117,7 +128,7 @@ export class Watcher implements Disposable {
 	public async onDocumentCheck(
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		await log(this._connection, WATCHER_PREFIX, 'Force checking project');
+		await log(this._connection, WATCHER_PREFIX, 'Force triggering project');
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}

@@ -7,7 +7,6 @@ export enum NotificationChannel {
 	STATUS_BAR = 'phpstan.statusBar',
 	WATCHER = 'phpstan.watcher',
 	COMMAND = 'phpstan.command',
-	READY = 'phpstan.ready',
 	ERROR = 'phpstan.error',
 	SPAWNER = 'phpstan.spawner',
 	PHPSTAN_PRO = 'phpstan.phpstanPro',
@@ -86,13 +85,9 @@ export type StatusBarNotificationType =
 	  }
 	| {
 			type: 'fallback';
-			text: string;
+			text: string | undefined;
 			command?: Commands;
 	  };
-
-export interface ReadyNotificationType {
-	ready: boolean;
-}
 
 export interface ProcessNotificationType {
 	pid: number;

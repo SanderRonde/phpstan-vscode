@@ -2,7 +2,6 @@ import type { WatcherNotificationFileData } from '../../../shared/notificationCh
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { watcherNotification } from './notificationChannels';
 import { assertUnreachable } from '../../../shared/util';
-import { log, WATCHER_PREFIX } from './log';
 import type { Watcher } from './watcher';
 import * as phpParser from 'php-parser';
 import { URI } from 'vscode-uri';
@@ -43,46 +42,10 @@ export class DocumentManager implements Disposable {
 	private readonly _connection: _Connection;
 	private readonly _documents: Map<string, DocumentManagerFileData> =
 		new Map();
-	private readonly _watcher?: Watcher;
+	private _watcher?: Watcher;
 
-	public constructor({
-		connection,
-		watcher,
-	}: {
-		connection: _Connection;
-		watcher?: Watcher;
-	}) {
+	public constructor(connection: _Connection) {
 		this._connection = connection;
-		this._watcher = watcher;
-
-		if (!this._watcher) {
-			return;
-		}
-		this._disposables.push(
-			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			this._connection.onNotification(watcherNotification, (data) => {
-				switch (data.operation) {
-					case 'change':
-						return this._onDocumentChange(data.file);
-					case 'open':
-						return this._onDocumentOpen(data.file, data.check);
-					case 'save':
-						return this._onDocumentSave(data.file);
-					case 'setActive':
-						return this._onDocumentActive(data.file);
-					case 'close':
-						return this._onDocumentClose(data.file);
-					case 'check':
-						return this._onDocumentCheck(data.file);
-					case 'clear':
-						return this._watcher!.clearData();
-					case 'checkProject':
-						return this._watcher!.onScanProject();
-					default:
-						assertUnreachable(data);
-				}
-			})
-		);
 	}
 
 	private async _onDocumentChange(
@@ -127,6 +90,35 @@ export class DocumentManager implements Disposable {
 		this._documents.delete(e.uri);
 	}
 
+	public setWatcher(watcher: Watcher): void {
+		this._watcher = watcher;
+		this._disposables.push(
+			// eslint-disable-next-line @typescript-eslint/no-misused-promises
+			this._connection.onNotification(watcherNotification, (data) => {
+				switch (data.operation) {
+					case 'change':
+						return this._onDocumentChange(data.file);
+					case 'open':
+						return this._onDocumentOpen(data.file, data.check);
+					case 'save':
+						return this._onDocumentSave(data.file);
+					case 'setActive':
+						return this._onDocumentActive(data.file);
+					case 'close':
+						return this._onDocumentClose(data.file);
+					case 'check':
+						return this._onDocumentCheck(data.file);
+					case 'clear':
+						return this._watcher!.clearData();
+					case 'checkProject':
+						return this._watcher!.onScanProject();
+					default:
+						assertUnreachable(data);
+				}
+			})
+		);
+	}
+
 	public get(uri: string): WatcherNotificationFileData | null {
 		return this._documents.get(uri) ?? null;
 	}
@@ -140,10 +132,10 @@ export class DocumentManager implements Disposable {
 		return result;
 	}
 
-	public getInvalidFile(): string|null {
+	public getInvalidFile(): string | null {
 		for (const [uri, data] of this._documents.entries()) {
 			if (!data.isValid) {
-				return uri
+				return uri;
 			}
 		}
 		return null;

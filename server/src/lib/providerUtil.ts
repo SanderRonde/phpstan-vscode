@@ -6,7 +6,7 @@ export async function providerEnabled(
 ): Promise<boolean> {
 	const configuration = await getConfiguration(
 		providerArgs.connection,
-		providerArgs.getWorkspaceFolder
+		providerArgs.workspaceFolder
 	);
 	return (
 		configuration.enableLanguageServer &&

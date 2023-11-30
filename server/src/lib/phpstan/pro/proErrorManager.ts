@@ -7,7 +7,6 @@ import type { ReportedErrors } from '../outputParser';
 import type { ClassConfig } from '../manager';
 import { log, PRO_PREFIX } from '../../log';
 import { URI } from 'vscode-uri';
-import { window } from 'vscode';
 import * as http from 'http';
 import * as ws from 'ws';
 
@@ -22,6 +21,7 @@ export class PHPStanProErrorManager implements Disposable {
 		private readonly _port: number
 	) {
 		this._pathMapper = ConfigurationManager.getPathMapper(_classConfig);
+		this._connect();
 	}
 
 	private _connect(): void {
@@ -29,13 +29,20 @@ export class PHPStanProErrorManager implements Disposable {
 		this._wsClient = new ws.WebSocket(url);
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		this._wsClient.on('error', async () => {
-			const choice = await window.showErrorMessage(
-				`PHPStan Pro failed to make websocket connection to: ${url}`,
-				'Retry'
-			);
-			if (choice === 'Retry') {
+			const choice =
+				await this._classConfig.connection.window.showErrorMessage(
+					`PHPStan Pro failed to make websocket connection to: ${url}`,
+					{
+						title: 'Retry',
+					}
+				);
+			if (choice?.title === 'Retry') {
 				this._connect();
 			}
+		});
+
+		this._wsClient.on('open', () => {
+			void this._applyErrors();
 		});
 
 		let checkOperation: StatusBarOperation | null = null;
@@ -49,58 +56,28 @@ export class PHPStanProErrorManager implements Disposable {
 			);
 			if (msg.action === 'analysisStart') {
 				checkOperation = this._classConfig.statusBar.createOperation();
-				void this._classConfig.connection.sendNotification(
-					errorNotification,
-					{
-						diagnostics: {
-							fileSpecificErrors: {},
-							notFileSpecificErrors: [],
-						},
-					}
-				);
+				await Promise.all([
+					checkOperation.start('PHPStan Pro Checking...'),
+					this._classConfig.connection.sendNotification(
+						errorNotification,
+						{
+							diagnostics: {
+								fileSpecificErrors: {},
+								notFileSpecificErrors: [],
+							},
+						}
+					),
+				]);
 			} else if (msg.action === 'analysisEnd') {
 				await this._classConfig.hooks.provider.onCheckDone();
 
 				await checkOperation?.finish(OperationStatus.SUCCESS);
-				const errors = await this.collectErrors();
-				await log(
-					this._classConfig.connection,
-					PRO_PREFIX,
-					`Found errors: ${JSON.stringify(errors)}`
-				);
-				if (!errors) {
-					// Already cleared, don't apply anything
-					return;
-				}
-
-				const pathMapper = await this._pathMapper;
-				const fileSpecificErrors: ReportedErrors['fileSpecificErrors'] =
-					{};
-				for (const fileError of errors.fileSpecificErrors) {
-					const uri = URI.from({
-						scheme: 'file',
-						path: pathMapper(fileError.file, true),
-					}).toString();
-					fileSpecificErrors[uri] ??= [];
-					fileSpecificErrors[uri].push({
-						message: fileError.message,
-						lineNumber: fileError.line,
-					});
-				}
-				void this._classConfig.connection.sendNotification(
-					errorNotification,
-					{
-						diagnostics: {
-							fileSpecificErrors: {},
-							notFileSpecificErrors: errors.notFileSpecificErrors,
-						},
-					}
-				);
+				await this._applyErrors();
 			}
 		});
 	}
 
-	private collectErrors(): Promise<ProReportedErrors | null> {
+	private _collectErrors(): Promise<ProReportedErrors | null> {
 		return new Promise<ProReportedErrors | null>((resolve) => {
 			const req = http.request(`http://127.0.0.1:${this._port}/errors`);
 			req.on('response', (res) => {
@@ -114,6 +91,39 @@ export class PHPStanProErrorManager implements Disposable {
 				});
 			});
 			req.end();
+		});
+	}
+
+	private async _applyErrors(): Promise<void> {
+		const errors = await this._collectErrors();
+		await log(
+			this._classConfig.connection,
+			PRO_PREFIX,
+			`Found errors: ${JSON.stringify(errors)}`
+		);
+		if (!errors) {
+			// Already cleared, don't apply anything
+			return;
+		}
+
+		const pathMapper = await this._pathMapper;
+		const fileSpecificErrors: ReportedErrors['fileSpecificErrors'] = {};
+		for (const fileError of errors.fileSpecificErrors) {
+			const uri = URI.from({
+				scheme: 'file',
+				path: pathMapper(fileError.file, true),
+			}).toString();
+			fileSpecificErrors[uri] ??= [];
+			fileSpecificErrors[uri].push({
+				message: fileError.message,
+				lineNumber: fileError.line,
+			});
+		}
+		void this._classConfig.connection.sendNotification(errorNotification, {
+			diagnostics: {
+				fileSpecificErrors: fileSpecificErrors,
+				notFileSpecificErrors: errors.notFileSpecificErrors,
+			},
 		});
 	}
 

@@ -61,10 +61,14 @@ export class StatusBar implements Disposable {
 						this.finishOperation(params.opId, params.result);
 						break;
 					case 'fallback':
-						this._fallback = {
-							text: params.text,
-							command: params.command,
-						};
+						if (params.text === undefined) {
+							this._fallback = undefined;
+						} else {
+							this._fallback = {
+								text: params.text,
+								command: params.command,
+							};
+						}
 						if (!this._opTracker.runningOperationCount) {
 							this._fallbackOrHide();
 						}
@@ -96,6 +100,7 @@ export class StatusBar implements Disposable {
 		}
 
 		this._textManager.setText(this._fallback.text, this._fallback.command);
+		this._textManager.show();
 	}
 
 	private _completeWithResult(lastResult: OperationStatus): void {
@@ -105,15 +110,27 @@ export class StatusBar implements Disposable {
 			lastResult
 		);
 		if (lastResult === OperationStatus.KILLED) {
-			this._textManager.setText('PHPStan process killed (timeout)');
+			this._textManager.setText(
+				'PHPStan process killed (timeout)',
+				this._fallback?.command
+			);
 		} else if (lastResult === OperationStatus.SUCCESS) {
-			this._textManager.setText('PHPStan checking done');
+			this._textManager.setText(
+				'PHPStan checking done',
+				this._fallback?.command
+			);
 		} else if (lastResult === OperationStatus.ERROR) {
-			this._textManager.setText('PHPStan checking errored (see log)');
+			this._textManager.setText(
+				'PHPStan checking errored (see log)',
+				this._fallback?.command
+			);
 		} else if (lastResult !== OperationStatus.CANCELED) {
 			assertUnreachable(lastResult);
 		}
-		this._textManager.setText('PHPStan checking done');
+		this._textManager.setText(
+			'PHPStan checking done',
+			this._fallback?.command
+		);
 		this._hideTimeout = setTimeout(
 			() => {
 				this._fallbackOrHide();
@@ -132,7 +149,8 @@ export class StatusBar implements Disposable {
 
 	private operationProgress(progress: StatusBarProgress): void {
 		this._textManager.setText(
-			`PHPStan checking project ${progress.done}/${progress.total} - ${progress.percentage}% ${TextManager.LOADING_SPIN}`
+			`PHPStan checking project ${progress.done}/${progress.total} - ${progress.percentage}% ${TextManager.LOADING_SPIN}`,
+			this._fallback?.command
 		);
 		this._textManager.show();
 	}

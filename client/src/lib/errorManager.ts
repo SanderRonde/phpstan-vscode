@@ -54,17 +54,17 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 			vscode.window.onDidChangeActiveTextEditor((editor) => {
 				if (lastEditor) {
 					this._showErrors(
-						lastEditor.document.fileName,
+						lastEditor.document.uri.toString(),
 						this._errors.fileSpecificErrors.get(
-							lastEditor.document.fileName
+							lastEditor.document.uri.toString()
 						) ?? []
 					);
 				}
 
 				if (editor) {
-					this._showErrors(editor.document.fileName, [
+					this._showErrors(editor.document.uri.toString(), [
 						...(this._errors.fileSpecificErrors.get(
-							editor.document.fileName
+							editor.document.uri.toString()
 						) ?? []),
 						...this._errors.notFileSpecificErrors.map(
 							(message) => ({

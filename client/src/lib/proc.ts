@@ -1,6 +1,7 @@
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { processNotification } from './notificationChannels';
 import type { Disposable, ExtensionContext } from 'vscode';
+import { PROCESS_SPAWNER_PREFIX, log } from './log';
 import { wait } from '../../../shared/util';
 
 export class ProcessSpawner implements Disposable {
@@ -14,7 +15,13 @@ export class ProcessSpawner implements Disposable {
 		this._kill(true);
 		this._disposables.push(
 			client.onNotification(processNotification, ({ pid, timeout }) => {
-				console.log('pushing pid', pid, timeout);
+				log(
+					PROCESS_SPAWNER_PREFIX,
+					'Spawning process',
+					String(pid),
+					'with timeout',
+					String(timeout)
+				);
 				void this._pushPid(pid, timeout);
 			})
 		);

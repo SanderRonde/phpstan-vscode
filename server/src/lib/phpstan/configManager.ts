@@ -1,8 +1,8 @@
+import type { Disposable } from 'vscode-languageserver';
 import { replaceVariables } from '../variables';
 import { showErrorOnce } from '../errorUtil';
 import { getConfiguration } from '../config';
 import type { ClassConfig } from './manager';
-import type { Disposable } from 'vscode';
 import * as fs from 'fs/promises';
 import { constants } from 'fs';
 import * as path from 'path';
@@ -48,12 +48,8 @@ export class ConfigurationManager implements Disposable {
 		config: ClassConfig
 	): Promise<(filePath: string, inverse?: boolean) => string> {
 		const pathMapping =
-			(
-				await getConfiguration(
-					config.connection,
-					config.getWorkspaceFolder
-				)
-			).paths ?? {};
+			(await getConfiguration(config.connection, config.workspaceFolder))
+				.paths ?? {};
 
 		return (filePath: string, inverse: boolean = false) => {
 			if (Object.keys(pathMapping).length === 0) {
@@ -105,7 +101,7 @@ export class ConfigurationManager implements Disposable {
 	private async _getConfigFile(cwd: string): Promise<string | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.workspaceFolder
 		);
 		const absoluteConfigPaths = extensionConfig.configFile
 			? extensionConfig.configFile
@@ -134,10 +130,10 @@ export class ConfigurationManager implements Disposable {
 	}
 
 	public async getCwd(): Promise<string | null> {
-		const workspaceRoot = this._config.getWorkspaceFolder();
+		const workspaceRoot = await this._config.workspaceFolder.get();
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.workspaceFolder
 		);
 		const cwd =
 			this._getAbsolutePath(
@@ -171,7 +167,7 @@ export class ConfigurationManager implements Disposable {
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.workspaceFolder
 		);
 		const defaultBinPath = this._getAbsolutePath(
 			extensionConfig.binPath,
@@ -223,7 +219,7 @@ export class ConfigurationManager implements Disposable {
 		// Settings
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.workspaceFolder
 		);
 
 		const cwd = await this.getCwd();
@@ -248,8 +244,10 @@ export class ConfigurationManager implements Disposable {
 						configFile
 				  )
 				: null,
-			args: (extensionConfig.options ?? []).map((arg) =>
-				replaceVariables(arg, this._config)
+			args: await Promise.all(
+				(extensionConfig.options ?? []).map((arg) =>
+					replaceVariables(arg, this._config)
+				)
 			),
 			memoryLimit: extensionConfig.memoryLimit,
 			binStr: binConfig.binCmd
@@ -261,6 +259,8 @@ export class ConfigurationManager implements Disposable {
 		return config;
 	}
 
+	// TODO:(sander) consider overriding TMP dir so that caches don't conflict
+	// TODO:(sander) find some fix for having a single file to sort of write treefetcher to. Maybe ResultCache & Collector?
 	public async getArgs(
 		config: CheckConfig,
 		progress: boolean = true
@@ -280,7 +280,7 @@ export class ConfigurationManager implements Disposable {
 		}
 
 		args.push(
-			'--error-format=raw',
+			'--error-format=json',
 			'--no-interaction',
 			`--memory-limit=${config.memoryLimit}`
 		);

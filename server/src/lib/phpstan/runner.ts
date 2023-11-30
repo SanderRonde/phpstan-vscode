@@ -25,6 +25,25 @@ export type PartialDocument = Pick<
 	'uri' | 'getText' | 'languageId'
 >;
 
+export interface PHPStanCheckResult {
+	errors: string[];
+	files: Record<
+		string,
+		{
+			errors: number;
+			messages: {
+				ignorable: boolean;
+				line: number;
+				message: string;
+			}[];
+		}
+	>;
+	totals: {
+		errors: number;
+		file_errors: number;
+	};
+}
+
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
 	private _process: ChildProcessWithoutNullStreams | null = null;
@@ -182,7 +201,7 @@ export class PHPStanRunner implements Disposable {
 		}: {
 			onProgress?: ProgressListener;
 		}
-	): Promise<ReturnResult<string>> {
+	): Promise<ReturnResult<PHPStanCheckResult>> {
 		const phpstan = await this._spawnProcess(config, check);
 		this._process = phpstan;
 
@@ -201,8 +220,9 @@ export class PHPStanRunner implements Disposable {
 		const getFilteredErr = async (): Promise<string> => {
 			const config = await getConfiguration(
 				this._config.connection,
-				this._config.getWorkspaceFolder
+				this._config.workspaceFolder
 			);
+
 			const errLines = getErr()
 				.split('\n')
 				.map((line) => line.trim())
@@ -233,58 +253,64 @@ export class PHPStanRunner implements Disposable {
 			);
 		};
 
-		return await new Promise<ReturnResult<string>>((resolve) => {
-			phpstan.on('error', (e) => {
-				void onError([' errMsg=' + e.message]);
-				resolve(ReturnResult.error());
-			});
-			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			phpstan.on('exit', async () => {
-				// On exit
-				if (this._cancelled) {
-					resolve(ReturnResult.canceled());
-					return;
-				}
-
-				if (await getFilteredErr()) {
-					await onError();
+		return await new Promise<ReturnResult<PHPStanCheckResult>>(
+			(resolve) => {
+				phpstan.on('error', (e) => {
+					void onError([' errMsg=' + e.message]);
 					resolve(ReturnResult.error());
-					return;
-				}
+				});
+				// eslint-disable-next-line @typescript-eslint/no-misused-promises
+				phpstan.on('exit', async () => {
+					// On exit
+					if (this._cancelled) {
+						resolve(ReturnResult.canceled());
+						return;
+					}
 
-				void log(
-					this._config.connection,
-					checkPrefix(check),
-					'PHPStan process exited succesfully'
-				);
-
-				// Check for warning
-				if (getData().includes('Allowed memory size of')) {
-					showError(
-						this._config.connection,
-						'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
-						[
-							{
-								title: 'Go to option',
-								callback: () => {
-									void executeCommand(
-										this._config.connection,
-										'workbench.actin.openSettings',
-										`@ext:${EXTENSION_ID} memoryLimit`
-									);
+					// Check for warning
+					if (getErr().includes('Allowed memory size of')) {
+						showError(
+							this._config.connection,
+							'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
+							[
+								{
+									title: 'Go to option',
+									callback: () => {
+										void executeCommand(
+											this._config.connection,
+											'workbench.actin.openSettings',
+											`@ext:${EXTENSION_ID} memoryLimit`
+										);
+									},
 								},
-							},
-						]
+							]
+						);
+						resolve(ReturnResult.error());
+						return;
+					}
+
+					if (await getFilteredErr()) {
+						await onError();
+						resolve(ReturnResult.error());
+						return;
+					}
+
+					void log(
+						this._config.connection,
+						checkPrefix(check),
+						'PHPStan process exited succesfully'
 					);
-					resolve(ReturnResult.error());
-					return;
-				}
 
-				await this._config.hooks.provider.onCheckDone();
+					await this._config.hooks.provider.onCheckDone();
 
-				resolve(ReturnResult.success(getData()));
-			});
-		});
+					resolve(
+						ReturnResult.success(
+							JSON.parse(getData()) as PHPStanCheckResult
+						)
+					);
+				});
+			}
+		);
 	}
 
 	private async _checkProject(
@@ -319,7 +345,7 @@ export class PHPStanRunner implements Disposable {
 				fileSpecificErrors: {},
 				notFileSpecificErrors: parsed.notFileSpecificErrors,
 			};
-			for (const filePath in parsed) {
+			for (const filePath in parsed.fileSpecificErrors) {
 				normalized.fileSpecificErrors[
 					URI.from({
 						scheme: 'file',
