@@ -39,7 +39,9 @@ export function registerConfigListeners(): void {
 			}
 		} else if (
 			e.affectsConfiguration('phpstan.pro') ||
-			e.affectsConfiguration('phpstan.proTmpDir')
+			e.affectsConfiguration('phpstan.proTmpDir') ||
+			(e.affectsConfiguration('phpstan.enabled') &&
+				getConfiguration().get('phpstan.pro'))
 		) {
 			await window.showInformationMessage(
 				'Please reload your editor for changes to the PHPStan Pro configuration to take effect'
