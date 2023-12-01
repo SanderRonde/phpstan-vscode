@@ -124,7 +124,7 @@ export const config = {
 			type: 'number',
 			description:
 				'Timeout in milliseconds for a full project check. After this time the checking process is canceled',
-			default: 60000,
+			default: 300000,
 		},
 	},
 	'phpstan.suppressTimeoutMessage': {
