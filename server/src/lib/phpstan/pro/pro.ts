@@ -4,6 +4,7 @@ import { SPAWN_ARGS } from '../../../../../shared/constants';
 import { PHPStanProErrorManager } from './proErrorManager';
 import { ConfigurationManager } from '../configManager';
 import type { PromisedValue } from '../../../server';
+import { replaceVariables } from '../../variables';
 import { getConfiguration } from '../../config';
 import { SERVER_PREFIX, log } from '../../log';
 import type { ClassConfig } from '../manager';
@@ -23,7 +24,10 @@ export async function launchPro(
 	classConfig: ClassConfig
 ): Promise<ReturnResult<PHPStanProProcess, string>> {
 	const settings = await getConfiguration(connection, getWorkspaceFolder);
-	const tmpPath = settings.proTmpDir || getDefaultConfigDirPath();
+	const tmpPath = await replaceVariables(
+		settings.proTmpDir || getDefaultConfigDirPath(),
+		classConfig
+	);
 
 	const configManager = new ConfigurationManager(classConfig);
 	void log(

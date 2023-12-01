@@ -41,7 +41,9 @@ export class PHPStanProErrorManager implements Disposable {
 			}
 		});
 
-		this._wsClient.on('open', () => {
+		// eslint-disable-next-line @typescript-eslint/no-misused-promises
+		this._wsClient.on('open', async () => {
+			await this._classConfig.hooks.provider.onCheckDone();
 			void this._applyErrors();
 		});
 

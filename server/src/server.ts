@@ -76,8 +76,7 @@ interface StartReturn {
 		Hover | undefined | null,
 		never,
 		void
-	>;
-	classConfig: ClassConfig;
+	> | null;
 }
 
 function startIntegratedChecker(
@@ -119,7 +118,6 @@ function startIntegratedChecker(
 
 	return {
 		hoverProvider: createHoverProvider(providerArgs),
-		classConfig,
 	};
 }
 
@@ -130,6 +128,17 @@ async function startPro(
 	onConnectionInitialized: Promise<void>,
 	workspaceFolder: PromisedValue<URI | null>
 ): Promise<StartReturn> {
+	if (!(await getConfiguration(connection, workspaceFolder)).enabled) {
+		void log(
+			connection,
+			SERVER_PREFIX,
+			'Not starting pro since extension has been disabled'
+		);
+		return {
+			hoverProvider: null,
+		};
+	}
+
 	void connection.sendNotification(statusBarNotification, {
 		type: 'fallback',
 		text: 'PHPStan Pro starting...',
@@ -180,7 +189,6 @@ async function startPro(
 
 	return {
 		hoverProvider: createHoverProvider(providerArgs),
-		classConfig,
 	};
 }
 
@@ -267,7 +275,9 @@ async function main(): Promise<void> {
 				workspaceFolder,
 				extensionStartedAt
 		  );
-	hoverProvider.set(_hoverProvider);
+	if (_hoverProvider) {
+		hoverProvider.set(_hoverProvider);
+	}
 }
 
 async function getPHPStanVersion(

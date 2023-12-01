@@ -13,10 +13,8 @@ import type { CheckConfig } from '../lib/phpstan/configManager';
 import type { PHPStanVersion, PromisedValue } from '../server';
 import type { DocumentManager } from '../lib/documentManager';
 import { providerEnabled } from '../lib/providerUtil';
-import { Disposable } from 'vscode-languageserver';
 import { getConfiguration } from '../lib/config';
 import { SERVER_PREFIX, log } from '../lib/log';
-import * as tmp from 'tmp-promise';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
@@ -105,9 +103,6 @@ export async function getFileReport(
 }
 
 export class ProviderCheckHooks {
-	private _lastOperation: {
-		reportPath: string;
-	} | null = null;
 	private _lastReport: ProjectReport | null = null;
 
 	private get _lsEnabled(): Promise<boolean> {
@@ -125,15 +120,20 @@ export class ProviderCheckHooks {
 		private readonly _extensionPath: PromisedValue<URI>
 	) {}
 
+	private async _getReportPath(): Promise<string> {
+		return path.join(
+			(await this._extensionPath.get()).fsPath,
+			'_config',
+			'reported.json'
+		);
+	}
+
 	private async _getFileReport(): Promise<ProjectReport | null> {
-		if (!this._lastOperation) {
-			return null;
-		}
+		const reportPath = await this._getReportPath();
 		try {
-			const file = await fs.readFile(this._lastOperation.reportPath, {
+			const file = await fs.readFile(reportPath, {
 				encoding: 'utf-8',
 			});
-			await fs.rm(this._lastOperation.reportPath);
 			return JSON.parse(file) as ProjectReport;
 		} catch (e) {
 			return null;
@@ -164,21 +164,16 @@ export class ProviderCheckHooks {
 	private async _getAutoloadFile(
 		baseDir: string,
 		userAutoloadFile: string | null
-	): Promise<{
-		autoloadFilePath: string;
-		treeFetcherReportedFilePath: tmp.FileResult;
-	}> {
+	): Promise<string> {
 		const treeFetcherFilePath = path.join(baseDir, 'TreeFetcher.php');
-		const treeFetcherReportedFilePath = await tmp.file({
-			postfix: '.json',
-		});
 		const autoloadFilePath = path.join(baseDir, 'autoload.php');
 
+		const reportPath = await this._getReportPath();
 		const treeFetcherContent = (
 			await fs.readFile(TREE_FETCHER_FILE, {
 				encoding: 'utf-8',
 			})
-		).replace('reported.json', treeFetcherReportedFilePath.path);
+		).replace('reported.json', reportPath);
 
 		await fs.mkdir(baseDir, {
 			recursive: true,
@@ -199,14 +194,7 @@ export class ProviderCheckHooks {
 			encoding: 'utf-8',
 		});
 
-		this._lastOperation = {
-			reportPath: treeFetcherReportedFilePath.path,
-		};
-
-		return {
-			autoloadFilePath,
-			treeFetcherReportedFilePath,
-		};
+		return autoloadFilePath;
 	}
 
 	private _findArg(
@@ -238,8 +226,7 @@ export class ProviderCheckHooks {
 
 	public async transformArgs(
 		config: CheckConfig,
-		args: string[],
-		disposables: Disposable[]
+		args: string[]
 	): Promise<string[]> {
 		if (!(await this._lsEnabled)) {
 			return args;
@@ -255,18 +242,11 @@ export class ProviderCheckHooks {
 		const userAutoloadFile = this._findArg(config, '-a', '--autoload-file');
 
 		void log(this._connection, SERVER_PREFIX, 'getting bin 5');
-		const { autoloadFilePath, treeFetcherReportedFilePath } =
-			await this._getAutoloadFile(baseDir, userAutoloadFile);
-		void log(this._connection, SERVER_PREFIX, 'getting bin 6');
-
-		disposables.push(
-			Disposable.create(() => {
-				treeFetcherReportedFilePath.cleanup().catch((err) => {
-					// No reason to really do anything else here, it's a tmp file anyway
-					console.log('Error while deleting tmp folder', err);
-				});
-			})
+		const autoloadFilePath = await this._getAutoloadFile(
+			baseDir,
+			userAutoloadFile
 		);
+		void log(this._connection, SERVER_PREFIX, 'getting bin 6');
 
 		args.push('-a', autoloadFilePath);
 		void log(this._connection, SERVER_PREFIX, 'getting bin 7');
@@ -287,8 +267,6 @@ export class ProviderCheckHooks {
 			return;
 		}
 
-		// TODO:(sander) collected data only represents the checked files. Need to merge
-		// with previous report...
 		const report = await this._getFileReport();
 		this._lastReport = report;
 	}

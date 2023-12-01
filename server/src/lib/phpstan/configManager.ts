@@ -259,8 +259,6 @@ export class ConfigurationManager implements Disposable {
 		return config;
 	}
 
-	// TODO:(sander) consider overriding TMP dir so that caches don't conflict
-	// TODO:(sander) find some fix for having a single file to sort of write treefetcher to. Maybe ResultCache & Collector?
 	public async getArgs(
 		config: CheckConfig,
 		progress: boolean = true
@@ -288,11 +286,10 @@ export class ConfigurationManager implements Disposable {
 			args.push('--no-progress');
 		}
 		args.push(...config.args);
-		return await this._config.hooks.provider.transformArgs(
-			config,
-			[config.binStr, ...args],
-			this._disposables
-		);
+		return await this._config.hooks.provider.transformArgs(config, [
+			config.binStr,
+			...args,
+		]);
 	}
 
 	public dispose(): void {
