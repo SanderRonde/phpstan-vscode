@@ -101,7 +101,7 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 
 			// Use binary search to find the line number efficiently
 			$findPos = static function (int $filePos) use ($lineOffsets) {
-				$line = self::binarySearch($lineOffsets, $filePos) - 1;
+				$line = self::binarySearch($lineOffsets, $filePos);
 				$lineStart = $lineOffsets[$line];
 				$char = $filePos - $lineStart;
 				return [
@@ -112,12 +112,16 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 
 			foreach ($fileData as $nodeData) {
 				foreach ($nodeData as $datum) {
+					$endPos = $findPos($datum['pos']['end']);
 					$results[$filePath][] = [
 						'typeDescr' => $datum['typeDescr'],
 						'name' => $datum['name'],
 						'pos' => [
 							'start' => $findPos($datum['pos']['start']),
-							'end' => $findPos($datum['pos']['end'])
+							'end' => [
+								'line' => $endPos['line'],
+								'char' => $endPos['char']
+							]
 						]
 					];
 				}
@@ -284,8 +288,9 @@ class PHPStanVSCodeTreeFetcherCollector {
 			'typeDescr' => $typeDescr,
 			'name' => $varName,
 			'pos' => [
-				'start' => $node->getStartFilePos(),
-				'end' => $node->getEndFilePos()
+				// Include `$` for variables
+				'start' => $node->getStartFilePos() - ($node instanceof Variable ? 1 : 0),
+				'end' => $node->getEndFilePos() + 1
 			]
 		];
 	}
@@ -315,7 +320,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 				'name' => $parameter->getName(),
 				'pos' => [
 					'start' => $paramNode->getStartFilePos(),
-					'end' => $paramNode->getEndFilePos()
+					'end' => $paramNode->getEndFilePos() + 1
 				]
 			];
 		}
@@ -348,7 +353,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 					'name' => $parameter->getName(),
 					'pos' => [
 						'start' => $paramNode->getStartFilePos(),
-						'end' => $paramNode->getEndFilePos()
+						'end' => $paramNode->getEndFilePos() + 1
 					]
 				];
 			}
