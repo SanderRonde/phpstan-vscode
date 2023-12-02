@@ -88,7 +88,7 @@ export class StatusBar implements Disposable {
 			clearInterval(this._hideTimeout);
 		}
 		this._textManager.setText(
-			`PHPStan checking.. ${TextManager.LOADING_SPIN}`
+			`PHPStan checking... ${TextManager.LOADING_SPIN}`
 		);
 		this._textManager.show();
 	}

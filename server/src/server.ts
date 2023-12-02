@@ -143,7 +143,17 @@ async function startPro(
 		type: 'fallback',
 		text: 'PHPStan Pro starting...',
 	});
-	const pro = await launchPro(connection, workspaceFolder, classConfig);
+	const pro = await launchPro(
+		connection,
+		workspaceFolder,
+		classConfig,
+		(progress) => {
+			void connection.sendNotification(statusBarNotification, {
+				type: 'fallback',
+				text: `PHPStan Pro starting ${progress.done}/${progress.total} (${progress.percentage}%)`,
+			});
+		}
+	);
 	if (!pro.success()) {
 		void connection.window.showErrorMessage(
 			`Failed to start PHPStan Pro: ${pro.error ?? '?'}`

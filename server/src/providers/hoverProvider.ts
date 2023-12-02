@@ -31,24 +31,20 @@ export function createHoverProvider(
 		}
 
 		// Look for it
-		for (const node of fileReport ?? []) {
-			for (const type of node) {
-				if (
-					type.pos.start.line === hoverParams.position.line &&
-					type.pos.start.char < hoverParams.position.character &&
-					type.pos.end.char > hoverParams.position.character
-				) {
-					void log(
-						providerArgs.connection,
-						HOVER_PROVIDER_PREFIX,
-						'Found hover type'
-					);
-					return {
-						contents: [
-							`PHPStan: \`${type.typeDescr} $${type.name}\``,
-						],
-					};
-				}
+		for (const type of fileReport ?? []) {
+			if (
+				type.pos.start.line === hoverParams.position.line &&
+				type.pos.start.char < hoverParams.position.character &&
+				type.pos.end.char > hoverParams.position.character
+			) {
+				void log(
+					providerArgs.connection,
+					HOVER_PROVIDER_PREFIX,
+					'Found hover type'
+				);
+				return {
+					contents: [`PHPStan: \`${type.typeDescr} $${type.name}\``],
+				};
 			}
 		}
 

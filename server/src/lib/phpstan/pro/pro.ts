@@ -2,11 +2,11 @@ import { pathExists, tryReadJSON, wait } from '../../../../../shared/util';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { SPAWN_ARGS } from '../../../../../shared/constants';
 import { PHPStanProErrorManager } from './proErrorManager';
+import { PRO_PREFIX, SERVER_PREFIX, log } from '../../log';
 import { ConfigurationManager } from '../configManager';
 import type { PromisedValue } from '../../../server';
 import { replaceVariables } from '../../variables';
 import { getConfiguration } from '../../config';
-import { SERVER_PREFIX, log } from '../../log';
 import type { ClassConfig } from '../manager';
 import { ProcessSpawner } from '../../proc';
 import { ReturnResult } from '../result';
@@ -21,7 +21,12 @@ function getDefaultConfigDirPath(): string {
 export async function launchPro(
 	connection: _Connection,
 	getWorkspaceFolder: PromisedValue<URI | null>,
-	classConfig: ClassConfig
+	classConfig: ClassConfig,
+	onProgress?: (progress: {
+		done: number;
+		total: number;
+		percentage: number;
+	}) => void
 ): Promise<ReturnResult<PHPStanProProcess, string>> {
 	const settings = await getConfiguration(connection, getWorkspaceFolder);
 	const tmpPath = await replaceVariables(
@@ -30,17 +35,21 @@ export async function launchPro(
 	);
 
 	const configManager = new ConfigurationManager(classConfig);
-	void log(
-		connection,
-		SERVER_PREFIX,
-		'Getting config=' + JSON.stringify(settings)
-	);
 	const launchConfig = await configManager.collectConfiguration();
 	if (!launchConfig) {
 		return ReturnResult.error('Failed to find launch configuration');
 	}
 
 	const [binStr, ...args] = await configManager.getArgs(launchConfig, false);
+	await log(
+		connection,
+		PRO_PREFIX,
+		'Spawning PHPStan Pro with the following configuration: ',
+		JSON.stringify({
+			binStr,
+			args: [...args, '--watch'],
+		})
+	);
 	const procSpawner = new ProcessSpawner(connection);
 	const proc = await procSpawner.spawnWithRobustTimeout(
 		binStr,
@@ -58,11 +67,24 @@ export async function launchPro(
 	configManager.dispose();
 
 	return new Promise<ReturnResult<PHPStanProProcess, string>>((resolve) => {
-		let stdout: string = '';
 		let stderr: string = '';
 		proc.stdout.on('data', (chunk: string | Buffer) => {
-			stdout += chunk.toString();
-			if (stdout.includes('Open your web browser at:')) {
+			const line = chunk.toString();
+			const progressMatch = [
+				...line.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g),
+			];
+			void log(connection, PRO_PREFIX, 'PHPStan Pro: ' + line);
+			if (onProgress && progressMatch.length) {
+				const [, done, total, percentage] =
+					progressMatch[progressMatch.length - 1];
+				onProgress({
+					done: parseInt(done, 10),
+					total: parseInt(total, 10),
+					percentage: parseInt(percentage, 10),
+				});
+				return;
+			}
+			if (line.includes('Open your web browser at:')) {
 				// We got some text, the process is running.
 				// Wait a slight while for PHPStan to move to the pro part
 				void wait(100).then(async () => {

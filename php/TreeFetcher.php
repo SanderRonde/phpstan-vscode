@@ -1,14 +1,19 @@
 <?php
 
 use PhpParser\Node;
+use PhpParser\Node\Expr\ArrowFunction;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\Closure as ExprClosure;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
+use PhpParser\Node\FunctionLike;
 use PhpParser\Node\Param;
 use PHPStan\Analyser\Scope;
 use PHPStan\Collectors\Collector;
 use PHPStan\Node\CollectedDataNode;
 use PHPStan\Node\InForeachNode;
+use PHPStan\Reflection\ParametersAcceptor;
+use PHPStan\Reflection\Php\PhpMethodFromParserNodeReflection;
 use PHPStan\Rules\Rule;
 use PHPStan\Type\ArrayType;
 use PHPStan\Type\ErrorType;
@@ -33,187 +38,366 @@ class PHPStanVSCodeTreeFetcher implements Rule {
 		return CollectedDataNode::class;
 	}
 
+	public static function binarySearch(&$array, $target) {
+    $left = 0;
+    $right = count($array) - 1;
+
+    while ($left <= $right) {
+			$mid = floor(($left + $right) / 2);
+
+			if ($array[$mid] <= $target) {
+				if ($mid == count($array) - 1 || $array[$mid + 1] > $target) {
+					return $mid; // Closest index that is less than or equal to the target
+				} else {
+					$left = $mid + 1;
+				}
+			} else {
+				$right = $mid - 1;
+			}
+    }
+
+    return -1; // Target not found
+}
+
+	/**
+	 * @param array<string, list<list<array{
+	 *   typeDescr: string,
+	 *   name: string,
+	 *   pos: array{
+	 *     start: int,
+	 *     end: int
+	 *   }
+	 * }>>> $nodeDatas
+	 * @return array<string, list<array{
+	 *  typeDescr: string,
+	 * 	name: string,
+	 * 	pos: array{
+	 * 		start: array{
+	 * 			line: int,
+	 * 			char: int
+	 * 		},
+	 * 		end: array{
+	 * 			line: int,
+	 * 			char: int
+	 * 		}
+	 * 	}
+	 * }>>
+	 */
+	public static function convertCharIndicesToPositions(array $fileDatas): array {
+		$results = [];
+		foreach ($fileDatas as $filePath => $fileData) {
+			if (count($fileData) === 0) {
+				continue;
+			}
+			$file = file_get_contents($filePath);
+			$results[$filePath] = [];
+
+			$lineOffsets = [0]; // Initialize with the first line starting at index 0
+			for ($i = 0; $i < strlen($file); $i++) {
+				if ($file[$i] === "\n") {
+					$lineOffsets[] = $i + 1; // Add 1 to include the newline character
+				}
+			}
+
+			// Use binary search to find the line number efficiently
+			$findPos = static function (int $filePos) use ($lineOffsets) {
+				$line = self::binarySearch($lineOffsets, $filePos) - 1;
+				$lineStart = $lineOffsets[$line];
+				$char = $filePos - $lineStart;
+				return [
+					'line' => $line,
+					'char' => $char
+				];
+			};
+
+			foreach ($fileData as $nodeData) {
+				foreach ($nodeData as $datum) {
+					$results[$filePath][] = [
+						'typeDescr' => $datum['typeDescr'],
+						'name' => $datum['name'],
+						'pos' => [
+							'start' => $findPos($datum['pos']['start']),
+							'end' => $findPos($datum['pos']['end'])
+						]
+					];
+				}
+			}
+		}
+
+		return $results;
+	}
+
 	/** @param CollectedDataNode $node */
 	public function processNode(Node $node, Scope $scope): array {
 		$collectedData = $node->get(PHPStanVSCodeTreeFetcherCollector::class);
-		file_put_contents(self::REPORTER_FILE, json_encode($collectedData));
+		file_put_contents(self::REPORTER_FILE, json_encode(self::convertCharIndicesToPositions($collectedData)));
 		return [];
 	}
 }
 
 /**
- * @implements Collector<Node, list<array{
+ * @phpstan-type CollectedData array{
  *   typeDescr: string,
  *   name: string,
  *   pos: array{
- *     start: array{
- *       line: int,
- *       char: int
- *     },
- *     end: array{
- *       line: int,
- *       char: int
- *     }
+ *     start: int,
+ *     end: int
  *   }
- * }>>
+ * }
+ * @implements Collector<Node, list<CollectedData>>
  */
 class PHPStanVSCodeTreeFetcherCollector {
-	private $_visitedNodes = [];
+	/** @var list<array{ClosureType, list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}>> */
+	private array $closureTypeToNode = [];
 
-	public function getNodeType(): string {
+	/**
+	 * @return ?list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}>
+	 */
+	protected function getClosuresFromScope(Scope $scope): ?array
+	{
+		$anonymousFunctionReflection = $scope->getAnonymousFunctionReflection();
+		if ($anonymousFunctionReflection) {
+			foreach ($this->closureTypeToNode as [$closureType, $closureClosures]) {
+				if ($anonymousFunctionReflection !== $closureType) {
+					continue;
+				}
+
+				return $closureClosures;
+			}
+		}
+		return null;
+	}
+
+	protected function processClosures(Node $node, Scope $scope): void
+	{
+		if ($node instanceof Closure || $node instanceof ArrowFunction) {
+			// We grab the type as well as the node and connect the two so that later
+			// callers inside this closure can resolve to the node from the type.
+			$closureType = $scope->getType($node);
+			$this->closureTypeToNode[] = [$closureType, [
+				...$this->getClosuresFromScope($scope) ?? [],
+				[
+					'startPos' => $node->getStartFilePos(),
+					'endPos' => $node->getEndFilePos() + 1,
+					'isUsed' => false,
+					'closureNode' => $node
+				]
+			]];
+		}
+	}
+
+	/** @var list<string> */
+	private $visitedFunctions = [];
+
+	/**
+	 * @return list<TReturnType>
+	 */
+	private function _processFunction(Scope $scope): array {
+		$functionKey = implode('.', [
+			$scope->getFile(),
+			$scope->getClassReflection()?->getName(),
+			$scope->getFunctionName()
+		]);
+		if (in_array($functionKey, $this->visitedFunctions, true)) {
+			return [];
+		}
+		$this->visitedFunctions[] = $functionKey;
+
+		$function = $scope->getFunction();
+		assert($function !== null);
+		if (!($function instanceof PhpMethodFromParserNodeReflection)) {
+			return [];
+		}
+
+		$reflectionClass = new ReflectionClass(PhpMethodFromParserNodeReflection ::class);
+		$reflectionMethod = $reflectionClass->getMethod('getFunctionLike');
+		$reflectionMethod->setAccessible(true);
+		$fnLike = $reflectionMethod->invoke($function);
+		return $this->onFunction($fnLike, $function);
+	}
+
+	/**
+	 * @param list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}> $closures
+	 * @return list<TReturnType>
+	 */
+	private function _processClosure(Scope $scope, array $closures): array {
+		$functionKey = implode('.', [
+			$scope->getFile(),
+			$scope->getClassReflection()?->getName(),
+			json_encode($closures)
+		]);
+		if (in_array($functionKey, $this->visitedMethods, true)) {
+			return [];
+		}
+		$this->visitedMethods[] = $functionKey;
+
+		$lastClosure = end($closures);
+		/** @var Closure|ArrowFunction */
+		$lastClosureNode = $lastClosure['closureNode'];
+		$fnReflection = $scope->getAnonymousFunctionReflection();
+		assert($fnReflection !== null);
+		return $this->onClosure($lastClosureNode, $fnReflection);
+	}
+
+	/**
+	 * @return list<TReturnType>
+	 */
+	public function processFunctionTrackings(Node $node, Scope $scope): array
+	{
+		/** @var list<TReturnType> */
+		$data = [];
+		$this->processClosures($node, $scope);
+		if ($scope->getFunctionName()) {
+			$data = [
+				...$data,
+				...$this->_processFunction($scope)
+			];
+		}
+
+		$closures = $this->getClosuresFromScope($scope);
+		if ($closures) {
+			$data = [
+				...$data,
+				...$this->_processClosure($scope, $closures)
+			];
+		}
+		return $data;
+	}
+
+	/** @var list<string> */
+	private $visitedMethods = [];
+
+	public function getNodeType(): string
+	{
 		return Node::class;
 	}
 
-
-	/** @var array<string, array<int, array<string, int>>> */
-	private $_varPositions;
 	/**
-	 * Unfortunately PHPStan doesn't have the char-in-line setting enabled for PHParser
-	 * so we can't use that. Instead we just get the source string and scan it for `$varName`
-	 * and hope someone doesn't mention the same variable in a comment in a line or something.
+	 * @return CollectedData
 	 */
-	private function bestEffortFindPos(string $fileName, int $lineNumber, string $line, string $varName, bool $isVar): int {
-		$this->_varPositions[$fileName] = $this->_varPositions[$fileName] ?? [];
-		$this->_varPositions[$fileName][$lineNumber] = $this->_varPositions[$fileName][$lineNumber] ?? [];
-		$this->_varPositions[$fileName][$lineNumber][$varName] = $this->_varPositions[$fileName][$lineNumber][$varName] ?? 0;
-		$positionOnLine = $this->_varPositions[$fileName][$lineNumber][$varName];
-		$this->_varPositions[$fileName][$lineNumber][$varName] = $positionOnLine + 1;
-
-		// Find the nth occurrence of this variable on given line
-		$offset = 0;
-		$remainingPositions = $positionOnLine + 1;
-		do {
-			$remainingPositions -= 1;
-			$matches = [];
-			$name = $isVar ? '\$' . $varName : $varName;
-			preg_match("/{$name}[^a-zA-Z0-9_]/", $line, $matches, PREG_OFFSET_CAPTURE, $offset + 1);
-			if (!$matches[0]) {
-				$offset = false;
-				break;
-			}
-			$offset = $matches[0][1];
-		} while ($remainingPositions > 0 && $offset !== false);
-
-		return $offset === false ? 0 : $offset;
-	}
-
-	/** @var array<string, string> */
-	private static $_fileCache = [];
-	private static function readFile(string $fileName) {
-		if (isset(self::$_fileCache[$fileName])) {
-			return self::$_fileCache[$fileName];
-		}
-		return (self::$_fileCache[$fileName] = file_get_contents($fileName));
-	}
-
-	private function getLine(Scope $scope, int $lineNumber): string {
-		$file = self::readFile($scope->getFile());
-		$line = explode("\n", $file)[$lineNumber - 1];
-		return $line;
-	}
-
-	/**
-	 * @return array{
-	 *   typeDescr: string,
-	 *   name: string,
-	 *   pos: array{
-	 *     start: array{
-	 *       line: int,
-	 *       char: int
-	 *     },
-	 *     end: array{
-	 *       line: int,
-	 *       char: int
-	 *     }
-	 *   }
-	 * }
-	 */
-	private function processNodeWithType(Node $node, Scope $scope, Type $type): array {
-		$isVar = $node instanceof Variable;
-
-		$lineNumber = $node->getStartLine();
-		$line = $this->getLine($scope, $lineNumber);
-		$varName = $isVar ? $node->name : $node->name->name;
-		$index = $this->bestEffortFindPos($scope->getFile(), $lineNumber, $line, $varName, $isVar);
+	private function processNodeWithType(Variable|PropertyFetch $node, Type $type): array
+	{
+		$varName = $node instanceof Variable ? $node->name : $node->name->name;
 		$typeDescr = $type->describe(VerbosityLevel::precise());
+
 		return [
 			'typeDescr' => $typeDescr,
 			'name' => $varName,
 			'pos' => [
-				'start' => [
-					'line' => $lineNumber - 1,
-					'char' => $index - 1
-				],
-				'end' => [
-					'line' => $node->getEndLine(),
-					'char' => $index + strlen($varName) + ($isVar ? 1 : 0) // +1 for the $
-				]
+				'start' => $node->getStartFilePos(),
+				'end' => $node->getEndFilePos()
 			]
 		];
 	}
 
 	/**
-	 * @return ?list<array{
-	 *   typeDescr: string,
-	 *   name: string,
-	 *   pos: array{
-	 *     start: array{
-	 *       line: int,
-	 *       char: int
-	 *     },
-	 *     end: array{
-	 *       line: int,
-	 *       char: int
-	 *     }
-	 *   }
-	 * }>
+	 * @param list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}> $closures
 	 */
-	public function processNode(Node $node, Scope $scope): ?array {
-		if ($scope->getTraitReflection() !== null) {
-			// Inside of a trait being applied to a class. We skip these since
-			// they're not actually inside the current file.
-			return null;
+	protected function onClosure(ExprClosure|ArrowFunction $node, ParametersAcceptor $type): array {
+		/** @var array<string, Param> */
+		$paramNodesByName = [];
+		foreach ($node->getParams() as $param) {
+			$paramNodesByName[$param->var->name] = $param;
 		}
 
-		$this->_visitedNodes[] = $node;
+		/** @var list<CollectedData> */
+		$data = [];
+		foreach ($type->getParameters() as $parameter) {
+			$paramNode = $paramNodesByName[$parameter->getName()] ?? null;
+			if (!$paramNode) {
+				continue;
+			}
+
+			$typeDescr = $parameter->getType()->describe(VerbosityLevel::precise());
+
+			$data[] = [
+				'typeDescr' => $typeDescr,
+				'name' => $parameter->getName(),
+				'pos' => [
+					'start' => $paramNode->getStartFilePos(),
+					'end' => $paramNode->getEndFilePos()
+				]
+			];
+		}
+
+		return $data;
+	}
+
+	/** @var list<CollectedData> */
+	protected function onFunction(FunctionLike $node, PhpMethodFromParserNodeReflection $type): array {
+		/** @var list<CollectedData> $data */
+		$data = [];
+
+		/** @var array<string, Param> */
+		$paramNodesByName = [];
+		foreach ($node->getParams() as $param) {
+			$paramNodesByName[$param->var->name] = $param;
+		}
+
+		foreach ($type->getVariants() as $variant) {
+			foreach ($variant->getParameters() as $parameter) {
+				$paramNode = $paramNodesByName[$parameter->getName()] ?? null;
+				if (!$paramNode) {
+					continue;
+				}
+
+				$typeDescr = $parameter->getType()->describe(VerbosityLevel::precise());
+
+				$data[] = [
+					'typeDescr' => $typeDescr,
+					'name' => $parameter->getName(),
+					'pos' => [
+						'start' => $paramNode->getStartFilePos(),
+						'end' => $paramNode->getEndFilePos()
+					]
+				];
+			}
+		}
+
+		return $data;
+	}
+
+	/** @var list<CollectedData> */
+	public function processNode(Node $node, Scope $scope): ?array
+	{
+		if ($scope->getTraitReflection()) {
+			return null;
+		}
+		/** @var list<CollectedData> $data */
+		$data = [];
+
+		$data = [
+			...$data,
+			...$this->processFunctionTrackings($node, $scope)
+		];
+
 		if ($node instanceof InForeachNode) {
 			$keyVar = $node->getOriginalNode()->keyVar;
 			$valueVar = $node->getOriginalNode()->valueVar;
 			$exprType = $scope->getType($node->getOriginalNode()->expr);
-			if (!($exprType instanceof ArrayType)) {
-				return null;
+			if ($exprType instanceof ArrayType) {
+				if ($keyVar && $keyVar instanceof Variable) {
+					$data[] = $this->processNodeWithType($keyVar, $exprType->getKeyType());
+				} else if ($valueVar && $valueVar instanceof Variable) {
+					$data[] = $this->processNodeWithType($valueVar, $exprType->getItemType());
+				}
 			}
-			if ($keyVar && $keyVar instanceof Variable) {
-				return [$this->processNodeWithType($keyVar, $scope, $exprType->getKeyType())];
+		}
+
+		if ($node instanceof Variable || $node instanceof PropertyFetch) {
+			$type = $scope->getType($node);
+			$parent = $node->getAttribute('parent');
+			if ($parent && $parent instanceof Assign) {
+				$type = $scope->getType($parent->expr);
 			}
-			if ($valueVar && $valueVar instanceof Variable) {
-				return [$this->processNodeWithType($valueVar, $scope, $exprType->getItemType())];
+			if (!($type instanceof ErrorType)) {
+				$data[] = $this->processNodeWithType($node, $type);
 			}
-			return null;
 		}
 
-		// TODO:(sander) can we find these too?
-		if ($node instanceof Param) {
-			// Only mark these as instances of a variable in our fancy char-index-finder.
-			// PHPStan will somehow always see these are of type *ERROR*
-			$line = $this->getLine($scope, $node->getStartLine());
-			$this->bestEffortFindPos($scope->getFile(), $node->getStartLine(), $line, $node->var->name, true);
+		if ($data === []) {
 			return null;
 		}
-
-		if (!($node instanceof Variable) && !($node instanceof PropertyFetch)) {
-			return null;
-		}
-
-		$type = $scope->getType($node);
-		$parent = $node->getAttribute('parent');
-		if ($parent && $parent instanceof Assign) {
-			$type = $scope->getType($parent->expr);
-		}
-		if ($type instanceof ErrorType) {
-			return null;
-		}
-
-		return [$this->processNodeWithType($node, $scope, $type)];
+		return $data;
 	}
 }

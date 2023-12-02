@@ -14,7 +14,6 @@ import type { PHPStanVersion, PromisedValue } from '../server';
 import type { DocumentManager } from '../lib/documentManager';
 import { providerEnabled } from '../lib/providerUtil';
 import { getConfiguration } from '../lib/config';
-import { SERVER_PREFIX, log } from '../lib/log';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
@@ -34,7 +33,7 @@ interface VariableData {
 	};
 }
 
-type ProjectReport = Record<string, VariableData[][]>;
+type ProjectReport = Record<string, VariableData[]>;
 
 export interface ProviderArgs {
 	connection: _Connection;
@@ -49,7 +48,7 @@ export async function getFileReport(
 	providerArgs: ProviderArgs,
 	cancelToken: CancellationToken,
 	documentURI: string
-): Promise<VariableData[][] | null> {
+): Promise<VariableData[] | null> {
 	if (!(await providerEnabled(providerArgs))) {
 		return null;
 	}
@@ -232,24 +231,18 @@ export class ProviderCheckHooks {
 			return args;
 		}
 
-		void log(this._connection, SERVER_PREFIX, 'getting bin 3');
 		const baseDir = path.join(
 			(await this._extensionPath.get()).fsPath,
 			'_config'
 		);
-		void log(this._connection, SERVER_PREFIX, 'getting bin 4');
 
 		const userAutoloadFile = this._findArg(config, '-a', '--autoload-file');
-
-		void log(this._connection, SERVER_PREFIX, 'getting bin 5');
 		const autoloadFilePath = await this._getAutoloadFile(
 			baseDir,
 			userAutoloadFile
 		);
-		void log(this._connection, SERVER_PREFIX, 'getting bin 6');
 
 		args.push('-a', autoloadFilePath);
-		void log(this._connection, SERVER_PREFIX, 'getting bin 7');
 		if (config.configFile) {
 			// No config is invalid anyway so we can just ignore this
 			const configFile = await this._getConfigFile(
@@ -258,7 +251,6 @@ export class ProviderCheckHooks {
 			);
 			args.push('-c', configFile);
 		}
-		void log(this._connection, SERVER_PREFIX, 'getting bin 8');
 		return args;
 	}
 
