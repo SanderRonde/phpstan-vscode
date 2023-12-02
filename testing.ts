@@ -19,7 +19,10 @@ const proc = spawn(
 		// shell: false,
 		// windowsVerbatimArguments: true,
 		// cwd: '/home/sanderronde/crisp-demo/backend',
-		env: { ...process.env, TMPDIR: '/home/sanderronde/crisp/cache/phpstan' },
+		env: {
+			...process.env,
+			TMPDIR: '/home/sanderronde/crisp/cache/phpstan',
+		},
 	}
 );
 

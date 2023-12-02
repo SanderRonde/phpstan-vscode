@@ -12,7 +12,8 @@
 			"args": [
 				"--disable-extensions",
 				"--extensionDevelopmentPath=${workspaceFolder}",
-				"--enable-proposed-api", "SanderRonde.phpstan-vscode"
+				"--enable-proposed-api",
+				"SanderRonde.phpstan-vscode"
 			],
 			"outFiles": ["${workspaceFolder}/out/**/*.js"],
 			"preLaunchTask": "build-debug"

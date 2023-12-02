@@ -1,11 +1,4 @@
-import { normalizePath } from '../../../../shared/util';
-import { PHPStanCheckResult } from './runner';
-
-interface PartialPHPStanError {
-	message: string;
-	lineNumber?: number;
-	file?: string;
-}
+import type { PHPStanCheckResult } from './runner';
 
 export class OutputParser {
 	public constructor(private readonly _output: PHPStanCheckResult) {}

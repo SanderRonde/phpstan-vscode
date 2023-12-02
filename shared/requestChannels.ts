@@ -8,7 +8,7 @@ export interface InitRequestType {
 	};
 	response: {
 		extensionPath: string;
-		startedAt: number
+		startedAt: number;
 	};
 	error: never;
 }

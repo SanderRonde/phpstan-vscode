@@ -31,11 +31,11 @@ export class ReturnResult<R, E = void> {
 		return this.status === OperationStatus.SUCCESS;
 	}
 
-	public chain<N>(operation: (data: R) => N): ReturnResult<N, any> {
+	public chain<N>(operation: (data: R) => N): ReturnResult<N, void> {
 		if (!this.success()) {
 			return this as unknown as ReturnResult<N>;
 		}
-		return ReturnResult.success(operation(this.value));
+		return ReturnResult.success(operation(this.value)) as ReturnResult<N>;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

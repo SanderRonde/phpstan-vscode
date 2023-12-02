@@ -98,7 +98,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		proManager
 	);
 
-
 	let wasReady = false;
 	const startedAt = Date.now();
 	context.subscriptions.push(
