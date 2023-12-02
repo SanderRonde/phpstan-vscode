@@ -26,9 +26,6 @@
 		"onLanguage:php"
 	],
 	"main": "./out/extension.js",
-	"enabledApiProposals": [
-		"portsAttributes"
-	],
 	"contributes": {
 		"configuration": {
 			"type": "object",

@@ -1,12 +1,6 @@
-import type {
-	Disposable,
-	PortAttributes,
-	PortAttributesProvider,
-	ProviderResult,
-} from 'vscode';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { phpstanProNotification } from './notificationChannels';
-import { PortAutoForwardAction, workspace } from 'vscode';
+import type { Disposable } from 'vscode';
 import { env, window } from 'vscode';
 import { Uri } from 'vscode';
 
@@ -40,28 +34,28 @@ export class PHPStanProManager implements Disposable {
 			})
 		);
 
-		// eslint-disable-next-line @typescript-eslint/no-this-alias
-		const self = this;
-		if (typeof workspace.registerPortAttributesProvider === 'function') {
-			workspace.registerPortAttributesProvider(
-				{},
-				new (class implements PortAttributesProvider {
-					public providePortAttributes(attributes: {
-						port: number;
-						pid?: number | undefined;
-						commandLine?: string | undefined;
-					}): ProviderResult<PortAttributes> {
-						if (attributes.port !== self.port) {
-							return undefined;
-						}
+		// // eslint-disable-next-line @typescript-eslint/no-this-alias
+		// const self = this;
+		// if (typeof workspace.registerPortAttributesProvider === 'function') {
+		// 	workspace.registerPortAttributesProvider(
+		// 		{},
+		// 		new (class implements PortAttributesProvider {
+		// 			public providePortAttributes(attributes: {
+		// 				port: number;
+		// 				pid?: number | undefined;
+		// 				commandLine?: string | undefined;
+		// 			}): ProviderResult<PortAttributes> {
+		// 				if (attributes.port !== self.port) {
+		// 					return undefined;
+		// 				}
 
-						return {
-							autoForwardAction: PortAutoForwardAction.Silent,
-						};
-					}
-				})()
-			);
-		}
+		// 				return {
+		// 					autoForwardAction: PortAutoForwardAction.Silent,
+		// 				};
+		// 			}
+		// 		})()
+		// 	);
+		// }
 	}
 
 	public dispose(): void {
