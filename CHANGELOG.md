@@ -2,18 +2,22 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.0.1
+
+-   Only check on initial startup if the extension is enabled
+
 ### 3.0.0
 
-- Always perform whole-repository checks instead of single-file checks
-    - Ensures cache is always hit
-    - Ensures relevant file changes in other files are always picked up
-- Add support for PHPStan Pro
-    - Uses PHPStan Pro to watch files while displaying its errors in the editor
-    - (Requires a valid PHPStan Pro license)
-- Language server improvements
-    - Now indexes the entire project at once (no more waiting for individual file checks)
-    - Now uses the exact location of variables (this was previously guessed because PHPStan didn't provide information regarding the index of a value on a line)
-    - Includes function and closure arguments now too
+-   Always perform whole-repository checks instead of single-file checks
+    -   Ensures cache is always hit
+    -   Ensures relevant file changes in other files are always picked up
+-   Add support for PHPStan Pro
+    -   Uses PHPStan Pro to watch files while displaying its errors in the editor
+    -   (Requires a valid PHPStan Pro license)
+-   Language server improvements
+    -   Now indexes the entire project at once (no more waiting for individual file checks)
+    -   Now uses the exact location of variables (this was previously guessed because PHPStan didn't provide information regarding the index of a value on a line)
+    -   Includes function and closure arguments now too
 
 ### 2.2.26
 
