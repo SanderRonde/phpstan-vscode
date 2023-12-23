@@ -108,8 +108,14 @@ async function main(): Promise<void> {
 			proc.stderr.on('data', (chunk) => {
 				data += chunk;
 			});
+			proc.on('error', (err) => {
+				void log(
+					connection,
+					SERVER_PREFIX,
+					`Failed to get PHPStan version, is the path to your PHPStan binary correct? Error: ${err.message}`
+				);
+			});
 			proc.on('close', (code) => {
-				console.log(code, data);
 				if (code === 0) {
 					void log(
 						connection,
