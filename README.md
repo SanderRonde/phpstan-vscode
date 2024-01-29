@@ -1,3 +1,5 @@
+ ![VSCode Installs](https://img.shields.io/vscode-marketplace/i/sanderronde.phpstan-vscode.svg?label=VSCode%20Marketplace%20Installs)
+
 ## Features
 
 -   Automatically runs PHPStan of your code and highlights errors as you type.
