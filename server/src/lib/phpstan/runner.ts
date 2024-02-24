@@ -5,11 +5,11 @@ import {
 } from '../../../../shared/constants';
 import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
-import type { ChildProcessWithoutNullStreams } from 'child_process';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
+import type { ChildProcess } from 'child_process';
 import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
 import type { ClassConfig } from './manager';
@@ -27,7 +27,7 @@ export type PartialDocument = Pick<
 
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
-	private _process: ChildProcessWithoutNullStreams | null = null;
+	private _process: ChildProcess | null = null;
 	private _disposables: Disposable[] = [];
 	private _configManager: ConfigurationManager = new ConfigurationManager(
 		this._config
@@ -89,7 +89,7 @@ export class PHPStanRunner implements Disposable {
 		return args;
 	}
 
-	private _kill(proc: ChildProcessWithoutNullStreams): void {
+	private _kill(proc: ChildProcess): void {
 		let killed = false;
 		proc.once('exit', () => {
 			killed = true;
@@ -116,7 +116,7 @@ export class PHPStanRunner implements Disposable {
 		config: CheckConfig,
 		check: PHPStanCheck,
 		args: string[]
-	): Promise<ChildProcessWithoutNullStreams> {
+	): Promise<ChildProcess> {
 		const binStr = config.binCmd
 			? config.binCmd
 			: this._escapeFilePath(config.binPath!);
@@ -136,6 +136,7 @@ export class PHPStanRunner implements Disposable {
 			{
 				...SPAWN_ARGS,
 				cwd: config.cwd,
+				encoding: 'utf-8',
 			}
 		);
 		this._disposables.push(
@@ -145,12 +146,12 @@ export class PHPStanRunner implements Disposable {
 	}
 
 	private _createOutputCapturer(
-		proc: ChildProcessWithoutNullStreams,
+		proc: ChildProcess,
 		channel: 'stdout' | 'stderr',
 		onProgress?: ProgressListener
 	): () => string {
 		let data: string = '';
-		proc[channel].on('data', (dataPart: string | Buffer) => {
+		proc[channel]?.on('data', (dataPart: string | Buffer) => {
 			const str = dataPart.toString('utf-8');
 			const progressMatch = onProgress
 				? [...str.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g)]
