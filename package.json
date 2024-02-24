@@ -230,7 +230,7 @@
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc",
 		"watch": "tsc --watch",
-		"build": "rimraf ./out && yarn run build:$VARIANT",
+		"build": "rimraf ./out && (yarn run build:$VARIANT || yarn run build:main)",
 		"build:": "yarn run build:main",
 		"build:debug": "yarn run build-debug:main",
 		"build:main": "yarn --cwd server build && yarn --cwd client build",
