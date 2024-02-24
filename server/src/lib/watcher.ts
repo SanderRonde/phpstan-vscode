@@ -12,6 +12,13 @@ export class Watcher implements Disposable {
 	private readonly _phpstan: PHPStanCheckManager;
 	private readonly _getWorkspaceFolders: WorkspaceFoldersGetter;
 	private readonly _onConnectionInitialized: Promise<void>;
+	private readonly _queuedCalls: Map<
+		string,
+		{
+			fn: () => void;
+			timeout: NodeJS.Timeout;
+		}
+	> = new Map();
 
 	private get _enabled(): Promise<boolean> {
 		return new Promise<boolean>((resolve) => {
@@ -53,26 +60,51 @@ export class Watcher implements Disposable {
 		};
 	}
 
+	private debounceWithKey(
+		identifier: string,
+		callback: () => void | Promise<void>
+	): void {
+		if (this._queuedCalls.has(identifier)) {
+			clearTimeout(this._queuedCalls.get(identifier)!.timeout);
+		}
+		this._queuedCalls.set(identifier, {
+			fn: callback,
+			timeout: setTimeout(() => {
+				this._queuedCalls.delete(identifier);
+				void callback();
+			}, 50),
+		});
+	}
+
 	public async onDocumentChange(
 		e: WatcherNotificationFileData
 	): Promise<void> {
 		if (!(await this._enabled)) {
 			return;
 		}
-		await log(
-			this._connection,
-			WATCHER_PREFIX,
-			'Document changed, checking'
-		);
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+
+		void this.debounceWithKey(e.uri, async () => {
+			await log(
+				this._connection,
+				WATCHER_PREFIX,
+				'Document changed, checking'
+			);
+			await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		});
 	}
 
 	public async onDocumentSave(e: WatcherNotificationFileData): Promise<void> {
 		if (!(await this._enabled)) {
 			return;
 		}
-		await log(this._connection, WATCHER_PREFIX, 'Document saved, checking');
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		void this.debounceWithKey(e.uri, async () => {
+			await log(
+				this._connection,
+				WATCHER_PREFIX,
+				'Document saved, checking'
+			);
+			await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		});
 	}
 
 	public async onDocumentActive(
@@ -81,25 +113,30 @@ export class Watcher implements Disposable {
 		if (!(await this._enabled)) {
 			return;
 		}
-		await log(
-			this._connection,
-			WATCHER_PREFIX,
-			'Document active, checking'
-		);
 
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		void this.debounceWithKey(e.uri, async () => {
+			await log(
+				this._connection,
+				WATCHER_PREFIX,
+				'Document active, checking'
+			);
+			await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		});
 	}
 
 	public async onDocumentOpen(e: WatcherNotificationFileData): Promise<void> {
 		if (!(await this._enabled)) {
 			return;
 		}
-		await log(
-			this._connection,
-			WATCHER_PREFIX,
-			'Document opened, checking and re-applying errors'
-		);
-		await this._phpstan.checkFile(this._toPartialDocument(e), true);
+
+		void this.debounceWithKey(e.uri, async () => {
+			await log(
+				this._connection,
+				WATCHER_PREFIX,
+				'Document opened, checking and re-applying errors'
+			);
+			await this._phpstan.checkFile(this._toPartialDocument(e), true);
+		});
 	}
 
 	public async onDocumentCheck(
