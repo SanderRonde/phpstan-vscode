@@ -4,12 +4,12 @@ import {
 	SPAWN_ARGS,
 } from '../../../../shared/constants';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
-import type { ChildProcessWithoutNullStreams } from 'child_process';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from './configManager';
 import type { ReportedErrors } from './outputParser';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
+import type { ChildProcess } from 'child_process';
 import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
 import type { ClassConfig } from './manager';
@@ -46,7 +46,7 @@ export interface PHPStanCheckResult {
 
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
-	private _process: ChildProcessWithoutNullStreams | null = null;
+	private _process: ChildProcess | null = null;
 	private _configManager: ConfigurationManager = new ConfigurationManager(
 		this._config
 	);
@@ -64,7 +64,7 @@ export class PHPStanRunner implements Disposable {
 		return filePath;
 	}
 
-	private _kill(proc: ChildProcessWithoutNullStreams): void {
+	private _kill(proc: ChildProcess): void {
 		let killed = false;
 		proc.once('exit', () => {
 			killed = true;
@@ -90,7 +90,7 @@ export class PHPStanRunner implements Disposable {
 	private async _spawnProcess(
 		config: CheckConfig,
 		check: PHPStanCheck
-	): Promise<ChildProcessWithoutNullStreams> {
+	): Promise<ChildProcess> {
 		const [binStr, ...args] = await this._configManager.getArgs(config);
 		await log(
 			this._config.connection,
@@ -108,6 +108,7 @@ export class PHPStanRunner implements Disposable {
 			{
 				...SPAWN_ARGS,
 				cwd: config.cwd,
+				encoding: 'utf-8',
 			}
 		);
 		this._disposables.push(
@@ -117,12 +118,12 @@ export class PHPStanRunner implements Disposable {
 	}
 
 	private _createOutputCapturer(
-		proc: ChildProcessWithoutNullStreams,
+		proc: ChildProcess,
 		channel: 'stdout' | 'stderr',
 		onProgress?: ProgressListener
 	): () => string {
 		let data: string = '';
-		proc[channel].on('data', (dataPart: string | Buffer) => {
+		proc[channel]?.on('data', (dataPart: string | Buffer) => {
 			const str = dataPart.toString('utf-8');
 			const progressMatch = onProgress
 				? [...str.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g)]
@@ -220,7 +221,7 @@ export class PHPStanRunner implements Disposable {
 		const getFilteredErr = async (): Promise<string> => {
 			const config = await getConfiguration(
 				this._config.connection,
-				this._config.workspaceFolder
+				this._config.workspaceFolders
 			);
 
 			const errLines = getErr()

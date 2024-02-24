@@ -137,7 +137,7 @@ export const config = {
 	'phpstan.showProgress': {
 		jsonDefinition: {
 			type: 'boolean',
-			description: 'Stop showing an error when the operation times out',
+			description: 'Show the progress bar when performing a single-file check',
 			default: false,
 		},
 	},

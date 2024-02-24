@@ -13,6 +13,7 @@ import type { CheckConfig } from '../lib/phpstan/configManager';
 import type { PHPStanVersion, PromisedValue } from '../server';
 import type { DocumentManager } from '../lib/documentManager';
 import { providerEnabled } from '../lib/providerUtil';
+import type { WorkspaceFolders } from '../server';
 import { getConfiguration } from '../lib/config';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
@@ -39,7 +40,7 @@ export interface ProviderArgs {
 	connection: _Connection;
 	hooks: ProviderCheckHooks;
 	phpstan?: PHPStanCheckManager;
-	workspaceFolder: PromisedValue<URI | null>;
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>;
 	onConnectionInitialized: Promise<void>;
 	documents: DocumentManager;
 }
@@ -53,7 +54,8 @@ export async function getFileReport(
 		return null;
 	}
 
-	const workspaceFolder = await providerArgs.workspaceFolder.get();
+	const workspaceFolder = (await providerArgs.workspaceFolders.get())
+		?.default;
 	if (
 		!workspaceFolder ||
 		(!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested)
@@ -107,7 +109,7 @@ export class ProviderCheckHooks {
 	private get _lsEnabled(): Promise<boolean> {
 		return (async () => {
 			return (
-				await getConfiguration(this._connection, this._workspaceFolder)
+				await getConfiguration(this._connection, this._workspaceFolders)
 			).enableLanguageServer;
 		})();
 	}
@@ -115,7 +117,7 @@ export class ProviderCheckHooks {
 	public constructor(
 		private readonly _connection: _Connection,
 		private readonly _version: PromisedValue<PHPStanVersion | null>,
-		private readonly _workspaceFolder: PromisedValue<URI | null>,
+		private readonly _workspaceFolders: PromisedValue<WorkspaceFolders | null>,
 		private readonly _extensionPath: PromisedValue<URI>
 	) {}
 

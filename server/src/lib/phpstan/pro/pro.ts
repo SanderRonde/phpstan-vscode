@@ -1,16 +1,14 @@
 import { pathExists, tryReadJSON, wait } from '../../../../../shared/util';
+import type { PromisedValue, WorkspaceFolders } from '../../../server';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { SPAWN_ARGS } from '../../../../../shared/constants';
 import { PHPStanProErrorManager } from './proErrorManager';
 import { ConfigurationManager } from '../configManager';
-import type { PromisedValue } from '../../../server';
-import { replaceVariables } from '../../variables';
 import { getConfiguration } from '../../config';
 import type { ClassConfig } from '../manager';
 import { ProcessSpawner } from '../../proc';
 import { PRO_PREFIX, log } from '../../log';
 import { ReturnResult } from '../result';
-import type { URI } from 'vscode-uri';
 import * as path from 'path';
 import * as os from 'os';
 
@@ -20,7 +18,7 @@ function getDefaultConfigDirPath(): string {
 
 export async function launchPro(
 	connection: _Connection,
-	getWorkspaceFolder: PromisedValue<URI | null>,
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
 	classConfig: ClassConfig,
 	onProgress?: (progress: {
 		done: number;
@@ -28,11 +26,8 @@ export async function launchPro(
 		percentage: number;
 	}) => void
 ): Promise<ReturnResult<PHPStanProProcess, string>> {
-	const settings = await getConfiguration(connection, getWorkspaceFolder);
-	const tmpPath = await replaceVariables(
-		settings.proTmpDir || getDefaultConfigDirPath(),
-		classConfig
-	);
+	const settings = await getConfiguration(connection, workspaceFolders);
+	const tmpPath = settings.proTmpDir || getDefaultConfigDirPath();
 
 	const configManager = new ConfigurationManager(classConfig);
 	const launchConfig = await configManager.collectConfiguration();
@@ -58,6 +53,7 @@ export async function launchPro(
 		{
 			...SPAWN_ARGS,
 			cwd: launchConfig.cwd,
+			encoding: 'utf-8',
 			env: {
 				...process.env,
 				TMPDIR: tmpPath,
@@ -68,7 +64,7 @@ export async function launchPro(
 
 	return new Promise<ReturnResult<PHPStanProProcess, string>>((resolve) => {
 		let stderr: string = '';
-		proc.stdout.on('data', (chunk: string | Buffer) => {
+		proc.stdout?.on('data', (chunk: string | Buffer) => {
 			const line = chunk.toString();
 			const progressMatch = [
 				...line.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g),
@@ -111,7 +107,7 @@ export async function launchPro(
 				});
 			}
 		});
-		proc.stderr.on('data', (chunk: string | Buffer) => {
+		proc.stderr?.on('data', (chunk: string | Buffer) => {
 			stderr += chunk.toString();
 		});
 		proc.on('error', (error) => {

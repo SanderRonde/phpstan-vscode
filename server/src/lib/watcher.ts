@@ -1,18 +1,17 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import type { Disposable, _Connection } from 'vscode-languageserver';
+import type { PromisedValue, WorkspaceFolders } from '../server';
 import type { PHPStanCheckManager } from './phpstan/manager';
 import type { PartialDocument } from './phpstan/runner';
-import type { PromisedValue } from '../server';
 import { getConfiguration } from './config';
 import { log, WATCHER_PREFIX } from './log';
-import type { URI } from 'vscode-uri';
 
 export class Watcher implements Disposable {
 	private _disposables: Disposable[] = [];
 	private _lastActiveDocument: PartialDocument | null = null;
 	private readonly _connection: _Connection;
 	private readonly _phpstan: PHPStanCheckManager;
-	private readonly _workspaceFolder: PromisedValue<URI | null>;
+	private readonly _workspaceFolders: PromisedValue<WorkspaceFolders | null>;
 	private readonly _onConnectionInitialized: Promise<void>;
 
 	private get _enabled(): Promise<boolean> {
@@ -21,7 +20,7 @@ export class Watcher implements Disposable {
 				await this._onConnectionInitialized;
 				const config = await getConfiguration(
 					this._connection,
-					this._workspaceFolder
+					this._workspaceFolders
 				);
 				resolve(config.enabled);
 			})();
@@ -32,16 +31,16 @@ export class Watcher implements Disposable {
 		connection,
 		phpstan: checkManager,
 		onConnectionInitialized,
-		workspaceFolder: getWorkspaceFolder,
+		workspaceFolders,
 	}: {
 		connection: _Connection;
 		phpstan: PHPStanCheckManager;
 		onConnectionInitialized: Promise<void>;
-		workspaceFolder: PromisedValue<URI | null>;
+		workspaceFolders: PromisedValue<WorkspaceFolders | null>;
 	}) {
 		this._connection = connection;
 		this._phpstan = checkManager;
-		this._workspaceFolder = getWorkspaceFolder;
+		this._workspaceFolders = workspaceFolders;
 		this._onConnectionInitialized = onConnectionInitialized;
 	}
 

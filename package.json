@@ -111,7 +111,7 @@
 				},
 				"phpstan.showProgress": {
 					"type": "boolean",
-					"description": "Stop showing an error when the operation times out",
+					"description": "Show the progress bar when performing a single-file check",
 					"default": false
 				},
 				"phpstan.enableLanguageServer": {
@@ -250,7 +250,7 @@
 		"vscode:prepublish": "yarn run prepack",
 		"compile": "tsc",
 		"watch": "tsc --watch",
-		"build": "rimraf ./out && yarn run build:$VARIANT",
+		"build": "rimraf ./out && (yarn run build:$VARIANT || yarn run build:main)",
 		"build:": "yarn run build:main",
 		"build:debug": "yarn run build-debug:main",
 		"build:main": "yarn --cwd server build && yarn --cwd client build",

@@ -161,3 +161,13 @@ export async function tryReadJSON<J>(filePath: string): Promise<J | null> {
 export function basicHash(content: string): string {
 	return crypto.createHash('md5').update(content).digest('hex');
 }
+
+export function fromEntries<T>(
+	entries: Iterable<readonly [string, T]>
+): Record<string, T> {
+	const result: Record<string, T> = {};
+	for (const [key, value] of entries) {
+		result[key] = value;
+	}
+	return result;
+}

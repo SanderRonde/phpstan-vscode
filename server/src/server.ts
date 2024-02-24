@@ -39,11 +39,19 @@ import { Watcher } from './lib/watcher';
 import { spawn } from 'child_process';
 import { URI } from 'vscode-uri';
 
+export type WorkspaceFolders = {
+	[name: string]: URI | undefined;
+	default: URI;
+};
+export type WorkspaceFoldersGetter = () => {
+	[name: string]: URI | undefined;
+	default: URI;
+} | null;
 export type PHPStanVersion = '1.*' | '2.*';
 
 function getClassConfig(
 	connection: _Connection,
-	workspaceFolder: PromisedValue<URI | null>,
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
 	version: PromisedValue<PHPStanVersion | null>,
 	documentManager: DocumentManager,
 	extensionPath: PromisedValue<URI>
@@ -52,7 +60,7 @@ function getClassConfig(
 	const providerHooks = new ProviderCheckHooks(
 		connection,
 		version,
-		workspaceFolder,
+		workspaceFolders,
 		extensionPath
 	);
 
@@ -60,7 +68,7 @@ function getClassConfig(
 	return {
 		statusBar,
 		connection,
-		workspaceFolder: workspaceFolder,
+		workspaceFolders,
 		documents: documentManager,
 		hooks: {
 			provider: providerHooks,
@@ -84,7 +92,7 @@ function startIntegratedChecker(
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
-	workspaceFolder: PromisedValue<URI | null>,
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
 	startedAt: PromisedValue<Date>
 ): StartReturn {
 	const phpstan = new PHPStanCheckManager(classConfig);
@@ -92,7 +100,7 @@ function startIntegratedChecker(
 		connection,
 		phpstan,
 		onConnectionInitialized,
-		workspaceFolder: workspaceFolder,
+		workspaceFolders,
 	});
 
 	classConfig.documents.setWatcher(watcher);
@@ -103,7 +111,7 @@ function startIntegratedChecker(
 		connection,
 		hooks: classConfig.hooks.provider,
 		phpstan,
-		workspaceFolder: workspaceFolder,
+		workspaceFolders,
 		onConnectionInitialized,
 		documents: classConfig.documents,
 	};
@@ -113,7 +121,7 @@ function startIntegratedChecker(
 		const serverLiveFor = Date.now() - startedAtTime.getTime();
 		// Wait a while after start with checking so as to now tax the system too much
 		await wait(Math.max(5000 - serverLiveFor, 0));
-		if ((await getConfiguration(connection, workspaceFolder)).enabled) {
+		if ((await getConfiguration(connection, workspaceFolders)).enabled) {
 			void phpstan.checkProject();
 		}
 	})();
@@ -128,9 +136,9 @@ async function startPro(
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
-	workspaceFolder: PromisedValue<URI | null>
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>
 ): Promise<StartReturn> {
-	if (!(await getConfiguration(connection, workspaceFolder)).enabled) {
+	if (!(await getConfiguration(connection, workspaceFolders)).enabled) {
 		void log(
 			connection,
 			SERVER_PREFIX,
@@ -147,7 +155,7 @@ async function startPro(
 	});
 	const pro = await launchPro(
 		connection,
-		workspaceFolder,
+		workspaceFolders,
 		classConfig,
 		(progress) => {
 			void connection.sendNotification(statusBarNotification, {
@@ -194,7 +202,7 @@ async function startPro(
 	const providerArgs: ProviderArgs = {
 		connection,
 		hooks: classConfig.hooks.provider,
-		workspaceFolder: workspaceFolder,
+		workspaceFolders,
 		onConnectionInitialized,
 		documents: classConfig.documents,
 	};
@@ -218,13 +226,21 @@ async function main(): Promise<void> {
 	});
 
 	// The workspace folder this server is operating on
-	const workspaceFolder = new PromisedValue<URI | null>();
+	const workspaceFolders = new PromisedValue<WorkspaceFolders | null>();
 	const version = new PromisedValue<PHPStanVersion | null>();
 	const extensionPath = new PromisedValue<URI>();
 
 	connection.onInitialize((params) => {
 		const uri = params.workspaceFolders?.[0].uri;
-		workspaceFolder.set(uri ? URI.parse(uri) : null);
+		if (uri) {
+			const initializedFolders: WorkspaceFolders = {
+				default: URI.parse(uri),
+			};
+			for (const folder of params.workspaceFolders ?? []) {
+				initializedFolders[folder.name] = URI.parse(folder.uri);
+			}
+			workspaceFolders.set(initializedFolders);
+		}
 		return {
 			capabilities: {
 				textDocumentSync: {
@@ -259,17 +275,17 @@ async function main(): Promise<void> {
 			extensionPath.set(URI.parse(response.extensionPath));
 		});
 
-	const config = await getConfiguration(connection, workspaceFolder);
+	const config = await getConfiguration(connection, workspaceFolders);
 	const documentManager = new DocumentManager(connection);
 	disposables.push(documentManager);
 	const classConfig = getClassConfig(
 		connection,
-		workspaceFolder,
+		workspaceFolders,
 		version,
 		documentManager,
 		extensionPath
 	);
-	void getPHPStanVersion(classConfig, disposables);
+	void getPHPStanVersion(classConfig, disposables, connection);
 
 	const { hoverProvider: _hoverProvider } = config.pro
 		? await startPro(
@@ -277,14 +293,14 @@ async function main(): Promise<void> {
 				connection,
 				disposables,
 				onConnectionInitialized,
-				workspaceFolder
+				workspaceFolders
 		  )
 		: startIntegratedChecker(
 				classConfig,
 				connection,
 				disposables,
 				onConnectionInitialized,
-				workspaceFolder,
+				workspaceFolders,
 				extensionStartedAt
 		  );
 	if (_hoverProvider) {
@@ -294,7 +310,8 @@ async function main(): Promise<void> {
 
 async function getPHPStanVersion(
 	classConfig: ClassConfig,
-	disposables: Disposable[]
+	disposables: Disposable[],
+	connection: _Connection
 ): Promise<void> {
 	// Test if we can get the PHPStan version
 	const configManager = new ConfigurationManager(classConfig);
@@ -315,6 +332,13 @@ async function getPHPStanVersion(
 			});
 			proc.stderr.on('data', (chunk) => {
 				data += chunk;
+			});
+			proc.on('error', (err) => {
+				void log(
+					connection,
+					SERVER_PREFIX,
+					`Failed to get PHPStan version, is the path to your PHPStan binary correct? Error: ${err.message}`
+				);
 			});
 			proc.on('close', (code) => {
 				if (code === 0) {

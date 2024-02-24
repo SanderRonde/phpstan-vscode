@@ -1,5 +1,5 @@
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
-import type { PHPStanVersion, PromisedValue } from '../../server';
+import type { PHPStanVersion, WorkspaceFolders } from '../../server';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import { OperationStatus } from '../../../../shared/statusBar';
 import type { PromiseObject } from '../../../../shared/util';
@@ -8,6 +8,7 @@ import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
 import type { ReportedErrors } from './outputParser';
+import type { PromisedValue } from '../../server';
 import type { StatusBar } from '../statusBar';
 import type { ProcessSpawner } from '../proc';
 import { executeCommand } from '../commands';
@@ -15,12 +16,11 @@ import { getConfiguration } from '../config';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
-import type { URI } from 'vscode-uri';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
 	connection: _Connection;
-	workspaceFolder: PromisedValue<URI | null>;
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>;
 	documents: DocumentManager;
 	hooks: {
 		provider: ProviderCheckHooks;
@@ -46,7 +46,7 @@ export class PHPStanCheckManager implements Disposable {
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.workspaceFolder
+			this._config.workspaceFolders
 		);
 		if (!config.suppressTimeoutMessage) {
 			showError(
@@ -166,7 +166,7 @@ export class PHPStanCheckManager implements Disposable {
 		// Do check
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.workspaceFolder
+			this._config.workspaceFolders
 		);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,

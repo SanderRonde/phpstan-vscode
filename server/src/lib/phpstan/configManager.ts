@@ -1,5 +1,4 @@
 import type { Disposable } from 'vscode-languageserver';
-import { replaceVariables } from '../variables';
 import { showErrorOnce } from '../errorUtil';
 import { getConfiguration } from '../config';
 import type { ClassConfig } from './manager';
@@ -48,7 +47,7 @@ export class ConfigurationManager implements Disposable {
 		config: ClassConfig
 	): Promise<(filePath: string, inverse?: boolean) => string> {
 		const pathMapping =
-			(await getConfiguration(config.connection, config.workspaceFolder))
+			(await getConfiguration(config.connection, config.workspaceFolders))
 				.paths ?? {};
 
 		return (filePath: string, inverse: boolean = false) => {
@@ -101,7 +100,7 @@ export class ConfigurationManager implements Disposable {
 	private async _getConfigFile(cwd: string): Promise<string | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.workspaceFolder
+			this._config.workspaceFolders
 		);
 		const absoluteConfigPaths = extensionConfig.configFile
 			? extensionConfig.configFile
@@ -130,10 +129,11 @@ export class ConfigurationManager implements Disposable {
 	}
 
 	public async getCwd(): Promise<string | null> {
-		const workspaceRoot = await this._config.workspaceFolder.get();
+		const workspaceRoot = (await this._config.workspaceFolders.get())
+			?.default;
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.workspaceFolder
+			this._config.workspaceFolders
 		);
 		const cwd =
 			this._getAbsolutePath(
@@ -167,7 +167,7 @@ export class ConfigurationManager implements Disposable {
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.workspaceFolder
+			this._config.workspaceFolders
 		);
 		const defaultBinPath = this._getAbsolutePath(
 			extensionConfig.binPath,
@@ -219,7 +219,7 @@ export class ConfigurationManager implements Disposable {
 		// Settings
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.workspaceFolder
+			this._config.workspaceFolders
 		);
 
 		const cwd = await this.getCwd();
@@ -244,11 +244,7 @@ export class ConfigurationManager implements Disposable {
 						configFile
 				  )
 				: null,
-			args: await Promise.all(
-				(extensionConfig.options ?? []).map((arg) =>
-					replaceVariables(arg, this._config)
-				)
-			),
+			args: extensionConfig.options ?? [],
 			memoryLimit: extensionConfig.memoryLimit,
 			binStr: binConfig.binCmd
 				? binConfig.binCmd

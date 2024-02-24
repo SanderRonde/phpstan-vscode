@@ -16,5 +16,6 @@ test/demo/vendor
 test/demo/reported.json
 test/scratchpad
 **/reported.json
+user_config.json
 
 _config
