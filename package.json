@@ -2,7 +2,7 @@
 	"name": "phpstan-vscode",
 	"displayName": "phpstan",
 	"description": "PHPStan language server and inline error provider",
-	"version": "2.2.26",
+	"version": "3.0.1",
 	"engines": {
 		"vscode": "^1.64.0",
 		"node": ">=14.16.0"
@@ -99,15 +99,10 @@
 					"description": "Whether to enable the on-save checker",
 					"default": true
 				},
-				"phpstan.timeout": {
-					"type": "number",
-					"description": "Timeout in milliseconds for a single file check. After this time the checking process is canceled",
-					"default": 10000
-				},
 				"phpstan.projectTimeout": {
 					"type": "number",
 					"description": "Timeout in milliseconds for a full project check. After this time the checking process is canceled",
-					"default": 60000
+					"default": 300000
 				},
 				"phpstan.suppressTimeoutMessage": {
 					"type": "boolean",
@@ -121,7 +116,7 @@
 				},
 				"phpstan.enableLanguageServer": {
 					"type": "boolean",
-					"description": "Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker)",
+					"description": "Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.",
 					"default": true
 				},
 				"phpstan.ignoreErrors": {
@@ -141,6 +136,15 @@
 					"type": "boolean",
 					"description": "Stop showing an error when using a multi-workspace project",
 					"default": false
+				},
+				"phpstan.pro": {
+					"type": "boolean",
+					"description": "Use PHPStan Pro under the hood (if you have a license)",
+					"default": false
+				},
+				"phpstan.proTmpDir": {
+					"type": "string",
+					"description": "Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan-fixer)"
 				}
 			}
 		},
@@ -162,6 +166,10 @@
 				"title": "Go to previous error"
 			},
 			{
+				"command": "phpstan.openPhpstanPro",
+				"title": "Open PHPStan Pro in browser"
+			},
+			{
 				"command": "cmd.phpstan.scanProjectForErrors",
 				"title": "PHPStan: Scan project for errors"
 			},
@@ -176,6 +184,10 @@
 			{
 				"command": "cmd.phpstan.previousError",
 				"title": "PHPStan: Go to previous error"
+			},
+			{
+				"command": "cmd.phpstan.openPhpstanPro",
+				"title": "PHPStan: Open PHPStan Pro in browser"
 			}
 		],
 		"menus": {
@@ -197,6 +209,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.openPhpstanPro",
+					"when": "false"
+				},
+				{
 					"command": "cmd.phpstan.scanProjectForErrors",
 					"when": "true"
 				},
@@ -210,6 +226,10 @@
 				},
 				{
 					"command": "cmd.phpstan.previousError",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.openPhpstanPro",
 					"when": "true"
 				}
 			]

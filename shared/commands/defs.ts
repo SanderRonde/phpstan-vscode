@@ -9,6 +9,7 @@ export enum Commands {
 	RELOAD = 'phpstan.reload',
 	NEXT_ERROR = 'phpstan.nextError',
 	PREVIOUS_ERROR = 'phpstan.previousError',
+	OPEN_PHPSTAN_PRO = 'phpstan.openPhpstanPro',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -26,6 +27,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.PREVIOUS_ERROR]: {
 		title: 'Go to previous error',
+		inCommandPalette: true,
+	},
+	[Commands.OPEN_PHPSTAN_PRO]: {
+		title: 'Open PHPStan Pro in browser',
 		inCommandPalette: true,
 	},
 };
@@ -114,20 +119,12 @@ export const config = {
 			default: true,
 		},
 	},
-	'phpstan.timeout': {
-		jsonDefinition: {
-			type: 'number',
-			description:
-				'Timeout in milliseconds for a single file check. After this time the checking process is canceled',
-			default: 10000,
-		},
-	},
 	'phpstan.projectTimeout': {
 		jsonDefinition: {
 			type: 'number',
 			description:
 				'Timeout in milliseconds for a full project check. After this time the checking process is canceled',
-			default: 60000,
+			default: 300000,
 		},
 	},
 	'phpstan.suppressTimeoutMessage': {
@@ -148,7 +145,7 @@ export const config = {
 		jsonDefinition: {
 			type: 'boolean',
 			description:
-				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker)',
+				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
 			default: true,
 		},
 	},
@@ -170,6 +167,21 @@ export const config = {
 			description:
 				'Stop showing an error when using a multi-workspace project',
 			default: false,
+		},
+	},
+	'phpstan.pro': {
+		jsonDefinition: {
+			type: 'boolean',
+			description:
+				'Use PHPStan Pro under the hood (if you have a license)',
+			default: false,
+		},
+	},
+	'phpstan.proTmpDir': {
+		jsonDefinition: {
+			type: 'string',
+			description:
+				"Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan-fixer)",
 		},
 	},
 } as const;

@@ -1,10 +1,8 @@
-import type {
-	PHPStanError,
-	StatusBarProgress,
-} from '../../../../shared/notificationChannels';
+import type { StatusBarProgress } from '../../../../shared/notificationChannels';
 import { OperationStatus } from '../../../../shared/statusBar';
 import { errorNotification } from '../notificationChannels';
 import type { Disposable } from 'vscode-languageserver';
+import type { ReportedErrors } from './outputParser';
 import type { ClassConfig } from './manager';
 import { PHPStanRunner } from './runner';
 import { ReturnResult } from './result';
@@ -27,10 +25,7 @@ export class PHPStanCheck implements Disposable {
 		return this._done;
 	}
 
-	public constructor(
-		private readonly _config: ClassConfig,
-		public readonly checkType: 'project' | 'file'
-	) {}
+	public constructor(private readonly _config: ClassConfig) {}
 
 	private _onProgress(progress: StatusBarProgress): void {
 		this._progressListeners.forEach((c) => c(progress));
@@ -38,7 +33,7 @@ export class PHPStanCheck implements Disposable {
 
 	public async check(
 		applyErrors: boolean
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+	): Promise<ReturnResult<ReportedErrors>> {
 		if (this._disposed) {
 			return ReturnResult.canceled();
 		}
@@ -73,11 +68,11 @@ export class PHPStanCheck implements Disposable {
 }
 
 class PHPStanCheckErrorManager {
-	public constructor(private readonly _config: ClassConfig) {}
+	public constructor(
+		private readonly _config: Pick<ClassConfig, 'connection'>
+	) {}
 
-	private async _showErrors(
-		errors: Record<string, PHPStanError[]>
-	): Promise<void> {
+	private async _showErrors(errors: ReportedErrors): Promise<void> {
 		await this._config.connection.sendNotification(errorNotification, {
 			diagnostics: errors,
 		});
@@ -85,17 +80,19 @@ class PHPStanCheckErrorManager {
 
 	private async _clearErrors(): Promise<void> {
 		await this._config.connection.sendNotification(errorNotification, {
-			diagnostics: {},
+			diagnostics: {
+				fileSpecificErrors: {},
+				notFileSpecificErrors: [],
+			},
 		});
 	}
 
 	public async handleResult(
-		result: ReturnResult<Record<string, PHPStanError[]>>
+		result: ReturnResult<ReportedErrors>
 	): Promise<void> {
 		if (result.success()) {
 			await this._showErrors(result.value);
 		} else if (result.status === OperationStatus.ERROR) {
-			// TODO:(sander) do this
 			await this._clearErrors();
 		}
 	}

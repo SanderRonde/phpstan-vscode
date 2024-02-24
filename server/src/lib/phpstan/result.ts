@@ -1,12 +1,14 @@
 import { OperationStatus } from '../../../../shared/statusBar';
 
-export class ReturnResult<R> {
+export class ReturnResult<R, E = void> {
 	protected constructor(
 		public status: OperationStatus,
-		public value: R | null
+		public value: R | null,
+		public error: E | null = null
 	) {}
 
-	public static success<R>(result: R): ReturnResult<R> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	public static success<R>(result: R): ReturnResult<R, any> {
 		return new ReturnResult(OperationStatus.SUCCESS, result);
 	}
 
@@ -21,23 +23,23 @@ export class ReturnResult<R> {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	public static error(): ReturnResult<any> {
-		return new ReturnResult(OperationStatus.ERROR, null);
+	public static error<E>(error?: E): ReturnResult<any, E> {
+		return new ReturnResult(OperationStatus.ERROR, null, error);
 	}
 
 	public success(): this is SuccessReturnResult<R> {
 		return this.status === OperationStatus.SUCCESS;
 	}
 
-	public chain<N>(operation: (data: R) => N): ReturnResult<N> {
+	public chain<N>(operation: (data: R) => N): ReturnResult<N, void> {
 		if (!this.success()) {
 			return this as unknown as ReturnResult<N>;
 		}
-		return ReturnResult.success(operation(this.value));
+		return ReturnResult.success(operation(this.value)) as ReturnResult<N>;
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	public cast(): ReturnResult<any> {
+	public cast(): ReturnResult<any, any> {
 		return this;
 	}
 }

@@ -5,3 +5,8 @@ includes:
 rules:
 	- PHPStanVSCodeTreeFetcher
 
+services:
+	-
+		class: PHPStanVSCodeTreeFetcherCollector
+		tags:
+			- phpstan.collector

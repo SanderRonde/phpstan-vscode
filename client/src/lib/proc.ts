@@ -1,6 +1,7 @@
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { processNotification } from './notificationChannels';
 import type { Disposable, ExtensionContext } from 'vscode';
+import { PROCESS_SPAWNER_PREFIX, log } from './log';
 import { wait } from '../../../shared/util';
 
 export class ProcessSpawner implements Disposable {
@@ -11,10 +12,16 @@ export class ProcessSpawner implements Disposable {
 		client: LanguageClient,
 		private readonly _context: ExtensionContext
 	) {
-		this._kill();
+		this._kill(true);
 		this._disposables.push(
 			client.onNotification(processNotification, ({ pid, timeout }) => {
-				console.log('pushing pid', pid, timeout);
+				log(
+					PROCESS_SPAWNER_PREFIX,
+					'Spawning process',
+					String(pid),
+					'with timeout',
+					String(timeout)
+				);
 				void this._pushPid(pid, timeout);
 			})
 		);
@@ -48,7 +55,7 @@ export class ProcessSpawner implements Disposable {
 		} catch (e) {}
 	}
 
-	private _kill(): void {
+	private _kill(killTimeoutless: boolean = false): void {
 		const processes = this._context.workspaceState.get(
 			ProcessSpawner.STORAGE_KEY,
 			{}
@@ -59,7 +66,7 @@ export class ProcessSpawner implements Disposable {
 
 		const killed: number[] = [];
 		Object.entries(processes).forEach(([pid, timeout]) => {
-			if (Date.now() > timeout) {
+			if (Date.now() > timeout && (timeout !== 0 || killTimeoutless)) {
 				const pidNum = parseInt(pid, 10);
 				killed.push(pidNum);
 				console.log('killing', pid, 'because', timeout, 'is over');
@@ -83,7 +90,7 @@ export class ProcessSpawner implements Disposable {
 	private async _pushPid(pid: number, timeout: number): Promise<void> {
 		await this._context.workspaceState.update(ProcessSpawner.STORAGE_KEY, {
 			...this._context.workspaceState.get(ProcessSpawner.STORAGE_KEY, {}),
-			[pid]: Date.now() + timeout,
+			[pid]: timeout === 0 ? 0 : Date.now() + timeout,
 		});
 	}
 

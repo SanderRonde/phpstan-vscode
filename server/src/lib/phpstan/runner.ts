@@ -3,10 +3,10 @@ import {
 	PROCESS_TIMEOUT,
 	SPAWN_ARGS,
 } from '../../../../shared/constants';
-import type { PHPStanError } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from './configManager';
+import type { ReportedErrors } from './outputParser';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
 import type { ChildProcess } from 'child_process';
@@ -25,17 +25,36 @@ export type PartialDocument = Pick<
 	'uri' | 'getText' | 'languageId'
 >;
 
+export interface PHPStanCheckResult {
+	errors: string[];
+	files: Record<
+		string,
+		{
+			errors: number;
+			messages: {
+				ignorable: boolean;
+				line: number;
+				message: string;
+			}[];
+		}
+	>;
+	totals: {
+		errors: number;
+		file_errors: number;
+	};
+}
+
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
 	private _process: ChildProcess | null = null;
-	private _disposables: Disposable[] = [];
 	private _configManager: ConfigurationManager = new ConfigurationManager(
 		this._config
 	);
+	private _disposables: Disposable[] = [this._configManager];
 
 	public constructor(private readonly _config: ClassConfig) {}
 
-	private _escapeFilePath(filePath: string): string {
+	public static escapeFilePath(filePath: string): string {
 		if (os.platform() !== 'win32') {
 			return filePath;
 		}
@@ -43,50 +62,6 @@ export class PHPStanRunner implements Disposable {
 			filePath = '"' + filePath + '"';
 		}
 		return filePath;
-	}
-
-	private async _getArgs(
-		config: CheckConfig,
-		{
-			doc,
-			filePath,
-			progress,
-		}: {
-			filePath?: string;
-			doc?: PartialDocument;
-			progress?: boolean;
-		}
-	): Promise<string[]> {
-		const args = [...config.initialArgs, 'analyse'];
-		if (config.remoteConfigFile) {
-			args.push(...['-c', this._escapeFilePath(config.remoteConfigFile)]);
-		} else if (config.configFile) {
-			args.push('-c', config.configFile);
-		}
-
-		args.push(
-			'--error-format=raw',
-			'--no-interaction',
-			`--memory-limit=${config.memoryLimit}`
-		);
-		if (!progress) {
-			args.push('--no-progress');
-		}
-		args.push(...config.args);
-		if (filePath) {
-			args.push(this._escapeFilePath(filePath));
-		}
-
-		if (filePath && doc) {
-			return await this._config.hooks.provider.transformArgs(
-				config,
-				args,
-				doc.uri,
-				filePath,
-				this._disposables
-			);
-		}
-		return args;
 	}
 
 	private _kill(proc: ChildProcess): void {
@@ -114,19 +89,16 @@ export class PHPStanRunner implements Disposable {
 
 	private async _spawnProcess(
 		config: CheckConfig,
-		check: PHPStanCheck,
-		args: string[]
+		check: PHPStanCheck
 	): Promise<ChildProcess> {
-		const binStr = config.binCmd
-			? config.binCmd
-			: this._escapeFilePath(config.binPath!);
+		const [binStr, ...args] = await this._configManager.getArgs(config);
 		await log(
 			this._config.connection,
 			checkPrefix(check),
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify({
-				binCmd: binStr,
-				args,
+				binStr,
+				args: args,
 			})
 		);
 		const phpstan = await this._config.procSpawner.spawnWithRobustTimeout(
@@ -225,16 +197,13 @@ export class PHPStanRunner implements Disposable {
 	private async _getProcessOutput(
 		config: CheckConfig,
 		check: PHPStanCheck,
-		args: string[],
 		{
-			doc,
 			onProgress,
 		}: {
-			doc?: PartialDocument;
 			onProgress?: ProgressListener;
 		}
-	): Promise<ReturnResult<string>> {
-		const phpstan = await this._spawnProcess(config, check, args);
+	): Promise<ReturnResult<PHPStanCheckResult>> {
+		const phpstan = await this._spawnProcess(config, check);
 		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(
@@ -252,8 +221,9 @@ export class PHPStanRunner implements Disposable {
 		const getFilteredErr = async (): Promise<string> => {
 			const config = await getConfiguration(
 				this._config.connection,
-				this._config.getWorkspaceFolders
+				this._config.workspaceFolders
 			);
+
 			const errLines = getErr()
 				.split('\n')
 				.map((line) => line.trim())
@@ -284,66 +254,70 @@ export class PHPStanRunner implements Disposable {
 			);
 		};
 
-		return await new Promise<ReturnResult<string>>((resolve) => {
-			phpstan.on('error', (e) => {
-				void onError([' errMsg=' + e.message]);
-				resolve(ReturnResult.error());
-			});
-			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			phpstan.on('exit', async () => {
-				// On exit
-				if (this._cancelled) {
-					resolve(ReturnResult.canceled());
-					return;
-				}
-
-				if (await getFilteredErr()) {
-					await onError();
+		return await new Promise<ReturnResult<PHPStanCheckResult>>(
+			(resolve) => {
+				phpstan.on('error', (e) => {
+					void onError([' errMsg=' + e.message]);
 					resolve(ReturnResult.error());
-					return;
-				}
+				});
+				// eslint-disable-next-line @typescript-eslint/no-misused-promises
+				phpstan.on('exit', async () => {
+					// On exit
+					if (this._cancelled) {
+						resolve(ReturnResult.canceled());
+						return;
+					}
 
-				void log(
-					this._config.connection,
-					checkPrefix(check),
-					'PHPStan process exited succesfully'
-				);
-
-				// Check for warning
-				if (getData().includes('Allowed memory size of')) {
-					showError(
-						this._config.connection,
-						'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
-						[
-							{
-								title: 'Go to option',
-								callback: () => {
-									void executeCommand(
-										this._config.connection,
-										'workbench.actin.openSettings',
-										`@ext:${EXTENSION_ID} memoryLimit`
-									);
+					// Check for warning
+					if (getErr().includes('Allowed memory size of')) {
+						showError(
+							this._config.connection,
+							'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
+							[
+								{
+									title: 'Go to option',
+									callback: () => {
+										void executeCommand(
+											this._config.connection,
+											'workbench.actin.openSettings',
+											`@ext:${EXTENSION_ID} memoryLimit`
+										);
+									},
 								},
-							},
-						]
+							]
+						);
+						resolve(ReturnResult.error());
+						return;
+					}
+
+					if (await getFilteredErr()) {
+						await onError();
+						resolve(ReturnResult.error());
+						return;
+					}
+
+					void log(
+						this._config.connection,
+						checkPrefix(check),
+						'PHPStan process exited succesfully'
 					);
-					resolve(ReturnResult.error());
-					return;
-				}
 
-				if (doc) {
-					await this._config.hooks.provider.onCheckDone(doc.uri);
-				}
+					await this._config.hooks.provider.onCheckDone();
 
-				resolve(ReturnResult.success(getData()));
-			});
-		});
+					resolve(
+						ReturnResult.success(
+							JSON.parse(getData()) as PHPStanCheckResult
+						)
+					);
+				});
+			}
+		);
 	}
 
 	private async _checkProject(
 		check: PHPStanCheck,
 		onProgress: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+	): Promise<ReturnResult<ReportedErrors>> {
 		// Get config
 		const config = await this._configManager.collectConfiguration();
 		if (!config) {
@@ -357,13 +331,10 @@ export class PHPStanRunner implements Disposable {
 		);
 
 		// Get args
-		const args = await this._getArgs(config, {
-			progress: true,
-		});
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		const result = await this._getProcessOutput(config, check, args, {
+		const result = await this._getProcessOutput(config, check, {
 			onProgress,
 		});
 
@@ -371,14 +342,17 @@ export class PHPStanRunner implements Disposable {
 			const parsed = new OutputParser(output).parse();
 
 			// Turn raw fs paths into URIs
-			const normalized: Record<string, PHPStanError[]> = {};
-			for (const filePath in parsed) {
-				normalized[
+			const normalized: ReportedErrors = {
+				fileSpecificErrors: {},
+				notFileSpecificErrors: parsed.notFileSpecificErrors,
+			};
+			for (const filePath in parsed.fileSpecificErrors) {
+				normalized.fileSpecificErrors[
 					URI.from({
 						scheme: 'file',
 						path: pathMapper(filePath, true),
 					}).toString()
-				] = parsed[filePath];
+				] = parsed.fileSpecificErrors[filePath];
 			}
 			return normalized;
 		});
@@ -387,7 +361,7 @@ export class PHPStanRunner implements Disposable {
 	public async checkProject(
 		check: PHPStanCheck,
 		onProgress: ProgressListener
-	): Promise<ReturnResult<Record<string, PHPStanError[]>>> {
+	): Promise<ReturnResult<ReportedErrors>> {
 		const errors = await this._checkProject(check, onProgress);
 		this.dispose();
 		return errors;

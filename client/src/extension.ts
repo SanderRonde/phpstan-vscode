@@ -15,11 +15,12 @@ import type {
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { getConfiguration, registerConfigListeners } from './lib/config';
-import { readyNotification } from './lib/notificationChannels';
 import { DocumentManager } from './lib/documentManager';
+import { initRequest } from './lib/requestChannels';
 import { registerListeners } from './lib/commands';
 import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
+import { PHPStanProManager } from './lib/pro';
 import { StatusBar } from './lib/statusBar';
 import { ProcessSpawner } from './lib/proc';
 import { window, workspace } from 'vscode';
@@ -84,15 +85,23 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const watcher = new DocumentManager(client);
 	const errorManager = new ErrorManager(client);
 	const procSpawner = new ProcessSpawner(client, context);
+	const proManager = new PHPStanProManager(client);
 
-	registerListeners(context, client, errorManager);
+	registerListeners(context, client, errorManager, proManager);
 	registerConfigListeners();
 	registerLogMessager(context, client);
-	context.subscriptions.push(statusBar, watcher, errorManager, procSpawner);
+	context.subscriptions.push(
+		statusBar,
+		watcher,
+		errorManager,
+		procSpawner,
+		proManager
+	);
 
 	let wasReady = false;
+	const startedAt = Date.now();
 	context.subscriptions.push(
-		client.onNotification(readyNotification, ({ ready }) => {
+		client.onRequest(initRequest, ({ ready }) => {
 			if (ready) {
 				if (!wasReady) {
 					// First time it's ready, start watching
@@ -107,6 +116,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
 				}
 				wasReady = true;
 			}
+
+			return Promise.resolve({
+				extensionPath: context.extensionUri.toString(),
+				startedAt: startedAt,
+			});
 		})
 	);
 	log(CLIENT_PREFIX, 'Initializing done');

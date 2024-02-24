@@ -1,51 +1,34 @@
-import type { PHPStanError } from '../../../../shared/notificationChannels';
-import { normalizePath } from '../../../../shared/util';
+import type { PHPStanCheckResult } from './runner';
 
 export class OutputParser {
-	public constructor(private readonly _output: string) {}
+	public constructor(private readonly _output: PHPStanCheckResult) {}
 
-	private _toLines(): {
-		file: string;
-		lineNumber: number;
-		message: string;
-	}[] {
-		return this._output
-			.split('\n')
-			.map((l) => l.trim())
-			.filter((l) => l.length > 0)
-			.map((line) => {
-				// Parse
-				const match = /^(.*):(\d+):(.*)$/.exec(line);
-				if (!match) {
-					return null;
-				}
-
-				const [, file, lineNumber, message] = match;
-				return {
-					file: normalizePath(file),
-					lineNumber: parseInt(lineNumber, 10),
-					message,
-				};
-			})
-			.filter(
-				(
-					result
-				): result is {
-					file: string;
-					lineNumber: number;
-					message: string;
-				} => result !== null
-			);
-	}
-
-	public parse(): Record<string, PHPStanError[]> {
-		const lines = this._toLines();
-		const errors: Record<string, PHPStanError[]> = {};
-		for (const error of lines) {
-			errors[error.file] ??= [];
-			errors[error.file].push(error);
+	public parse(): ReportedErrors {
+		const notFileSpecificErrors: string[] = this._output.errors;
+		const fileSpecificErrors: ReportedErrors['fileSpecificErrors'] = {};
+		for (const filePath in this._output.files) {
+			fileSpecificErrors[filePath] = this._output.files[
+				filePath
+			].messages.map((message) => ({
+				message: message.message,
+				lineNumber: message.line,
+			}));
 		}
 
-		return errors;
+		return {
+			fileSpecificErrors,
+			notFileSpecificErrors,
+		};
 	}
+}
+
+export interface ReportedErrors {
+	fileSpecificErrors: Record<
+		string,
+		{
+			message: string;
+			lineNumber: number;
+		}[]
+	>;
+	notFileSpecificErrors: string[];
 }

@@ -31,7 +31,7 @@ export function createHoverProvider(
 		}
 
 		// Look for it
-		for (const type of fileReport.varValues ?? []) {
+		for (const type of fileReport ?? []) {
 			if (
 				type.pos.start.line === hoverParams.position.line &&
 				type.pos.start.char < hoverParams.position.character &&
@@ -43,9 +43,7 @@ export function createHoverProvider(
 					'Found hover type'
 				);
 				return {
-					contents: [
-						`PHPStan: \`${type.typeDescription} $${type.name}\``,
-					],
+					contents: [`PHPStan: \`${type.typeDescr} $${type.name}\``],
 				};
 			}
 		}

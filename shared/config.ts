@@ -10,7 +10,6 @@ export const CONFIG_KEYS = [
 	'enableStatusBar',
 	'memoryLimit',
 	'enabled',
-	'timeout',
 	'projectTimeout',
 	'suppressTimeoutMessage',
 	'paths',
@@ -18,6 +17,8 @@ export const CONFIG_KEYS = [
 	'enableLanguageServer',
 	'ignoreErrors',
 	'suppressWorkspaceMessage',
+	'pro',
+	'proTmpDir',
 ] as const;
 // Ideally we'd use `satisifies` here but the tooling (prettier & eslint) don't seem to support it yet.
 const __typeCheck: readonly (keyof ConfigSettingsWithoutPrefix)[] = CONFIG_KEYS;
