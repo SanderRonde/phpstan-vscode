@@ -62,7 +62,6 @@ export class ProcessSpawner implements Disposable {
 			if (Date.now() > timeout) {
 				const pidNum = parseInt(pid, 10);
 				killed.push(pidNum);
-				console.log('killing', pid, 'because', timeout, 'is over');
 				void this._killProc(pidNum);
 			}
 		});
