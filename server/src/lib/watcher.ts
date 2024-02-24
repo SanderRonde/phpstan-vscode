@@ -2,7 +2,7 @@ import type { WatcherNotificationFileData } from '../../../shared/notificationCh
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import type { PHPStanCheckManager } from './phpstan/manager';
 import type { PartialDocument } from './phpstan/runner';
-import type { WorkspaceFolderGetter } from '../server';
+import type { WorkspaceFoldersGetter } from '../server';
 import { getConfiguration } from './config';
 import { log, WATCHER_PREFIX } from './log';
 
@@ -10,7 +10,7 @@ export class Watcher implements Disposable {
 	private _disposables: Disposable[] = [];
 	private readonly _connection: _Connection;
 	private readonly _phpstan: PHPStanCheckManager;
-	private readonly _getWorkspaceFolder: WorkspaceFolderGetter;
+	private readonly _getWorkspaceFolders: WorkspaceFoldersGetter;
 	private readonly _onConnectionInitialized: Promise<void>;
 
 	private get _enabled(): Promise<boolean> {
@@ -19,7 +19,7 @@ export class Watcher implements Disposable {
 				await this._onConnectionInitialized;
 				const config = await getConfiguration(
 					this._connection,
-					this._getWorkspaceFolder
+					this._getWorkspaceFolders
 				);
 				resolve(config.enabled);
 			})();
@@ -30,16 +30,16 @@ export class Watcher implements Disposable {
 		connection,
 		phpstan: checkManager,
 		onConnectionInitialized,
-		getWorkspaceFolder,
+		getWorkspaceFolders,
 	}: {
 		connection: _Connection;
 		phpstan: PHPStanCheckManager;
 		onConnectionInitialized: Promise<void>;
-		getWorkspaceFolder: WorkspaceFolderGetter;
+		getWorkspaceFolders: WorkspaceFoldersGetter;
 	}) {
 		this._connection = connection;
 		this._phpstan = checkManager;
-		this._getWorkspaceFolder = getWorkspaceFolder;
+		this._getWorkspaceFolders = getWorkspaceFolders;
 		this._onConnectionInitialized = onConnectionInitialized;
 	}
 

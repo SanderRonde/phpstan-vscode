@@ -29,7 +29,7 @@
 	"contributes": {
 		"configuration": {
 			"type": "object",
-			"title": "Extension Configuration",
+			"title": "PHPStan",
 			"properties": {
 				"phpstan.binPath": {
 					"type": "string",

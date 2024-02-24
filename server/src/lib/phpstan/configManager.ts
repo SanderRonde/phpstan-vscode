@@ -38,7 +38,7 @@ export class ConfigurationManager {
 			(
 				await getConfiguration(
 					config.connection,
-					config.getWorkspaceFolder
+					config.getWorkspaceFolders
 				)
 			).paths ?? {};
 
@@ -92,7 +92,7 @@ export class ConfigurationManager {
 	private async _getConfigFile(cwd: string): Promise<string | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.getWorkspaceFolders
 		);
 		const absoluteConfigPaths = extensionConfig.configFile
 			? extensionConfig.configFile
@@ -121,14 +121,14 @@ export class ConfigurationManager {
 	}
 
 	public async getCwd(): Promise<string | null> {
-		const workspaceRoot = this._config.getWorkspaceFolder();
+		const workspaceRoot = this._config.getWorkspaceFolders()?.default;
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.getWorkspaceFolders
 		);
 		const cwd =
 			this._getAbsolutePath(
-				extensionConfig.rootDir,
+				replaceVariables(extensionConfig.rootDir, this._config),
 				workspaceRoot?.fsPath ?? undefined
 			) || workspaceRoot?.fsPath;
 
@@ -158,10 +158,10 @@ export class ConfigurationManager {
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.getWorkspaceFolders
 		);
 		const defaultBinPath = this._getAbsolutePath(
-			extensionConfig.binPath,
+			replaceVariables(extensionConfig.binPath, this._config),
 			cwd
 		);
 		const binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
@@ -210,7 +210,7 @@ export class ConfigurationManager {
 		// Settings
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.getWorkspaceFolders
 		);
 
 		const cwd = await this.getCwd();

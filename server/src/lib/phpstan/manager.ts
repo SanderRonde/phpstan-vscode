@@ -1,5 +1,5 @@
 import type { PHPStanError } from '../../../../shared/notificationChannels';
-import type { PHPStanVersion, WorkspaceFolderGetter } from '../../server';
+import type { PHPStanVersion, WorkspaceFoldersGetter } from '../../server';
 import { createPromise, withTimeout } from '../../../../shared/util';
 import type { ProviderCheckHooks } from '../../providers/shared';
 import type { PromiseObject } from '../../../../shared/util';
@@ -22,7 +22,7 @@ import type { ProcessSpawner } from '../proc';
 export interface ClassConfig {
 	statusBar: StatusBar;
 	connection: _Connection;
-	getWorkspaceFolder: WorkspaceFolderGetter;
+	getWorkspaceFolders: WorkspaceFoldersGetter;
 	documents: DocumentManager;
 	hooks: {
 		provider: ProviderCheckHooks;
@@ -47,7 +47,7 @@ export class PHPStanCheckManager implements Disposable {
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.getWorkspaceFolders
 		);
 		if (!config.suppressTimeoutMessage) {
 			showError(
@@ -131,7 +131,7 @@ export class PHPStanCheckManager implements Disposable {
 		// Do check
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolder
+			this._config.getWorkspaceFolders
 		);
 		const runningCheck = withTimeout<
 			ReturnResult<Record<string, PHPStanError[]>>,
@@ -205,7 +205,7 @@ export class PHPStanCheckManager implements Disposable {
 
 		const fileFsPath = URI.parse(e.uri).fsPath;
 		const filePath = path.relative(
-			this._config.getWorkspaceFolder()!.fsPath,
+			this._config.getWorkspaceFolders()!.default.fsPath,
 			fileFsPath
 		);
 		const check = this._checkShared('file', applyErrors, e.uri, filePath);

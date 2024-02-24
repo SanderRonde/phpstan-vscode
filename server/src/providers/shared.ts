@@ -8,7 +8,7 @@ import {
 } from '../../../shared/constants';
 import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
-import type { PHPStanVersion, WorkspaceFolderGetter } from '../server';
+import type { PHPStanVersion, WorkspaceFoldersGetter } from '../server';
 import type { PHPStanCheckManager } from '../lib/phpstan/manager';
 import type { CheckConfig } from '../lib/phpstan/configManager';
 import { providerEnabled } from '../lib/providerUtil';
@@ -42,7 +42,7 @@ export interface ProviderArgs {
 	connection: _Connection;
 	hooks: ProviderCheckHooks;
 	phpstan: PHPStanCheckManager;
-	getWorkspaceFolder: WorkspaceFolderGetter;
+	getWorkspaceFolders: WorkspaceFoldersGetter;
 	onConnectionInitialized: Promise<void>;
 }
 
@@ -55,7 +55,7 @@ export async function getFileReport(
 		return null;
 	}
 
-	const workspaceFolder = providerArgs.getWorkspaceFolder();
+	const workspaceFolder = providerArgs.getWorkspaceFolders()?.default;
 	if (
 		!workspaceFolder ||
 		(!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested)
@@ -106,7 +106,7 @@ export class ProviderCheckHooks {
 			return (
 				await getConfiguration(
 					this._connection,
-					this._getWorkspaceFolder
+					this._getWorkspaceFolders
 				)
 			).enableLanguageServer;
 		})();
@@ -115,7 +115,7 @@ export class ProviderCheckHooks {
 	public constructor(
 		private readonly _connection: _Connection,
 		private readonly _getVersion: () => PHPStanVersion | null,
-		private readonly _getWorkspaceFolder: WorkspaceFolderGetter
+		private readonly _getWorkspaceFolders: WorkspaceFoldersGetter
 	) {}
 
 	private async _getFileReport(uri: string): Promise<FileReport | null> {

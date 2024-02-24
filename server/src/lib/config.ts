@@ -1,12 +1,12 @@
 import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
 import type { Disposable, _Connection } from 'vscode-languageserver';
-import type { WorkspaceFolderGetter } from '../server';
+import type { WorkspaceFoldersGetter } from '../server';
 
 export function getConfiguration(
 	connection: _Connection,
-	getWorkspaceFolder: WorkspaceFolderGetter
+	getWorkspaceFolders: WorkspaceFoldersGetter
 ): Promise<ConfigSettingsWithoutPrefix> {
-	const scope = getWorkspaceFolder()?.toString();
+	const scope = getWorkspaceFolders()?.default.toString();
 
 	return connection.workspace.getConfiguration({
 		scopeUri: scope,
@@ -18,16 +18,18 @@ export function onChangeConfiguration<
 	K extends keyof ConfigSettingsWithoutPrefix
 >(
 	connection: _Connection,
-	getWorkspaceFolder: WorkspaceFolderGetter,
+	getWorkspaceFolders: WorkspaceFoldersGetter,
 	key: K,
 	handler: (value: ConfigSettingsWithoutPrefix[K]) => void
 ): Disposable {
-	void getConfiguration(connection, getWorkspaceFolder).then((config) => {
+	void getConfiguration(connection, getWorkspaceFolders).then((config) => {
 		handler(config[key]);
 	});
 	return connection.onDidChangeConfiguration(() => {
-		void getConfiguration(connection, getWorkspaceFolder).then((config) => {
-			handler(config[key]);
-		});
+		void getConfiguration(connection, getWorkspaceFolders).then(
+			(config) => {
+				handler(config[key]);
+			}
+		);
 	});
 }

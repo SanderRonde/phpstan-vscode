@@ -16,12 +16,16 @@ import type { Disposable } from 'vscode-languageserver/node';
 import { ProviderCheckHooks } from './providers/shared';
 import type { ProviderArgs } from './providers/shared';
 import { SPAWN_ARGS } from '../../shared/constants';
+import { replaceVariables } from './lib/variables';
 import { log, SERVER_PREFIX } from './lib/log';
 import { ProcessSpawner } from './lib/proc';
 import { spawn } from 'child_process';
 import { URI } from 'vscode-uri';
 
-export type WorkspaceFolderGetter = () => URI | null;
+export type WorkspaceFoldersGetter = () => {
+	[name: string]: URI | undefined;
+	default: URI;
+} | null;
 export type PHPStanVersion = '1.*' | '2.*';
 
 async function main(): Promise<void> {
@@ -37,15 +41,28 @@ async function main(): Promise<void> {
 		});
 	});
 
-	// The workspace folder this server is operating on
-	let workspaceFolder: URI | null;
-	const getWorkspaceFolder = (): URI | null => workspaceFolder;
+	// The workspace folders this server is operating on
+	let workspaceFolders: {
+		[name: string]: URI | undefined;
+		default: URI;
+	} | null;
+	const getWorkspaceFolders = (): {
+		[name: string]: URI | undefined;
+		default: URI;
+	} | null => workspaceFolders;
 	let version: PHPStanVersion | null = null;
 	const getVersion = (): PHPStanVersion | null => version;
 
 	connection.onInitialize((params) => {
 		const uri = params.workspaceFolders?.[0].uri;
-		workspaceFolder = uri ? URI.parse(uri) : null;
+		if (uri) {
+			workspaceFolders = {
+				default: URI.parse(uri),
+			};
+			for (const folder of params.workspaceFolders ?? []) {
+				workspaceFolders[folder.name] = URI.parse(folder.uri);
+			}
+		}
 		return {
 			capabilities: {
 				textDocumentSync: {
@@ -62,14 +79,14 @@ async function main(): Promise<void> {
 	const providerHooks = new ProviderCheckHooks(
 		connection,
 		getVersion,
-		getWorkspaceFolder
+		getWorkspaceFolders
 	);
 	const { phpstan, classConfig } = createDiagnosticsProvider(
 		connection,
 		onConnectionInitialized,
 		providerHooks,
 		disposables,
-		getWorkspaceFolder,
+		getWorkspaceFolders,
 		procSpawner,
 		getVersion
 	);
@@ -77,7 +94,7 @@ async function main(): Promise<void> {
 		connection,
 		hooks: providerHooks,
 		phpstan,
-		getWorkspaceFolder,
+		getWorkspaceFolders,
 		onConnectionInitialized,
 	};
 	connection.onHover(createHoverProvider(providerArgs));
@@ -96,10 +113,14 @@ async function main(): Promise<void> {
 		const binConfig = await configManager.getBinConfig(cwd);
 		const binPath = binConfig?.binCmd ?? binConfig?.binPath;
 		if (binPath) {
-			const proc = spawn(binPath, ['--version'], {
-				...SPAWN_ARGS,
-				cwd: cwd,
-			});
+			const proc = spawn(
+				replaceVariables(binPath, classConfig),
+				['--version'],
+				{
+					...SPAWN_ARGS,
+					cwd: cwd,
+				}
+			);
 
 			let data = '';
 			proc.stdout.on('data', (chunk) => {
