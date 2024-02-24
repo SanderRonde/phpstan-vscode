@@ -10,7 +10,6 @@ import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from './configManager';
 import { Disposable } from 'vscode-languageserver';
 import type { CheckConfig } from './configManager';
-import { replaceVariables } from '../variables';
 import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
 import type { ClassConfig } from './manager';
@@ -120,9 +119,7 @@ export class PHPStanRunner implements Disposable {
 	): Promise<ChildProcessWithoutNullStreams> {
 		const binStr = config.binCmd
 			? config.binCmd
-			: this._escapeFilePath(
-					replaceVariables(config.binPath!, this._config)
-			  );
+			: this._escapeFilePath(config.binPath!);
 		await log(
 			this._config.connection,
 			checkPrefix(check),

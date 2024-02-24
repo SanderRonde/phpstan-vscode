@@ -1,4 +1,3 @@
-import { replaceVariables } from '../variables';
 import { showErrorOnce } from '../errorUtil';
 import { getConfiguration } from '../config';
 import type { ClassConfig } from './manager';
@@ -128,7 +127,7 @@ export class ConfigurationManager {
 		);
 		const cwd =
 			this._getAbsolutePath(
-				replaceVariables(extensionConfig.rootDir, this._config),
+				extensionConfig.rootDir,
 				workspaceRoot?.fsPath ?? undefined
 			) || workspaceRoot?.fsPath;
 
@@ -161,7 +160,7 @@ export class ConfigurationManager {
 			this._config.getWorkspaceFolders
 		);
 		const defaultBinPath = this._getAbsolutePath(
-			replaceVariables(extensionConfig.binPath, this._config),
+			extensionConfig.binPath,
 			cwd
 		);
 		const binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
@@ -235,9 +234,7 @@ export class ConfigurationManager {
 						configFile
 				  )
 				: null,
-			args: (extensionConfig.options ?? []).map((arg) =>
-				replaceVariables(arg, this._config)
-			),
+			args: extensionConfig.options ?? [],
 			memoryLimit: extensionConfig.memoryLimit,
 			...binConfig,
 		};
