@@ -137,7 +137,8 @@ export const config = {
 	'phpstan.showProgress': {
 		jsonDefinition: {
 			type: 'boolean',
-			description: 'Show the progress bar when performing a single-file check',
+			description:
+				'Show the progress bar when performing a single-file check',
 			default: false,
 		},
 	},
@@ -145,8 +146,8 @@ export const config = {
 		jsonDefinition: {
 			type: 'boolean',
 			description:
-				'Enable language server that provides on-hover information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
-			default: true,
+				'Enable language server that provides on-hover type information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker). Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
+			default: false,
 		},
 	},
 	'phpstan.ignoreErrors': {
