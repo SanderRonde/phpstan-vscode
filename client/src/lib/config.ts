@@ -1,5 +1,6 @@
 // eslint-disable-next-line node/no-extraneous-import
 import type { TypedWorkspaceConfiguration } from 'vscode-generate-package-json';
+
 import type { ConfigSettings } from '../../../shared/config';
 import { CONFIG_KEYS } from '../../../shared/config';
 import { window, workspace } from 'vscode';
@@ -36,6 +37,15 @@ export function registerConfigListeners(): void {
 					'On-hover type information is disabled when the paths setting is being used'
 				);
 			}
+		} else if (
+			e.affectsConfiguration('phpstan.pro') ||
+			e.affectsConfiguration('phpstan.proTmpDir') ||
+			(e.affectsConfiguration('phpstan.enabled') &&
+				getConfiguration().get('phpstan.pro'))
+		) {
+			await window.showInformationMessage(
+				'Please reload your editor for changes to the PHPStan Pro configuration to take effect'
+			);
 		}
 	});
 }

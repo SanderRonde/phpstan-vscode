@@ -1,6 +1,7 @@
 import type { StatusBarProgress } from '../../../shared/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { statusBarNotification } from './notificationChannels';
+import type { Commands } from '../../../shared/commands/defs';
 import { OperationStatus } from '../../../shared/statusBar';
 import { assertUnreachable } from '../../../shared/util';
 import { log, STATUS_BAR_PREFIX } from './log';
@@ -11,16 +12,40 @@ import * as vscode from 'vscode';
 export class StatusBar implements Disposable {
 	private readonly _opTracker: OperationTracker;
 	private readonly _textManager = new TextManager();
+	private _fallback:
+		| {
+				text: string;
+				command?: Commands;
+		  }
+		| undefined = undefined;
 	private _hideTimeout: NodeJS.Timer | undefined;
 
 	public constructor(
 		context: vscode.ExtensionContext,
 		client: LanguageClient
 	) {
+		const operationWrapper = <
+			T extends (...args: A) => R,
+			A extends unknown[],
+			R
+		>(
+			fn: T
+		) => {
+			return (...args: A): void => {
+				if (!getConfiguration().get('phpstan.enableStatusBar')) {
+					return;
+				}
+				fn(...args);
+			};
+		};
 		this._opTracker = new OperationTracker(
-			() => this._showStatusBar(),
-			(lastResult: OperationStatus) => this._hideStatusBar(lastResult),
-			(tooltips: string[]) => this._textManager.setTooltips(tooltips)
+			operationWrapper(() => this._showStatusBar()),
+			operationWrapper((lastResult: OperationStatus) =>
+				this._completeWithResult(lastResult)
+			),
+			operationWrapper((tooltips: string[]) =>
+				this._textManager.setTooltips(tooltips)
+			)
 		);
 		context.subscriptions.push(
 			client.onNotification(statusBarNotification, (params) => {
@@ -34,6 +59,20 @@ export class StatusBar implements Disposable {
 						break;
 					case 'done':
 						this.finishOperation(params.opId, params.result);
+						break;
+					case 'fallback':
+						if (params.text === undefined) {
+							this._fallback = undefined;
+						} else {
+							this._fallback = {
+								text: params.text,
+								command: params.command,
+							};
+						}
+						if (!this._opTracker.runningOperationCount) {
+							this._fallbackOrHide();
+						}
+						break;
 				}
 			})
 		);
@@ -49,30 +88,52 @@ export class StatusBar implements Disposable {
 			clearInterval(this._hideTimeout);
 		}
 		this._textManager.setText(
-			`PHPStan checking.. ${TextManager.LOADING_SPIN}`
+			`PHPStan checking... ${TextManager.LOADING_SPIN}`
 		);
 		this._textManager.show();
 	}
 
-	private _hideStatusBar(lastResult: OperationStatus): void {
+	private _fallbackOrHide(): void {
+		if (!this._fallback) {
+			this._textManager.hide();
+			return;
+		}
+
+		this._textManager.setText(this._fallback.text, this._fallback.command);
+		this._textManager.show();
+	}
+
+	private _completeWithResult(lastResult: OperationStatus): void {
 		log(
 			STATUS_BAR_PREFIX,
 			'Hiding status bar, last operation result =',
 			lastResult
 		);
 		if (lastResult === OperationStatus.KILLED) {
-			this._textManager.setText('PHPStan process killed (timeout)');
+			this._textManager.setText(
+				'PHPStan process killed (timeout)',
+				this._fallback?.command
+			);
 		} else if (lastResult === OperationStatus.SUCCESS) {
-			this._textManager.setText('PHPStan checking done');
+			this._textManager.setText(
+				'PHPStan checking done',
+				this._fallback?.command
+			);
 		} else if (lastResult === OperationStatus.ERROR) {
-			this._textManager.setText('PHPStan checking errored (see log)');
+			this._textManager.setText(
+				'PHPStan checking errored (see log)',
+				this._fallback?.command
+			);
 		} else if (lastResult !== OperationStatus.CANCELED) {
 			assertUnreachable(lastResult);
 		}
-		this._textManager.setText('PHPStan checking done');
+		this._textManager.setText(
+			'PHPStan checking done',
+			this._fallback?.command
+		);
 		this._hideTimeout = setTimeout(
 			() => {
-				this._textManager.hide();
+				this._fallbackOrHide();
 			},
 			lastResult === OperationStatus.ERROR ? 2000 : 500
 		);
@@ -88,7 +149,8 @@ export class StatusBar implements Disposable {
 
 	private operationProgress(progress: StatusBarProgress): void {
 		this._textManager.setText(
-			`PHPStan checking project ${progress.done}/${progress.total} - ${progress.percentage}% ${TextManager.LOADING_SPIN}`
+			`PHPStan checking project ${progress.done}/${progress.total} - ${progress.percentage}% ${TextManager.LOADING_SPIN}`,
+			this._fallback?.command
 		);
 		this._textManager.show();
 	}
@@ -107,6 +169,7 @@ export class StatusBar implements Disposable {
 
 	public dispose(): void {
 		this._opTracker.dispose();
+		this._fallback = undefined;
 		this._textManager.dispose();
 	}
 }
@@ -122,6 +185,16 @@ class OperationTracker implements Disposable {
 
 	private get _tooltip(): string[] {
 		return [...this._runningOperations.values()].map((o) => o.tooltip);
+	}
+
+	public get runningOperationCount(): number {
+		for (const operationId of this._runningOperations.keys()) {
+			if (this._runningOperations.get(operationId)!.promise.done) {
+				this._runningOperations.delete(operationId);
+			}
+		}
+
+		return this._runningOperations.size;
 	}
 
 	public constructor(
@@ -219,7 +292,13 @@ class TextManager implements Disposable {
 		}
 	}
 
-	public setText(text: string): void {
+	public setText(text: string, command?: Commands): void {
+		if (command) {
+			this._statusBar.command = command;
+		} else {
+			this._statusBar.command = undefined;
+		}
+
 		if (this._statusBar.text === text) {
 			// Bug-like thing where we need to set the text explicitly even though
 			// it was already set to this

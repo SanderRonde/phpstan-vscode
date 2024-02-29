@@ -7,13 +7,15 @@ import { commands, Commands } from '../../../shared/commands/defs';
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ErrorManager } from './errorManager';
+import type { PHPStanProManager } from './pro';
 import { showError } from './errorUtil';
 import * as vscode from 'vscode';
 
 export function registerListeners(
 	context: vscode.ExtensionContext,
 	client: LanguageClient,
-	errorManager: ErrorManager
+	errorManager: ErrorManager,
+	phpstanProManager: PHPStanProManager
 ): void {
 	context.subscriptions.push(
 		autoRegisterCommand(
@@ -42,6 +44,26 @@ export function registerListeners(
 			Commands.PREVIOUS_ERROR,
 			() => {
 				return errorManager.jumpToError('prev');
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.OPEN_PHPSTAN_PRO,
+			() => {
+				if (!phpstanProManager.port) {
+					void vscode.window.showErrorMessage(
+						'PHPStan Pro is not running'
+					);
+					return;
+				}
+				void vscode.env.openExternal(
+					vscode.Uri.parse(
+						`http://127.0.0.1:${phpstanProManager.port}`
+					)
+				);
 			},
 			commands
 		)

@@ -1,3 +1,4 @@
+import type { Disposable } from 'vscode-languageserver';
 import { showErrorOnce } from '../errorUtil';
 import { getConfiguration } from '../config';
 import type { ClassConfig } from './manager';
@@ -11,13 +12,15 @@ export interface CheckConfig {
 	configFile: string | null;
 	remoteConfigFile: string | null;
 	binCmd: string | null;
+	binStr: string;
 	binPath: string | null;
 	initialArgs: string[];
 	args: string[];
 	memoryLimit: string;
 }
 
-export class ConfigurationManager {
+export class ConfigurationManager implements Disposable {
+	private _disposables: Disposable[] = [];
 	private __config: CheckConfig | null = null;
 
 	public constructor(private readonly _config: ClassConfig) {}
@@ -30,16 +33,22 @@ export class ConfigurationManager {
 		return pathMapper(filePath);
 	}
 
+	public static escapeFilePath(filePath: string): string {
+		if (os.platform() !== 'win32') {
+			return filePath;
+		}
+		if (filePath.indexOf(' ') !== -1) {
+			filePath = '"' + filePath + '"';
+		}
+		return filePath;
+	}
+
 	public static async getPathMapper(
 		config: ClassConfig
 	): Promise<(filePath: string, inverse?: boolean) => string> {
 		const pathMapping =
-			(
-				await getConfiguration(
-					config.connection,
-					config.getWorkspaceFolders
-				)
-			).paths ?? {};
+			(await getConfiguration(config.connection, config.workspaceFolders))
+				.paths ?? {};
 
 		return (filePath: string, inverse: boolean = false) => {
 			if (Object.keys(pathMapping).length === 0) {
@@ -91,7 +100,7 @@ export class ConfigurationManager {
 	private async _getConfigFile(cwd: string): Promise<string | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolders
+			this._config.workspaceFolders
 		);
 		const absoluteConfigPaths = extensionConfig.configFile
 			? extensionConfig.configFile
@@ -120,10 +129,11 @@ export class ConfigurationManager {
 	}
 
 	public async getCwd(): Promise<string | null> {
-		const workspaceRoot = this._config.getWorkspaceFolders()?.default;
+		const workspaceRoot = (await this._config.workspaceFolders.get())
+			?.default;
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolders
+			this._config.workspaceFolders
 		);
 		const cwd =
 			this._getAbsolutePath(
@@ -157,7 +167,7 @@ export class ConfigurationManager {
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolders
+			this._config.workspaceFolders
 		);
 		const defaultBinPath = this._getAbsolutePath(
 			extensionConfig.binPath,
@@ -209,7 +219,7 @@ export class ConfigurationManager {
 		// Settings
 		const extensionConfig = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolders
+			this._config.workspaceFolders
 		);
 
 		const cwd = await this.getCwd();
@@ -236,9 +246,50 @@ export class ConfigurationManager {
 				: null,
 			args: extensionConfig.options ?? [],
 			memoryLimit: extensionConfig.memoryLimit,
+			binStr: binConfig.binCmd
+				? binConfig.binCmd
+				: ConfigurationManager.escapeFilePath(binConfig.binPath!),
 			...binConfig,
 		};
 		this.__config = config;
 		return config;
+	}
+
+	public async getArgs(
+		config: CheckConfig,
+		progress: boolean = true
+	): Promise<string[]> {
+		const args = [...config.initialArgs, 'analyse'];
+		if (config.remoteConfigFile) {
+			args.push(
+				...[
+					'-c',
+					ConfigurationManager.escapeFilePath(
+						config.remoteConfigFile
+					),
+				]
+			);
+		} else if (config.configFile) {
+			args.push('-c', config.configFile);
+		}
+
+		args.push(
+			'--error-format=json',
+			'--no-interaction',
+			`--memory-limit=${config.memoryLimit}`
+		);
+		if (!progress) {
+			args.push('--no-progress');
+		}
+		args.push(...config.args);
+		return await this._config.hooks.provider.transformArgs(config, [
+			config.binStr,
+			...args,
+		]);
+	}
+
+	public dispose(): void {
+		this._disposables.forEach((d) => void d.dispose());
+		this._disposables = [];
 	}
 }

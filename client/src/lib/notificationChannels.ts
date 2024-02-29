@@ -2,8 +2,8 @@ import type {
 	CommandNotificationType,
 	ErrorNotificationType,
 	LogNotificationType,
+	PHPStanProNotificationType,
 	ProcessNotificationType,
-	ReadyNotificationType,
 	StatusBarNotificationType,
 	WatcherNotificationType,
 } from '../../../shared/notificationChannels';
@@ -25,13 +25,14 @@ export const statusBarNotification =
 		NotificationChannel.STATUS_BAR
 	);
 
-export const readyNotification = new NotificationType<ReadyNotificationType>(
-	NotificationChannel.READY
-);
-
 export const errorNotification = new NotificationType<ErrorNotificationType>(
 	NotificationChannel.ERROR
 );
 
 export const processNotification =
 	new NotificationType<ProcessNotificationType>(NotificationChannel.SPAWNER);
+
+export const phpstanProNotification =
+	new NotificationType<PHPStanProNotificationType>(
+		NotificationChannel.PHPSTAN_PRO
+	);

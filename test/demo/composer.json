@@ -1,7 +1,7 @@
 {
 	"name": "sander/demo",
 	"require": {
-		"phpstan/phpstan": "^1.7"
+		"phpstan/phpstan": "^1.8"
 	},
 	"autoload": {
 		"psr-4": {

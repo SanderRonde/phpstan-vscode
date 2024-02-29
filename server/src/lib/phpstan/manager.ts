@@ -1,38 +1,37 @@
-import type { PHPStanError } from '../../../../shared/notificationChannels';
-import type { PHPStanVersion, WorkspaceFoldersGetter } from '../../server';
-import { createPromise, withTimeout } from '../../../../shared/util';
+import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
+import type { PHPStanVersion, WorkspaceFolders } from '../../server';
 import type { ProviderCheckHooks } from '../../providers/shared';
+import { OperationStatus } from '../../../../shared/statusBar';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
+import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import type { _Connection } from 'vscode-languageserver';
 import type { Disposable } from 'vscode-languageserver';
-import type { PartialDocument } from './runner';
+import type { ReportedErrors } from './outputParser';
+import type { PromisedValue } from '../../server';
 import type { StatusBar } from '../statusBar';
+import type { ProcessSpawner } from '../proc';
 import { executeCommand } from '../commands';
 import { getConfiguration } from '../config';
-import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from './result';
 import { PHPStanCheck } from './check';
-import { URI } from 'vscode-uri';
-import path = require('path');
-import { OperationStatus } from '../../../../shared/statusBar';
-import type { ProcessSpawner } from '../proc';
 
 export interface ClassConfig {
 	statusBar: StatusBar;
 	connection: _Connection;
-	getWorkspaceFolders: WorkspaceFoldersGetter;
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>;
 	documents: DocumentManager;
 	hooks: {
 		provider: ProviderCheckHooks;
 	};
 	procSpawner: ProcessSpawner;
-	getVersion: () => PHPStanVersion | null;
+	version: PromisedValue<PHPStanVersion | null>;
 }
 
 interface CheckOperation {
 	check: PHPStanCheck;
+	hashes: Record<string, string>;
 }
 type RecursivePromiseObject = PromiseObject<RecursivePromiseObject> | null;
 
@@ -47,12 +46,12 @@ export class PHPStanCheckManager implements Disposable {
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const config = await getConfiguration(
 			this._config.connection,
-			this._config.getWorkspaceFolders
+			this._config.workspaceFolders
 		);
 		if (!config.suppressTimeoutMessage) {
 			showError(
 				this._config.connection,
-				`PHPStan check timed out after ${config.timeout}ms`,
+				`PHPStan check timed out after ${config.projectTimeout}ms`,
 				[
 					{
 						title: 'Adjust timeout',
@@ -60,9 +59,7 @@ export class PHPStanCheckManager implements Disposable {
 							await executeCommand(
 								this._config.connection,
 								'workbench.action.openSettings',
-								check.checkType === 'project'
-									? 'phpstan.projectCheckTimeout'
-									: 'phpstan.timeout'
+								'phpstan.projectCheckTimeout'
 							);
 						},
 					},
@@ -82,85 +79,30 @@ export class PHPStanCheckManager implements Disposable {
 		void log(
 			this._config.connection,
 			checkPrefix(check),
-			`PHPStan check timed out after ${config.timeout}ms`
+			`PHPStan check timed out after ${config.projectTimeout}ms`
 		);
 	}
 
-	private _toErrorMessageMap(
-		result: ReturnResult<Record<string, PHPStanError[]>>
-	): Record<string, string[]> {
-		const errorMessageMap: Record<string, string[]> = {};
+	private _toErrorMessageMap(result: ReturnResult<ReportedErrors>): {
+		fileSpecificErrors: Record<string, string[]>;
+		notFileSpecificErrors: string[];
+	} {
 		if (result.success()) {
-			for (const uri of Object.keys(result.value)) {
-				errorMessageMap[uri] = result.value[uri].map(
-					(err) => err.message
-				);
+			const fileSpecificErrors: Record<string, string[]> = {};
+			for (const uri in result.value.fileSpecificErrors) {
+				fileSpecificErrors[uri] = result.value.fileSpecificErrors[
+					uri
+				].map((err) => err.message);
 			}
+			return {
+				fileSpecificErrors,
+				notFileSpecificErrors: result.value.notFileSpecificErrors,
+			};
 		}
-		return errorMessageMap;
-	}
-
-	private async _checkShared(
-		checkType: 'file' | 'project',
-		applyErrors: boolean,
-		description: string,
-		descriptionShort: string
-	): Promise<void> {
-		// Prep check
-		const check = new PHPStanCheck(this._config, checkType);
-		void log(
-			this._config.connection,
-			checkPrefix(check),
-			`Check started for ${description}`
-		);
-		this._operation = {
-			check,
+		return {
+			fileSpecificErrors: {},
+			notFileSpecificErrors: [],
 		};
-
-		// Create statusbar operation
-		const operation = this._config.statusBar.createOperation();
-		await operation.start(`Checking ${descriptionShort}`);
-
-		check.onProgress((progress) => {
-			void operation.progress(
-				progress,
-				`Checking ${descriptionShort} - ${progress.done}/${progress.total} (${progress.percentage}%)`
-			);
-		});
-
-		// Do check
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.getWorkspaceFolders
-		);
-		const runningCheck = withTimeout<
-			ReturnResult<Record<string, PHPStanError[]>>,
-			Promise<ReturnResult<Record<string, PHPStanError[]>>>
-		>({
-			promise: check.check(applyErrors),
-			timeout:
-				checkType === 'file' ? config.timeout : config.projectTimeout,
-			onTimeout: async () => {
-				check.dispose();
-				void this._onTimeout(check);
-				await operation.finish(OperationStatus.KILLED);
-
-				return ReturnResult.killed();
-			},
-		});
-		this._disposables.push(runningCheck);
-		const result = await runningCheck.promise;
-
-		// Show result of operation in statusbar
-		await operation.finish(result.status);
-
-		void log(
-			this._config.connection,
-			checkPrefix(check),
-			`Check completed for ${description}`,
-			'errors=',
-			JSON.stringify(this._toErrorMessageMap(result))
-		);
 	}
 
 	private async _getFilePromise(uri: string): Promise<void> {
@@ -189,28 +131,69 @@ export class PHPStanCheckManager implements Disposable {
 		});
 	}
 
-	public async checkFile(
-		e: PartialDocument,
-		applyErrors: boolean
-	): Promise<void> {
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
-			return;
-		}
-
-		// Kill current running checks
-		if (this._operation) {
-			this._operation.check.dispose();
-			this._operation = null;
-		}
-
-		const fileFsPath = URI.parse(e.uri).fsPath;
-		const filePath = path.relative(
-			this._config.getWorkspaceFolders()!.default.fsPath,
-			fileFsPath
+	private async _performCheck(): Promise<void> {
+		// Prep check
+		const check = new PHPStanCheck(this._config);
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			'Check started for project'
 		);
-		const check = this._checkShared('file', applyErrors, e.uri, filePath);
-		await this._withRecursivePromise(e.uri, check);
-		return this._getFilePromise(e.uri);
+
+		const hashes: Record<string, string> = {};
+		const allContents = this._config.documents.getAll();
+
+		for (const uri in allContents) {
+			const content = allContents[uri];
+			hashes[uri] = basicHash(content);
+		}
+		this._operation = {
+			check,
+			hashes,
+		};
+
+		// Create statusbar operation
+		const operation = this._config.statusBar.createOperation();
+		await operation.start('Checking project');
+
+		check.onProgress((progress) => {
+			void operation.progress(
+				progress,
+				`Checking project - ${progress.done}/${progress.total} (${progress.percentage}%)`
+			);
+		});
+
+		// Do check
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.workspaceFolders
+		);
+		const runningCheck = withTimeout<
+			ReturnResult<ReportedErrors>,
+			Promise<ReturnResult<ReportedErrors>>
+		>({
+			promise: check.check(true),
+			timeout: config.projectTimeout,
+			onTimeout: async () => {
+				check.dispose();
+				void this._onTimeout(check);
+				await operation.finish(OperationStatus.KILLED);
+
+				return ReturnResult.killed();
+			},
+		});
+		this._disposables.push(runningCheck);
+		const result = await runningCheck.promise;
+
+		// Show result of operation in statusbar
+		await operation.finish(result.status);
+
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			'Check completed for project, errors=',
+			JSON.stringify(this._toErrorMessageMap(result))
+		);
 	}
 
 	public async checkProject(): Promise<void> {
@@ -221,32 +204,51 @@ export class PHPStanCheckManager implements Disposable {
 			this._operation = null;
 		}
 
-		const check = this._checkShared('project', true, 'Project', 'project');
-		await this._withRecursivePromise(PROJECT_CHECK_STR, check);
+		const invalidFile = this._config.documents.getInvalidFile();
+		if (invalidFile) {
+			void log(
+				this._config.connection,
+				MANAGER_PREFIX,
+				`Not checking project because of invalid PHP file: ${invalidFile}`
+			);
+			return;
+		}
+
+		await this._withRecursivePromise(
+			PROJECT_CHECK_STR,
+			this._performCheck()
+		);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
 
-	public async checkFileFromURI(
+	public async checkProjectIfFileChanged(
 		uri: string,
-		applyErrors: boolean
+		fileContent: string | undefined
 	): Promise<void> {
-		const file = this._config.documents.get(uri);
-		if (!file) {
+		if (!this._operation) {
+			return this.checkProject();
+		}
+		if (!fileContent) {
+			// Already checked if part of any operation
 			return;
 		}
-		return this.checkFile(
-			{
-				getText: () => file.content,
-				uri: file.uri,
-				languageId: file.languageId,
-			},
-			applyErrors
-		);
+		if (
+			!this._operation.hashes[uri] ||
+			this._operation.hashes[uri] === basicHash(fileContent)
+		) {
+			await log(
+				this._config.connection,
+				MANAGER_PREFIX,
+				'No file changes, not checking'
+			);
+			return;
+		}
+		return this.checkProject();
 	}
 
 	public clear(): void {
 		this.dispose();
-		this._config.hooks.provider.clearReports();
+		this._config.hooks.provider.clearReport();
 	}
 
 	public dispose(): void {
