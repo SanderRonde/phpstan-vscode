@@ -2,6 +2,12 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.0.2
+
+-   Add PHPStan Pro support
+-   Disable language server by default
+-   Support tilde as first character in file paths
+
 ### 3.0.1
 
 -   Only check on initial startup if the extension is enabled
