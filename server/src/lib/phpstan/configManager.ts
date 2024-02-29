@@ -173,7 +173,10 @@ export class ConfigurationManager implements Disposable {
 			extensionConfig.binPath,
 			cwd
 		);
-		const binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
+		let binPath = defaultBinPath ?? path.join(cwd, 'vendor/bin/phpstan');
+		if (binPath.startsWith('~')) {
+			binPath = `${process.env.HOME ?? '~'}${binPath.slice(1)}`;
+		}
 		const binCommand = extensionConfig.binCommand;
 
 		if (!binPath && (!binCommand || binCommand.length === 0)) {
@@ -198,7 +201,11 @@ export class ConfigurationManager implements Disposable {
 		}
 
 		if (binCommand?.length) {
-			const [binCmd, ...initialArgs] = binCommand;
+			// eslint-disable-next-line prefer-const
+			let [binCmd, ...initialArgs] = binCommand;
+			if (binCmd.startsWith('~')) {
+				binCmd = `${process.env.HOME ?? '~'}${binCmd.slice(1)}`;
+			}
 			return {
 				binCmd,
 				binPath: null,
