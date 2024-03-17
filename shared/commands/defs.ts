@@ -64,7 +64,7 @@ export const config = {
 				'phpstan.neon,phpstan.neon.dist',
 			],
 			description:
-				'Path to the config file (leave empty to disable, use a comma-separated list to resolve in order)',
+				'Path to the config file (use a comma-separated list to resolve in order)',
 		},
 	},
 	'phpstan.paths': {
