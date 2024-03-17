@@ -194,7 +194,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 	private $visitedFunctions = [];
 
 	/**
-	 * @return list<TReturnType>
+	 * @return list<CollectedData>
 	 */
 	private function _processFunction(Scope $scope): array {
 		$functionKey = implode('.', [
@@ -222,7 +222,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 
 	/**
 	 * @param list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}> $closures
-	 * @return list<TReturnType>
+	 * @return list<CollectedData>
 	 */
 	private function _processClosure(Scope $scope, array $closures): array {
 		$functionKey = implode('.', [
@@ -244,11 +244,11 @@ class PHPStanVSCodeTreeFetcherCollector {
 	}
 
 	/**
-	 * @return list<TReturnType>
+	 * @return list<CollectedData>
 	 */
 	public function processFunctionTrackings(Node $node, Scope $scope): array
 	{
-		/** @var list<TReturnType> */
+		/** @var list<CollectedData> */
 		$data = [];
 		$this->processClosures($node, $scope);
 		if ($scope->getFunctionName()) {
