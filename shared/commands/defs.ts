@@ -57,7 +57,7 @@ export const config = {
 	'phpstan.configFile': {
 		jsonDefinition: {
 			type: 'string',
-			default: 'phpstan.neon',
+			default: 'phpstan.neon,phpstan.neon.dist,phpstan.dist.neon',
 			examples: [
 				'phpstan.neon',
 				'backend/phpstan.neon',
