@@ -1,7 +1,9 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import type { Disposable, _Connection } from 'vscode-languageserver';
 import { watcherNotification } from './notificationChannels';
+import { PromisedValue, WorkspaceFolders } from '../server';
 import { assertUnreachable } from '../../../shared/util';
+import { getConfiguration } from './config';
 import type { Watcher } from './watcher';
 import * as phpParser from 'php-parser';
 import { URI } from 'vscode-uri';
@@ -20,10 +22,16 @@ class DocumentManagerFileData implements WatcherNotificationFileData {
 		return this._isValid;
 	}
 
-	public constructor(fileData: WatcherNotificationFileData) {
+	public constructor(
+		fileData: WatcherNotificationFileData,
+		enableValidCheck: boolean
+	) {
 		this.uri = fileData.uri;
 		this.content = fileData.content;
 		this.languageId = fileData.languageId;
+		if (!enableValidCheck) {
+			this._isValid = true;
+		}
 	}
 
 	private _checkValid(): boolean {
@@ -39,40 +47,58 @@ class DocumentManagerFileData implements WatcherNotificationFileData {
 
 export class DocumentManager implements Disposable {
 	private _disposables: Disposable[] = [];
-	private readonly _connection: _Connection;
 	private readonly _documents: Map<string, DocumentManagerFileData> =
 		new Map();
 	private _watcher?: Watcher;
 
-	public constructor(connection: _Connection) {
-		this._connection = connection;
+	public constructor(
+		private readonly _connection: _Connection,
+		private readonly _workspaceFolders: PromisedValue<WorkspaceFolders | null>
+	) {}
+
+	private async _enableValidCheck() {
+		return (
+			await getConfiguration(this._connection, this._workspaceFolders)
+		).checkValidity;
 	}
 
 	private async _onDocumentChange(
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		this._documents.set(e.uri, new DocumentManagerFileData(e));
+		this._documents.set(
+			e.uri,
+			new DocumentManagerFileData(e, await this._enableValidCheck())
+		);
 		await this._watcher!.onDocumentChange(e);
 	}
 
 	private async _onDocumentSave(
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		this._documents.set(e.uri, new DocumentManagerFileData(e));
+		this._documents.set(
+			e.uri,
+			new DocumentManagerFileData(e, await this._enableValidCheck())
+		);
 		await this._watcher!.onDocumentSave(e);
 	}
 
 	private async _onDocumentCheck(
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		this._documents.set(e.uri, new DocumentManagerFileData(e));
+		this._documents.set(
+			e.uri,
+			new DocumentManagerFileData(e, await this._enableValidCheck())
+		);
 		await this._watcher!.onDocumentCheck(e);
 	}
 
 	private async _onDocumentActive(
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		this._documents.set(e.uri, new DocumentManagerFileData(e));
+		this._documents.set(
+			e.uri,
+			new DocumentManagerFileData(e, await this._enableValidCheck())
+		);
 		await this._watcher!.onDocumentActive(e);
 	}
 
@@ -80,7 +106,10 @@ export class DocumentManager implements Disposable {
 		e: WatcherNotificationFileData,
 		check: boolean
 	): Promise<void> {
-		this._documents.set(e.uri, new DocumentManagerFileData(e));
+		this._documents.set(
+			e.uri,
+			new DocumentManagerFileData(e, await this._enableValidCheck())
+		);
 		if (check) {
 			await this._watcher!.onDocumentOpen(e);
 		}

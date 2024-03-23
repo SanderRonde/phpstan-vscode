@@ -19,6 +19,7 @@ export const CONFIG_KEYS = [
 	'suppressWorkspaceMessage',
 	'pro',
 	'proTmpDir',
+	'checkValidity',
 ] as const;
 // Ideally we'd use `satisifies` here but the tooling (prettier & eslint) don't seem to support it yet.
 const __typeCheck: readonly (keyof ConfigSettingsWithoutPrefix)[] = CONFIG_KEYS;

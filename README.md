@@ -1,4 +1,4 @@
- ![VSCode Installs](https://img.shields.io/vscode-marketplace/i/sanderronde.phpstan-vscode.svg?label=VSCode%20Marketplace%20Installs)
+![VSCode Installs](https://img.shields.io/vscode-marketplace/i/sanderronde.phpstan-vscode.svg?label=VSCode%20Marketplace%20Installs)
 
 ## Features
 
@@ -16,7 +16,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.rootDir` - path to the root directory of your PHP project (defaults to `workspaceFolder`)
 -   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
 -   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. Unset by default.
--		`phpstan.pro` - Enable PHPStan Pro support. Runs PHPStan Pro in the background and leaves watching to PHPStan while displaying any errors it catches in the editor. This requires a valid license. False by default.
+-         `phpstan.pro` - Enable PHPStan Pro support. Runs PHPStan Pro in the background and leaves watching to PHPStan while displaying any errors it catches in the editor. This requires a valid license. False by default.
 
 ### Tuning
 
@@ -27,7 +27,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
 -   `phpstan.paths` - path mapping that allows for rewriting paths. Can be useful when developing inside a docker container or over SSH. Unset by default. Example for making the extension work in a docker container: `{ "/path/to/hostFolder": "/path/in/dockerContainer" }`
 -   `phpstan.ignoreErrors` - An array of regular expressions to ignore in error messages. If you find the PHPStan process erroring often because of a warning that can be ignored, put the warning in here and it'll be ignored in the future.
--  `phpstan.proTmpDir` - Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is `$TMPDIR/phpstan-fixer`)
+-   `phpstan.proTmpDir` - Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is `$TMPDIR/phpstan-fixer`)
 
 ### Customization
 
@@ -35,10 +35,12 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
 -   `phpstan.enableLanguageServer` - Whether to enable the language server that provides on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `true`)
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
+-   `phpstan.checkValidity` - Whether to check the validity of PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.'. (defaults to `false`)
 
 ## FAQ
 
 ### XDebug-related issues
+
 If you find XDebug-related issues (such as checks failing with `The Xdebug PHP extension is active, but "--xdebug" is not used` in the output), see these issues: https://github.com/SanderRonde/phpstan-vscode/issues/17, https://github.com/SanderRonde/phpstan-vscode/issues/19.
 
 ## Development

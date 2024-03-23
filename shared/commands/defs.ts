@@ -185,6 +185,14 @@ export const config = {
 				"Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan-fixer)",
 		},
 	},
+	'phpstan.checkValidity': {
+		jsonDefinition: {
+			type: 'boolean',
+			description:
+				'Check the validity of the PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.',
+			default: false,
+		},
+	},
 } as const;
 
 export const views: Record<string, ViewDefinition> = {};

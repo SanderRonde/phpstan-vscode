@@ -276,7 +276,7 @@ async function main(): Promise<void> {
 		});
 
 	const config = await getConfiguration(connection, workspaceFolders);
-	const documentManager = new DocumentManager(connection);
+	const documentManager = new DocumentManager(connection, workspaceFolders);
 	disposables.push(documentManager);
 	const classConfig = getClassConfig(
 		connection,
