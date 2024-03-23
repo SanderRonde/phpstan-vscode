@@ -149,7 +149,7 @@
 				"phpstan.checkValidity": {
 					"type": "boolean",
 					"description": "Check the validity of the PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.",
-					"default": true
+					"default": false
 				}
 			}
 		},
