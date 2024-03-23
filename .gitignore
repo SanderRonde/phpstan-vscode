@@ -5,12 +5,6 @@ node_modules
 *.vsix
 
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
 php/vendor
 test/demo/vendor
 test/demo/reported.json

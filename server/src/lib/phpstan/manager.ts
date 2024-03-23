@@ -55,8 +55,8 @@ export class PHPStanCheckManager implements Disposable {
 				[
 					{
 						title: 'Adjust timeout',
-						callback: async () => {
-							await executeCommand(
+						callback: () => {
+							void executeCommand(
 								this._config.connection,
 								'workbench.action.openSettings',
 								'phpstan.projectCheckTimeout'
@@ -65,8 +65,8 @@ export class PHPStanCheckManager implements Disposable {
 					},
 					{
 						title: 'Stop showing this message',
-						callback: async () => {
-							await executeCommand(
+						callback: () => {
+							void executeCommand(
 								this._config.connection,
 								'workbench.action.openSettings',
 								'phpstan.suppressTimeoutMessage'

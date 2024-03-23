@@ -1,5 +1,5 @@
 #!/bin/bash
-//bin/true && exec /usr/bin/env yarn --silent --ignore-engines tsx $0 $@
+//bin/true && exec /usr/bin/env bun --silent --ignore-engines tsx $0 $@
 
 import { spawn } from 'child_process';
 import { createReadStream } from 'fs';

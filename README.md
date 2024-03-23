@@ -45,11 +45,11 @@ If you find XDebug-related issues (such as checks failing with `The Xdebug PHP e
 
 ## Development
 
-First get your dev environment started by running `yarn dev`. Note that this expects you to have a few programs installed:
+First get your dev environment started by running `bun dev`. Note that this expects you to have a few programs installed:
 
 -   `composer`
 -   `git`
--   `yarn`
+-   `bun`
 
 This command installs all JS and PHP dependencies and ensures you're ready to go for writing a PHPStan extension.
 

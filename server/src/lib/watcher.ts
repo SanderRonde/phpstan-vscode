@@ -16,7 +16,7 @@ export class Watcher implements Disposable {
 	private readonly _queuedCalls: Map<
 		string,
 		{
-			fn: () => void;
+			fn: () => void | Promise<void>;
 			timeout: NodeJS.Timeout;
 		}
 	> = new Map();

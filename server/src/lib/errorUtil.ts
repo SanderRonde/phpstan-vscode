@@ -34,6 +34,6 @@ export function showError(
 			}
 
 			const match = options.find((o) => o.title === choice.title);
-			match?.callback();
+			void match?.callback();
 		});
 }

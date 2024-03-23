@@ -22,17 +22,19 @@ jobs:
               with:
                   node-version: 14
 
+            - uses: oven-sh/setup-bun@v1
+
             - name: Install
-              run: yarn devYarn
+              run: bun devBun
 
             - name: Format
-              run: yarn prettier --check client server
+              run: bun prettier --check client server
 
             - name: Lint
-              run: yarn lint
+              run: bun lint
 
             - name: TypeScript
-              run: yarn compile
+              run: bun compile
 
             - name: Check if package was just generated
-              run: yarn generate-package && git diff --exit-code package.json
+              run: bun generate-package && git diff --exit-code package.json
