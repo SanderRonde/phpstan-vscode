@@ -1,7 +1,7 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import type { Disposable, _Connection } from 'vscode-languageserver';
+import type { PromisedValue, WorkspaceFolders } from '../server';
 import { watcherNotification } from './notificationChannels';
-import { PromisedValue, WorkspaceFolders } from '../server';
 import { assertUnreachable } from '../../../shared/util';
 import { getConfiguration } from './config';
 import type { Watcher } from './watcher';
@@ -56,7 +56,7 @@ export class DocumentManager implements Disposable {
 		private readonly _workspaceFolders: PromisedValue<WorkspaceFolders | null>
 	) {}
 
-	private async _enableValidCheck() {
+	private async _enableValidCheck(): Promise<boolean> {
 		return (
 			await getConfiguration(this._connection, this._workspaceFolders)
 		).checkValidity;
