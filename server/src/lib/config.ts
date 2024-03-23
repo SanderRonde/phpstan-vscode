@@ -73,7 +73,7 @@ function replaceVariables(
 }
 
 export function onChangeConfiguration<
-	K extends keyof ConfigSettingsWithoutPrefix
+	K extends keyof ConfigSettingsWithoutPrefix,
 >(
 	connection: _Connection,
 	workspaceFolders: PromisedValue<WorkspaceFolders | null>,

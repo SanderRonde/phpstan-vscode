@@ -5,5 +5,6 @@
 	"singleQuote": true,
 	"arrowParens": "always",
 	"bracketSameLine": false,
-	"printWidth": 80
+	"printWidth": 80,
+	"plugins": ["./node_modules/prettier-plugin-sort-imports/dist/index.3.js"],
 }

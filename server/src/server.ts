@@ -294,7 +294,7 @@ async function main(): Promise<void> {
 				disposables,
 				onConnectionInitialized,
 				workspaceFolders
-		  )
+			)
 		: startIntegratedChecker(
 				classConfig,
 				connection,
@@ -302,7 +302,7 @@ async function main(): Promise<void> {
 				onConnectionInitialized,
 				workspaceFolders,
 				extensionStartedAt
-		  );
+			);
 	if (_hoverProvider) {
 		hoverProvider.set(_hoverProvider);
 	}

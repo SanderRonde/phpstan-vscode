@@ -249,7 +249,7 @@ export class ConfigurationManager implements Disposable {
 				? await ConfigurationManager.applyPathMapping(
 						this._config,
 						configFile
-				  )
+					)
 				: null,
 			args: extensionConfig.options ?? [],
 			memoryLimit: extensionConfig.memoryLimit,

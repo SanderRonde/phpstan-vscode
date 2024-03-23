@@ -27,7 +27,7 @@ export class StatusBar implements Disposable {
 		const operationWrapper = <
 			T extends (...args: A) => R,
 			A extends unknown[],
-			R
+			R,
 		>(
 			fn: T
 		) => {
