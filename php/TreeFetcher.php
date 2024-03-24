@@ -277,12 +277,16 @@ class PHPStanVSCodeTreeFetcherCollector {
 	}
 
 	/**
-	 * @return CollectedData
+	 * @return ?CollectedData
 	 */
-	private function processNodeWithType(Variable|PropertyFetch $node, Type $type): array
+	private function processNodeWithType(Variable|PropertyFetch $node, Type $type): ?array
 	{
 		$varName = $node instanceof Variable ? $node->name : $node->name->name;
 		$typeDescr = $type->describe(VerbosityLevel::precise());
+		if (!is_string($varName)) {
+			// Not a plain string, can't handle this
+			return null;
+		}
 
 		return [
 			'typeDescr' => $typeDescr,
@@ -382,9 +386,15 @@ class PHPStanVSCodeTreeFetcherCollector {
 			$exprType = $scope->getType($node->getOriginalNode()->expr);
 			if ($exprType instanceof ArrayType) {
 				if ($keyVar && $keyVar instanceof Variable) {
-					$data[] = $this->processNodeWithType($keyVar, $exprType->getKeyType());
+					$nodeWithType = $this->processNodeWithType($keyVar, $exprType->getKeyType());
+					if ($nodeWithType) {
+						$data[] = $nodeWithType;
+					}
 				} else if ($valueVar && $valueVar instanceof Variable) {
-					$data[] = $this->processNodeWithType($valueVar, $exprType->getItemType());
+					$nodeWithType = $this->processNodeWithType($valueVar, $exprType->getItemType());
+					if ($nodeWithType) {
+						$data[] = $nodeWithType;
+					}
 				}
 			}
 		}
@@ -396,7 +406,10 @@ class PHPStanVSCodeTreeFetcherCollector {
 				$type = $scope->getType($parent->expr);
 			}
 			if (!($type instanceof ErrorType)) {
-				$data[] = $this->processNodeWithType($node, $type);
+				$nodeWithType = $this->processNodeWithType($node, $type);
+				if ($nodeWithType) {
+					$data[] = $nodeWithType;
+				}
 			}
 		}
 
