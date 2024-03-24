@@ -270,7 +270,7 @@
 		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --name PHPStan --prefix PHPStan && prettier --write package.json",
 		"prepush": "bun run generate-package && bun run format-staged && bun run lint --fix && bun run compile",
 		"devBun": "bun install && bun install --cwd client && bun install --cwd server",
-		"postinstall": "bun run --cwd client && bun run --cwd server",
+		"postinstall": "bun install --cwd client && bun install --cwd server",
 		"dev": "bun run devBun && cd test/demo && composer install && cd ../../php && composer install && cd vendor/phpstan && git clone https://github.com/phpstan/phpstan-src"
 	},
 	"devDependencies": {
