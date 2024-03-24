@@ -280,7 +280,7 @@
 		"@types/rimraf": "^3",
 		"@typescript-eslint/eslint-plugin": "^5.12.0",
 		"@typescript-eslint/parser": "latest",
-		"esbuild": "latest",
+		"esbuild": "0.20.0",
 		"eslint": "latest",
 		"eslint-plugin-node": "^11.1.0",
 		"eslint-plugin-prettier": "latest",
