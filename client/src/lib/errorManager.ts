@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 
 interface PHPStanError {
 	message: string;
-	lineNumber: number;
+	lineNumber: number | null;
 }
 
 export class ErrorManager implements Disposable, vscode.CodeActionProvider {
@@ -15,7 +15,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 			string,
 			{
 				message: string;
-				lineNumber: number;
+				lineNumber: number | null;
 			}[]
 		>;
 		notFileSpecificErrors: string[];
@@ -116,6 +116,13 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 			const file = vscode.workspace.textDocuments.find(
 				(doc) => doc.uri.toString() === uri.toString()
 			);
+
+			if (!error.lineNumber) {
+				return this._createDiagnostic(
+					new vscode.Range(0, 0, 0, 0),
+					error.message
+				);
+			}
 
 			const lineNumber = error.lineNumber - 1;
 
@@ -236,6 +243,9 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		const actions: ErrorCodeAction[] = [];
 
 		for (const error of errors) {
+			if (error.lineNumber === null) {
+				continue;
+			}
 			if (error.lineNumber !== range.start.line + 1) {
 				continue;
 			}
@@ -267,6 +277,11 @@ class ErrorCodeAction extends vscode.CodeAction {
 	}
 
 	public resolveEdit(): void {
+		if (this._error.lineNumber === null) {
+			// Theoretically not reachable
+			return;
+		}
+
 		this.edit = new vscode.WorkspaceEdit();
 		const errorRange = new vscode.Range(
 			this._error.lineNumber - 1,
