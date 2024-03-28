@@ -40,7 +40,7 @@ export interface ReportedErrors {
 		string,
 		{
 			message: string;
-			lineNumber: number;
+			lineNumber: number | null;
 		}[]
 	>;
 	notFileSpecificErrors: string[];
