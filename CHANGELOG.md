@@ -2,6 +2,20 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.0.6
+
+-   Fix issue when an error had no linenumber (for example baseline errors)
+
+### 3.0.5
+
+-   Fix issue in TreeFetcher that would lead to recursive-json error
+-   Report errors in traits
+
+### 3.0.4
+
+-   Make checking validity of PHP file a setting
+-   Match PHPStan's default config resolution priority
+
 ### 3.0.2
 
 -   Add PHPStan Pro support
