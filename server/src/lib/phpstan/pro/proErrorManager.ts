@@ -143,7 +143,7 @@ interface ReportedError {
 	definiteFixerSuggestion: unknown | null;
 	file: string;
 	id: string;
-	line: number;
+	line: number | null;
 	message: string;
 }
 
