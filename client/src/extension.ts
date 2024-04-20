@@ -155,7 +155,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	) {
 		// Updated! Show message
 		void window.showInformationMessage(
-			'PHPStan extension updated! Now always checks full project instead of a single file, which ensures it utilizes the cache. Uncached checks may take longer but performance & UX is better'
+			'PHPStan extension updated! Now always checks full project instead of a single file, which ensures it utilizes the cache. Uncached checks may take longer but performance, completeness & UX is better. Let me know if you have any feedback!'
 		);
 	}
 	await writeInstallationConfig(context, {
