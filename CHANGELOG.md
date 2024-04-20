@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.0.7
+
+-   Publish version 3.0 🎉
+
 ### 3.0.6
 
 -   Fix issue when an error had no linenumber (for example baseline errors)
