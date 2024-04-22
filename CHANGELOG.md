@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.0
+
+-   Add back support for single-file checking behind a setting
+-   Refactor a bunch of code
+
 ### 3.0.8
 
 -   Support non-quoted regular expressions in `phpstan.ignoreErrors` setting
