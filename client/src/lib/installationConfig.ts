@@ -27,11 +27,11 @@ export async function getInstallationConfig(
 
 export async function writeInstallationConfig(
 	context: ExtensionContext,
-	config: InstallationConfigFormat
+	installationConfig: InstallationConfigFormat
 ): Promise<void> {
 	await fs.writeFile(
 		context.asAbsolutePath('user_config.json'),
-		JSON.stringify(config),
+		JSON.stringify(installationConfig),
 		'utf8'
 	);
 }

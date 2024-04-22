@@ -1,7 +1,6 @@
-import type { Disposable } from 'vscode-languageserver';
-import { showErrorOnce } from '../errorUtil';
-import { getConfiguration } from '../config';
-import type { ClassConfig } from './manager';
+import { getEditorConfiguration } from './editorConfig';
+import { showErrorOnce } from './errorUtil';
+import type { ClassConfig } from './types';
 import * as fs from 'fs/promises';
 import { constants } from 'fs';
 import * as path from 'path';
@@ -19,18 +18,12 @@ export interface CheckConfig {
 	memoryLimit: string;
 }
 
-export class ConfigurationManager implements Disposable {
-	private _disposables: Disposable[] = [];
-	private __config: CheckConfig | null = null;
-
-	public constructor(private readonly _config: ClassConfig) {}
-
+export class ConfigurationManager {
 	public static async applyPathMapping(
-		config: ClassConfig,
+		classConfig: ClassConfig,
 		filePath: string
 	): Promise<string> {
-		const pathMapper = await this.getPathMapper(config);
-		return pathMapper(filePath);
+		return (await this.getPathMapper(classConfig))(filePath);
 	}
 
 	public static escapeFilePath(filePath: string): string {
@@ -44,11 +37,10 @@ export class ConfigurationManager implements Disposable {
 	}
 
 	public static async getPathMapper(
-		config: ClassConfig
+		classConfig: ClassConfig
 	): Promise<(filePath: string, inverse?: boolean) => string> {
 		const pathMapping =
-			(await getConfiguration(config.connection, config.workspaceFolders))
-				.paths ?? {};
+			(await getEditorConfiguration(classConfig)).paths ?? {};
 
 		return (filePath: string, inverse: boolean = false) => {
 			if (Object.keys(pathMapping).length === 0) {
@@ -71,7 +63,9 @@ export class ConfigurationManager implements Disposable {
 		};
 	}
 
-	private async _fileIfExists(filePath: string): Promise<string | null> {
+	private static async _fileIfExists(
+		filePath: string
+	): Promise<string | null> {
 		try {
 			await fs.access(filePath, constants.R_OK);
 			return filePath;
@@ -80,7 +74,7 @@ export class ConfigurationManager implements Disposable {
 		}
 	}
 
-	private _getAbsolutePath(
+	private static _getAbsolutePath(
 		filePath: string | null,
 		cwd?: string
 	): string | null {
@@ -97,11 +91,11 @@ export class ConfigurationManager implements Disposable {
 		return path.join(cwd, filePath);
 	}
 
-	private async _getConfigFile(cwd: string): Promise<string | null> {
-		const extensionConfig = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
+	private static async _getConfigFile(
+		classConfig: ClassConfig,
+		cwd: string
+	): Promise<string | null> {
+		const extensionConfig = await getEditorConfiguration(classConfig);
 		const absoluteConfigPaths = extensionConfig.configFile
 			? extensionConfig.configFile
 					.split(',')
@@ -120,7 +114,7 @@ export class ConfigurationManager implements Disposable {
 		// Config file was set but not found
 		if (extensionConfig.configFile) {
 			await showErrorOnce(
-				this._config.connection,
+				classConfig.connection,
 				`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
 			);
 		}
@@ -128,13 +122,12 @@ export class ConfigurationManager implements Disposable {
 		return null;
 	}
 
-	public async getCwd(): Promise<string | null> {
-		const workspaceRoot = (await this._config.workspaceFolders.get())
+	public static async getCwd(
+		classConfig: ClassConfig
+	): Promise<string | null> {
+		const workspaceRoot = (await classConfig.workspaceFolders.get())
 			?.default;
-		const extensionConfig = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
+		const extensionConfig = await getEditorConfiguration(classConfig);
 		const cwd =
 			this._getAbsolutePath(
 				extensionConfig.rootDir,
@@ -143,7 +136,7 @@ export class ConfigurationManager implements Disposable {
 
 		if (cwd && !(await this._fileIfExists(cwd))) {
 			await showErrorOnce(
-				this._config.connection,
+				classConfig.connection,
 				`PHPStan: rootDir "${cwd}" does not exist`
 			);
 			return null;
@@ -151,7 +144,7 @@ export class ConfigurationManager implements Disposable {
 
 		if (!cwd) {
 			await showErrorOnce(
-				this._config.connection,
+				classConfig.connection,
 				'PHPStan: failed to get CWD',
 				'workspaceRoot=',
 				workspaceRoot?.fsPath ?? 'undefined'
@@ -162,13 +155,11 @@ export class ConfigurationManager implements Disposable {
 		return cwd;
 	}
 
-	public async getBinConfig(
+	public static async getBinConfig(
+		classConfig: ClassConfig,
 		cwd: string
 	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
-		const extensionConfig = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
+		const extensionConfig = await getEditorConfiguration(classConfig);
 		const defaultBinPath = this._getAbsolutePath(
 			extensionConfig.binPath,
 			cwd
@@ -182,7 +173,7 @@ export class ConfigurationManager implements Disposable {
 		if (!binPath && (!binCommand || binCommand.length === 0)) {
 			// No binary and no command
 			await showErrorOnce(
-				this._config.connection,
+				classConfig.connection,
 				'PHPStan: failed to find binary path'
 			);
 			return null;
@@ -194,7 +185,7 @@ export class ConfigurationManager implements Disposable {
 		) {
 			// Command binary does not exist
 			await showErrorOnce(
-				this._config.connection,
+				classConfig.connection,
 				`PHPStan: failed to find binary at "${binPath}"`
 			);
 			return null;
@@ -219,35 +210,31 @@ export class ConfigurationManager implements Disposable {
 		};
 	}
 
-	public async collectConfiguration(): Promise<CheckConfig | null> {
-		if (this.__config) {
-			return this.__config;
-		}
+	public static async collectConfiguration(
+		classConfig: ClassConfig
+	): Promise<CheckConfig | null> {
 		// Settings
-		const extensionConfig = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
+		const extensionConfig = await getEditorConfiguration(classConfig);
 
-		const cwd = await this.getCwd();
+		const cwd = await this.getCwd(classConfig);
 		if (!cwd) {
 			return null;
 		}
-		const binConfig = await this.getBinConfig(cwd);
+		const binConfig = await this.getBinConfig(classConfig, cwd);
 		if (!binConfig) {
 			return null;
 		}
-		const configFile = await this._getConfigFile(cwd);
+		const configFile = await this._getConfigFile(classConfig, cwd);
 		if (!configFile) {
 			return null;
 		}
 
-		const config: CheckConfig = {
+		return {
 			cwd,
 			configFile,
 			remoteConfigFile: configFile
 				? await ConfigurationManager.applyPathMapping(
-						this._config,
+						classConfig,
 						configFile
 					)
 				: null,
@@ -258,45 +245,39 @@ export class ConfigurationManager implements Disposable {
 				: ConfigurationManager.escapeFilePath(binConfig.binPath!),
 			...binConfig,
 		};
-		this.__config = config;
-		return config;
 	}
 
-	public async getArgs(
-		config: CheckConfig,
+	public static async getArgs(
+		classConfig: ClassConfig,
+		checkConfig: CheckConfig,
 		progress: boolean
 	): Promise<string[]> {
-		const args = [...config.initialArgs, 'analyse'];
-		if (config.remoteConfigFile) {
+		const args = [...checkConfig.initialArgs, 'analyse'];
+		if (checkConfig.remoteConfigFile) {
 			args.push(
 				...[
 					'-c',
 					ConfigurationManager.escapeFilePath(
-						config.remoteConfigFile
+						checkConfig.remoteConfigFile
 					),
 				]
 			);
-		} else if (config.configFile) {
-			args.push('-c', config.configFile);
+		} else if (checkConfig.configFile) {
+			args.push('-c', checkConfig.configFile);
 		}
 
 		args.push(
 			'--error-format=json',
 			'--no-interaction',
-			`--memory-limit=${config.memoryLimit}`
+			`--memory-limit=${checkConfig.memoryLimit}`
 		);
 		if (!progress) {
 			args.push('--no-progress');
 		}
-		args.push(...config.args);
-		return await this._config.hooks.provider.transformArgs(config, [
-			config.binStr,
+		args.push(...checkConfig.args);
+		return await classConfig.hooks.provider.transformArgs(checkConfig, [
+			checkConfig.binStr,
 			...args,
 		]);
-	}
-
-	public dispose(): void {
-		this._disposables.forEach((d) => void d.dispose());
-		this._disposables = [];
 	}
 }

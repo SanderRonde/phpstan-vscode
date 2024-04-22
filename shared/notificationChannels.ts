@@ -1,4 +1,4 @@
-import type { ReportedErrors } from '../server/src/lib/phpstan/outputParser';
+import type { ReportedErrors } from '../server/src/lib/phpstan/check';
 import type { OperationStatus } from './statusBar';
 import type { Commands } from './commands/defs';
 

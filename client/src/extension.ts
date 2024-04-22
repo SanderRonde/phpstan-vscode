@@ -6,6 +6,10 @@ import {
 	CLIENT_PREFIX,
 } from './lib/log';
 import {
+	getEditorConfiguration,
+	registerEditorConfigurationListener,
+} from './lib/editorConfig';
+import {
 	getInstallationConfig,
 	writeInstallationConfig,
 } from './lib/installationConfig';
@@ -14,15 +18,14 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
-import { getConfiguration, registerConfigListeners } from './lib/config';
-import { DocumentManager } from './lib/documentManager';
+import { DocumentManager } from './notificationSenders/documentManager';
+import { ProcessSpawner } from './notificationReceivers/procSpawner';
+import { ErrorManager } from './notificationReceivers/errorManager';
+import { PHPStanProManager } from './notificationReceivers/pro';
+import { StatusBar } from './notificationReceivers/statusBar';
 import { initRequest } from './lib/requestChannels';
 import { registerListeners } from './lib/commands';
-import { ErrorManager } from './lib/errorManager';
 import type { ExtensionContext } from 'vscode';
-import { PHPStanProManager } from './lib/pro';
-import { StatusBar } from './lib/statusBar';
-import { ProcessSpawner } from './lib/proc';
 import { window, workspace } from 'vscode';
 import { INSPECT_BRK } from './lib/dev';
 import * as path from 'path';
@@ -88,7 +91,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const proManager = new PHPStanProManager(client);
 
 	registerListeners(context, client, errorManager, proManager);
-	registerConfigListeners();
+	registerEditorConfigurationListener();
 	registerLogMessager(context, client);
 	context.subscriptions.push(
 		statusBar,
@@ -129,7 +132,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		if (
 			workspace.workspaceFolders &&
 			workspace.workspaceFolders?.length > 1 &&
-			!getConfiguration().get('phpstan.suppressWorkspaceMessage')
+			!getEditorConfiguration().get('phpstan.suppressWorkspaceMessage')
 		) {
 			const SUPPRESS_OPTION = "Don't show again";
 			const choice = await window.showWarningMessage(
@@ -137,7 +140,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 				SUPPRESS_OPTION
 			);
 			if (choice === SUPPRESS_OPTION) {
-				await getConfiguration().update(
+				await getEditorConfiguration().update(
 					'phpstan.suppressWorkspaceMessage',
 					true
 				);

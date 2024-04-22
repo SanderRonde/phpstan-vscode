@@ -3,10 +3,9 @@ import type {
 	HoverParams,
 	ServerRequestHandler,
 } from 'vscode-languageserver';
+import { getFileReport, providerEnabled } from './providerUtil';
 import { HOVER_PROVIDER_PREFIX, log } from '../lib/log';
-import { providerEnabled } from '../lib/providerUtil';
-import type { ProviderArgs } from './shared';
-import { getFileReport } from './shared';
+import type { ProviderArgs } from './providerUtil';
 
 export function createHoverProvider(
 	providerArgs: ProviderArgs

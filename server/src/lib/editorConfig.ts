@@ -1,39 +1,39 @@
 import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
-import type { Disposable, _Connection } from 'vscode-languageserver';
-import type { PromisedValue, WorkspaceFolders } from '../server';
+import type { ClassConfig, WorkspaceFolders } from './types';
+import type { Disposable } from 'vscode-languageserver';
 import { fromEntries } from '../../../shared/util';
 
-export async function getConfiguration(
-	connection: _Connection,
-	workspaceFoldersP: PromisedValue<WorkspaceFolders | null>
+export async function getEditorConfiguration(
+	classConfig: Pick<ClassConfig, 'connection' | 'workspaceFolders'>
 ): Promise<ConfigSettingsWithoutPrefix> {
-	const workspaceFolders = await workspaceFoldersP.get();
+	const workspaceFolders = await classConfig.workspaceFolders.get();
 	const scope = workspaceFolders?.default.toString();
 
-	const config = (await connection.workspace.getConfiguration({
-		scopeUri: scope,
-		section: 'phpstan',
-	})) as ConfigSettingsWithoutPrefix;
+	const editorConfig =
+		(await classConfig.connection.workspace.getConfiguration({
+			scopeUri: scope,
+			section: 'phpstan',
+		})) as ConfigSettingsWithoutPrefix;
 
 	return {
-		...config,
-		binPath: replaceVariables(config.binPath, workspaceFolders),
-		binCommand: config.binCommand.map((part) =>
+		...editorConfig,
+		binPath: replaceVariables(editorConfig.binPath, workspaceFolders),
+		binCommand: editorConfig.binCommand.map((part) =>
 			replaceVariables(part, workspaceFolders)
 		),
-		configFile: replaceVariables(config.configFile, workspaceFolders),
+		configFile: replaceVariables(editorConfig.configFile, workspaceFolders),
 		paths: fromEntries(
-			Object.entries(config.paths).map(([key, value]) => [
+			Object.entries(editorConfig.paths).map(([key, value]) => [
 				replaceVariables(key, workspaceFolders),
 				replaceVariables(value, workspaceFolders),
 			])
 		),
-		proTmpDir: replaceVariables(config.proTmpDir, workspaceFolders),
-		rootDir: replaceVariables(config.rootDir, workspaceFolders),
-		options: config.options.map((option) =>
+		proTmpDir: replaceVariables(editorConfig.proTmpDir, workspaceFolders),
+		rootDir: replaceVariables(editorConfig.rootDir, workspaceFolders),
+		options: editorConfig.options.map((option) =>
 			replaceVariables(option, workspaceFolders)
 		),
-		ignoreErrors: config.ignoreErrors.map((error) => {
+		ignoreErrors: editorConfig.ignoreErrors.map((error) => {
 			if (error instanceof RegExp) {
 				return new RegExp(
 					replaceVariables(error.source, workspaceFolders)
@@ -77,20 +77,19 @@ function replaceVariables(
 	);
 }
 
-export function onChangeConfiguration<
+export function onChangeEditorConfiguration<
 	K extends keyof ConfigSettingsWithoutPrefix,
 >(
-	connection: _Connection,
-	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
+	classConfig: Pick<ClassConfig, 'connection' | 'workspaceFolders'>,
 	key: K,
 	handler: (value: ConfigSettingsWithoutPrefix[K]) => void
 ): Disposable {
-	void getConfiguration(connection, workspaceFolders).then((config) => {
-		handler(config[key]);
+	void getEditorConfiguration(classConfig).then((editorConfig) => {
+		handler(editorConfig[key]);
 	});
-	return connection.onDidChangeConfiguration(() => {
-		void getConfiguration(connection, workspaceFolders).then((config) => {
-			handler(config[key]);
+	return classConfig.connection.onDidChangeConfiguration(() => {
+		void getEditorConfiguration(classConfig).then((editorConfig) => {
+			handler(editorConfig[key]);
 		});
 	});
 }

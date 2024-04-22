@@ -8,13 +8,12 @@ import {
 } from '../../../shared/constants';
 import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
-import type { PHPStanCheckManager } from '../lib/phpstan/manager';
-import type { CheckConfig } from '../lib/phpstan/configManager';
-import type { PHPStanVersion, PromisedValue } from '../server';
+import type { PHPStanCheckManager } from '../lib/phpstan/checkManager';
+import type { PromisedValue, WorkspaceFolders } from '../lib/types';
 import type { DocumentManager } from '../lib/documentManager';
-import { providerEnabled } from '../lib/providerUtil';
-import type { WorkspaceFolders } from '../server';
-import { getConfiguration } from '../lib/config';
+import type { CheckConfig } from '../lib/checkConfigManager';
+import { getEditorConfiguration } from '../lib/editorConfig';
+import type { PHPStanVersion } from '../start/getVersion';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
@@ -71,7 +70,7 @@ export async function getFileReport(
 			] ?? null
 		);
 	}
-	const fileContent = providerArgs.documents.get(documentURI)?.content;
+	const fileContent = providerArgs.documents.getFile(documentURI)?.content;
 	if (!fileContent) {
 		return null;
 	}
@@ -116,7 +115,10 @@ export class ProviderCheckHooks {
 	private get _lsEnabled(): Promise<boolean> {
 		return (async () => {
 			return (
-				await getConfiguration(this._connection, this._workspaceFolders)
+				await getEditorConfiguration({
+					connection: this._connection,
+					workspaceFolders: this._workspaceFolders,
+				})
 			).enableLanguageServer;
 		})();
 	}
@@ -206,18 +208,18 @@ export class ProviderCheckHooks {
 	}
 
 	private _findArg(
-		config: CheckConfig,
+		checkConfig: CheckConfig,
 		short: string,
 		long: string
 	): string | null {
-		for (let i = 0; i < config.args.length; i++) {
-			if (config.args[i] === short) {
-				return config.args[i + 1];
-			} else if (config.args[i].startsWith(long)) {
-				if (config.args[i][long.length] === '=') {
-					return config.args[i].slice(long.length + 1);
+		for (let i = 0; i < checkConfig.args.length; i++) {
+			if (checkConfig.args[i] === short) {
+				return checkConfig.args[i + 1];
+			} else if (checkConfig.args[i].startsWith(long)) {
+				if (checkConfig.args[i][long.length] === '=') {
+					return checkConfig.args[i].slice(long.length + 1);
 				} else {
-					return config.args[i + 1];
+					return checkConfig.args[i + 1];
 				}
 			}
 		}
@@ -233,7 +235,7 @@ export class ProviderCheckHooks {
 	}
 
 	public async transformArgs(
-		config: CheckConfig,
+		checkConfig: CheckConfig,
 		args: string[]
 	): Promise<string[]> {
 		if (!(await this._lsEnabled)) {
@@ -245,18 +247,22 @@ export class ProviderCheckHooks {
 			'_config'
 		);
 
-		const userAutoloadFile = this._findArg(config, '-a', '--autoload-file');
+		const userAutoloadFile = this._findArg(
+			checkConfig,
+			'-a',
+			'--autoload-file'
+		);
 		const autoloadFilePath = await this._getAutoloadFile(
 			baseDir,
 			userAutoloadFile
 		);
 
 		args.push('-a', autoloadFilePath);
-		if (config.configFile) {
+		if (checkConfig.configFile) {
 			// No config is invalid anyway so we can just ignore this
 			const configFile = await this._getConfigFile(
 				baseDir,
-				config.configFile
+				checkConfig.configFile
 			);
 			args.push('-c', configFile);
 		}
@@ -271,4 +277,15 @@ export class ProviderCheckHooks {
 		const report = await this._getFileReport();
 		this._lastReport = report;
 	}
+}
+
+export async function providerEnabled(
+	providerArgs: ProviderArgs
+): Promise<boolean> {
+	const configuration = await getEditorConfiguration(providerArgs);
+	return (
+		configuration.enableLanguageServer &&
+		configuration.enabled &&
+		Object.keys(configuration.paths).length <= 0
+	);
 }

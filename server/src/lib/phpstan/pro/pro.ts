@@ -1,14 +1,13 @@
 import { pathExists, tryReadJSON, wait } from '../../../../../shared/util';
-import type { PromisedValue, WorkspaceFolders } from '../../../server';
-import type { Disposable, _Connection } from 'vscode-languageserver';
+import { ConfigurationManager } from '../../checkConfigManager';
 import { SPAWN_ARGS } from '../../../../../shared/constants';
+import { getEditorConfiguration } from '../../editorConfig';
 import { PHPStanProErrorManager } from './proErrorManager';
-import { ConfigurationManager } from '../configManager';
-import { getConfiguration } from '../../config';
-import type { ClassConfig } from '../manager';
-import { ProcessSpawner } from '../../proc';
+import type { Disposable } from 'vscode-languageserver';
+import { ProcessSpawner } from '../../procSpawner';
+import type { ClassConfig } from '../../types';
+import { ReturnResult } from '../../result';
 import { PRO_PREFIX, log } from '../../log';
-import { ReturnResult } from '../result';
 import * as path from 'path';
 import * as os from 'os';
 
@@ -17,8 +16,6 @@ function getDefaultConfigDirPath(): string {
 }
 
 export async function launchPro(
-	connection: _Connection,
-	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
 	classConfig: ClassConfig,
 	onProgress?: (progress: {
 		done: number;
@@ -26,18 +23,22 @@ export async function launchPro(
 		percentage: number;
 	}) => void
 ): Promise<ReturnResult<PHPStanProProcess, string>> {
-	const settings = await getConfiguration(connection, workspaceFolders);
+	const settings = await getEditorConfiguration(classConfig);
 	const tmpPath = settings.proTmpDir || getDefaultConfigDirPath();
 
-	const configManager = new ConfigurationManager(classConfig);
-	const launchConfig = await configManager.collectConfiguration();
+	const launchConfig =
+		await ConfigurationManager.collectConfiguration(classConfig);
 	if (!launchConfig) {
 		return ReturnResult.error('Failed to find launch configuration');
 	}
 
-	const [binStr, ...args] = await configManager.getArgs(launchConfig, false);
+	const [binStr, ...args] = await ConfigurationManager.getArgs(
+		classConfig,
+		launchConfig,
+		false
+	);
 	await log(
-		connection,
+		classConfig.connection,
 		PRO_PREFIX,
 		'Spawning PHPStan Pro with the following configuration: ',
 		JSON.stringify({
@@ -45,7 +46,7 @@ export async function launchPro(
 			args: [...args, '--watch'],
 		})
 	);
-	const procSpawner = new ProcessSpawner(connection);
+	const procSpawner = new ProcessSpawner(classConfig.connection);
 	const proc = await procSpawner.spawnWithRobustTimeout(
 		binStr,
 		[...args, '--watch'],
@@ -60,7 +61,6 @@ export async function launchPro(
 			},
 		}
 	);
-	configManager.dispose();
 
 	return new Promise<ReturnResult<PHPStanProProcess, string>>((resolve) => {
 		let stderr: string = '';
@@ -69,7 +69,11 @@ export async function launchPro(
 			const progressMatch = [
 				...line.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g),
 			];
-			void log(connection, PRO_PREFIX, 'PHPStan Pro: ' + line);
+			void log(
+				classConfig.connection,
+				PRO_PREFIX,
+				'PHPStan Pro: ' + line
+			);
 			if (onProgress && progressMatch.length) {
 				const [, done, total, percentage] =
 					progressMatch[progressMatch.length - 1];

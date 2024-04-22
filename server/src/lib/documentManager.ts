@@ -1,10 +1,12 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
-import type { Disposable, _Connection } from 'vscode-languageserver';
-import type { PromisedValue, WorkspaceFolders } from '../server';
+import type { PHPStanCheckManager } from './phpstan/checkManager';
+import type { PartialDocument } from './phpstan/processRunner';
 import { watcherNotification } from './notificationChannels';
 import { assertUnreachable } from '../../../shared/util';
-import { getConfiguration } from './config';
-import type { Watcher } from './watcher';
+import type { Disposable } from 'vscode-languageserver';
+import { getEditorConfiguration } from './editorConfig';
+import { log, WATCHER_PREFIX } from './log';
+import type { ClassConfig } from './types';
 import * as phpParser from 'php-parser';
 import { URI } from 'vscode-uri';
 
@@ -47,108 +49,254 @@ class DocumentManagerFileData implements WatcherNotificationFileData {
 
 export class DocumentManager implements Disposable {
 	private _disposables: Disposable[] = [];
+	private _lastActiveDocument: PartialDocument | null = null;
 	private readonly _documents: Map<string, DocumentManagerFileData> =
 		new Map();
-	private _watcher?: Watcher;
+	private readonly _onConnectionInitialized: Promise<void>;
+	private readonly _queuedCalls: Map<
+		string,
+		{
+			fn: () => void | Promise<void>;
+			timeout: NodeJS.Timeout;
+		}
+	> = new Map();
+
+	private async _hasEnabledValidityCheck(): Promise<boolean> {
+		return (await getEditorConfiguration(this._classConfig)).checkValidity;
+	}
+
+	private get _enabled(): Promise<boolean> {
+		return new Promise<boolean>((resolve) => {
+			void (async () => {
+				await this._onConnectionInitialized;
+				resolve(
+					(await getEditorConfiguration(this._classConfig)).enabled
+				);
+			})();
+		});
+	}
 
 	public constructor(
-		private readonly _connection: _Connection,
-		private readonly _workspaceFolders: PromisedValue<WorkspaceFolders | null>
-	) {}
+		private readonly _classConfig: Pick<
+			ClassConfig,
+			'connection' | 'workspaceFolders'
+		>,
+		{
+			phpstan: checkManager,
+			onConnectionInitialized,
+		}: {
+			phpstan?: PHPStanCheckManager;
+			onConnectionInitialized: Promise<void>;
+		}
+	) {
+		this._onConnectionInitialized = onConnectionInitialized;
 
-	private async _enableValidCheck(): Promise<boolean> {
-		return (
-			await getConfiguration(this._connection, this._workspaceFolders)
-		).checkValidity;
-	}
+		if (checkManager) {
+			this._disposables.push(
+				// eslint-disable-next-line @typescript-eslint/no-misused-promises
+				this._classConfig.connection.onNotification(
+					watcherNotification,
+					// eslint-disable-next-line @typescript-eslint/no-misused-promises
+					async (data) => {
+						switch (data.operation) {
+							case 'close':
+								this._documents.delete(data.file.uri);
+								return;
+							case 'clear':
+								this._clearData(checkManager);
+								return;
+							case 'checkProject':
+								return this._onScanProject(checkManager);
+						}
 
-	private async _onDocumentChange(
-		e: WatcherNotificationFileData
-	): Promise<void> {
-		this._documents.set(
-			e.uri,
-			new DocumentManagerFileData(e, await this._enableValidCheck())
-		);
-		await this._watcher!.onDocumentChange(e);
-	}
-
-	private async _onDocumentSave(
-		e: WatcherNotificationFileData
-	): Promise<void> {
-		this._documents.set(
-			e.uri,
-			new DocumentManagerFileData(e, await this._enableValidCheck())
-		);
-		await this._watcher!.onDocumentSave(e);
-	}
-
-	private async _onDocumentCheck(
-		e: WatcherNotificationFileData
-	): Promise<void> {
-		this._documents.set(
-			e.uri,
-			new DocumentManagerFileData(e, await this._enableValidCheck())
-		);
-		await this._watcher!.onDocumentCheck(e);
-	}
-
-	private async _onDocumentActive(
-		e: WatcherNotificationFileData
-	): Promise<void> {
-		this._documents.set(
-			e.uri,
-			new DocumentManagerFileData(e, await this._enableValidCheck())
-		);
-		await this._watcher!.onDocumentActive(e);
-	}
-
-	private async _onDocumentOpen(
-		e: WatcherNotificationFileData,
-		check: boolean
-	): Promise<void> {
-		this._documents.set(
-			e.uri,
-			new DocumentManagerFileData(e, await this._enableValidCheck())
-		);
-		if (check) {
-			await this._watcher!.onDocumentOpen(e);
+						this._documents.set(
+							data.file.uri,
+							new DocumentManagerFileData(
+								data.file,
+								await this._hasEnabledValidityCheck()
+							)
+						);
+						switch (data.operation) {
+							case 'change':
+								return this._onDocumentChange(
+									checkManager,
+									data.file
+								);
+							case 'open':
+								if (data.check) {
+									return this._onDocumentOpen(
+										checkManager,
+										data.file
+									);
+								}
+								break;
+							case 'save':
+								return this._onDocumentSave(
+									checkManager,
+									data.file
+								);
+							case 'setActive':
+								return this._onDocumentActive(
+									checkManager,
+									data.file
+								);
+							case 'check':
+								return this._onDocumentCheck(
+									checkManager,
+									data.file
+								);
+							default:
+								assertUnreachable(data);
+						}
+						return;
+					}
+				)
+			);
 		}
 	}
 
-	private _onDocumentClose(e: WatcherNotificationFileData): void {
-		this._documents.delete(e.uri);
+	private _toPartialDocument(
+		e: WatcherNotificationFileData
+	): PartialDocument {
+		return {
+			getText: () => e.content,
+			uri: e.uri,
+			languageId: e.languageId,
+		};
 	}
 
-	public setWatcher(watcher: Watcher): void {
-		this._watcher = watcher;
-		this._disposables.push(
-			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			this._connection.onNotification(watcherNotification, (data) => {
-				switch (data.operation) {
-					case 'change':
-						return this._onDocumentChange(data.file);
-					case 'open':
-						return this._onDocumentOpen(data.file, data.check);
-					case 'save':
-						return this._onDocumentSave(data.file);
-					case 'setActive':
-						return this._onDocumentActive(data.file);
-					case 'close':
-						return this._onDocumentClose(data.file);
-					case 'check':
-						return this._onDocumentCheck(data.file);
-					case 'clear':
-						return this._watcher!.clearData();
-					case 'checkProject':
-						return this._watcher!.onScanProject();
-					default:
-						assertUnreachable(data);
-				}
-			})
+	private _debounceWithKey(
+		identifier: string,
+		callback: () => void | Promise<void>
+	): void {
+		if (this._queuedCalls.has(identifier)) {
+			clearTimeout(this._queuedCalls.get(identifier)!.timeout);
+		}
+		this._queuedCalls.set(identifier, {
+			fn: callback,
+			timeout: setTimeout(() => {
+				this._queuedCalls.delete(identifier);
+				void callback();
+			}, 50),
+		});
+	}
+
+	private async _onDocumentChange(
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		if (!(await this._enabled)) {
+			return;
+		}
+
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		this._debounceWithKey(e.uri, async () => {
+			await log(
+				this._classConfig.connection,
+				WATCHER_PREFIX,
+				'Document changed, triggering'
+			);
+			await checkManager.check(e);
+		});
+	}
+
+	private async _onDocumentSave(
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		if (!(await this._enabled)) {
+			return;
+		}
+
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		this._debounceWithKey(e.uri, async () => {
+			await log(
+				this._classConfig.connection,
+				WATCHER_PREFIX,
+				'Document saved, triggering'
+			);
+			await checkManager.check(e);
+		});
+	}
+
+	private async _onDocumentActive(
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		if (!(await this._enabled)) {
+			return;
+		}
+
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+
+		if (e.uri === this._lastActiveDocument?.uri) {
+			return;
+		}
+
+		this._debounceWithKey(e.uri, async () => {
+			await log(
+				this._classConfig.connection,
+				WATCHER_PREFIX,
+				`New document active (${e.uri}), triggering`
+			);
+			this._lastActiveDocument = this._toPartialDocument(e);
+			await checkManager.checkIfChanged(e);
+		});
+	}
+
+	private async _onDocumentOpen(
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		if (!(await this._enabled)) {
+			return;
+		}
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+
+		this._debounceWithKey(e.uri, async () => {
+			await log(
+				this._classConfig.connection,
+				WATCHER_PREFIX,
+				'Document opened, triggering and re-applying errors'
+			);
+			await checkManager.check(e);
+		});
+	}
+
+	private async _onDocumentCheck(
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData
+	): Promise<void> {
+		await log(
+			this._classConfig.connection,
+			WATCHER_PREFIX,
+			'Force triggering project'
 		);
+		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+			return;
+		}
+		await checkManager.check(e);
 	}
 
-	public get(uri: string): WatcherNotificationFileData | null {
+	private async _onScanProject(
+		checkManager: PHPStanCheckManager
+	): Promise<void> {
+		await checkManager.check(undefined);
+	}
+
+	private _clearData(checkManager: PHPStanCheckManager): void {
+		checkManager.clear();
+	}
+
+	public getFile(uri: string): WatcherNotificationFileData | null {
 		return this._documents.get(uri) ?? null;
 	}
 

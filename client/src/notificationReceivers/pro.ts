@@ -1,5 +1,5 @@
+import { phpstanProNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { phpstanProNotification } from './notificationChannels';
 import type { Disposable } from 'vscode';
 import { env, window } from 'vscode';
 import { Uri } from 'vscode';

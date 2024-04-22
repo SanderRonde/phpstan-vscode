@@ -2,12 +2,12 @@ import {
 	commandNotification,
 	watcherNotification,
 } from './notificationChannels';
+import type { ErrorManager } from '../notificationReceivers/errorManager';
+import type { PHPStanProManager } from '../notificationReceivers/pro';
 import { commands, Commands } from '../../../shared/commands/defs';
 // eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import type { ErrorManager } from './errorManager';
-import type { PHPStanProManager } from './pro';
 import { showError } from './errorUtil';
 import * as vscode from 'vscode';
 

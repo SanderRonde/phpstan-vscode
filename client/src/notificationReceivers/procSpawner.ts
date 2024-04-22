@@ -1,7 +1,7 @@
+import { processNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { processNotification } from './notificationChannels';
 import type { Disposable, ExtensionContext } from 'vscode';
-import { PROCESS_SPAWNER_PREFIX, log } from './log';
+import { PROCESS_SPAWNER_PREFIX, log } from '../lib/log';
 import { wait } from '../../../shared/util';
 
 export class ProcessSpawner implements Disposable {

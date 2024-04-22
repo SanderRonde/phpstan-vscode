@@ -6,7 +6,7 @@ import { CONFIG_KEYS } from '../../../shared/config';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
-export function getConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> {
+export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> {
 	const document = window.activeTextEditor?.document;
 
 	if (document) {
@@ -16,11 +16,11 @@ export function getConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> 
 	return workspace.getConfiguration();
 }
 
-export function registerConfigListeners(): void {
-	const config = getConfiguration();
+export function registerEditorConfigurationListener(): void {
+	const editorConfig = getEditorConfiguration();
 	const configValues: Record<string, unknown> = {};
 	for (const key of CONFIG_KEYS) {
-		configValues[key] = config.get(`phpstan.${key}`);
+		configValues[key] = editorConfig.get(`phpstan.${key}`);
 	}
 	log(
 		CLIENT_PREFIX,
@@ -30,8 +30,8 @@ export function registerConfigListeners(): void {
 
 	workspace.onDidChangeConfiguration(async (e) => {
 		if (e.affectsConfiguration('phpstan.paths')) {
-			const config = getConfiguration();
-			const paths = config.get('phpstan.paths');
+			const editorConfig = getEditorConfiguration();
+			const paths = editorConfig.get('phpstan.paths');
 			if (Object.keys(paths).length > 0) {
 				await window.showWarningMessage(
 					'On-hover type information is disabled when the paths setting is being used'
@@ -41,7 +41,7 @@ export function registerConfigListeners(): void {
 			e.affectsConfiguration('phpstan.pro') ||
 			e.affectsConfiguration('phpstan.proTmpDir') ||
 			(e.affectsConfiguration('phpstan.enabled') &&
-				getConfiguration().get('phpstan.pro'))
+				getEditorConfiguration().get('phpstan.pro'))
 		) {
 			await window.showInformationMessage(
 				'Please reload your editor for changes to the PHPStan Pro configuration to take effect'

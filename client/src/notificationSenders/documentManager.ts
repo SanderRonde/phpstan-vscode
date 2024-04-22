@@ -1,6 +1,6 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
+import { watcherNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { watcherNotification } from './notificationChannels';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 

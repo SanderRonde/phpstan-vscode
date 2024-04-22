@@ -1,10 +1,10 @@
 import { OperationStatus } from '../../../../../shared/statusBar';
+import { ConfigurationManager } from '../../checkConfigManager';
 import { errorNotification } from '../../notificationChannels';
 import type { StatusBarOperation } from '../../statusBar';
 import type { Disposable } from 'vscode-languageserver';
-import { ConfigurationManager } from '../configManager';
-import type { ReportedErrors } from '../outputParser';
-import type { ClassConfig } from '../manager';
+import type { ClassConfig } from '../../types';
+import type { ReportedErrors } from '../check';
 import { log, PRO_PREFIX } from '../../log';
 import { URI } from 'vscode-uri';
 import * as http from 'http';

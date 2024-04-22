@@ -1,5 +1,5 @@
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { errorNotification } from './notificationChannels';
+import { errorNotification } from '../lib/notificationChannels';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 

@@ -84,7 +84,7 @@ export function createPromise<R>(): Promise<PromiseObject<R>> {
 	});
 }
 
-export function withTimeout<P, R>(config: {
+export function withTimeout<P, R>(timeoutConfig: {
 	onTimeout: () => R;
 	promise: Promise<P>;
 	timeout: number;
@@ -94,9 +94,9 @@ export function withTimeout<P, R>(config: {
 	let timeout: NodeJS.Timeout | null = null;
 	const promise = new Promise<P | R>((resolve) => {
 		timeout = setTimeout(() => {
-			resolve(config.onTimeout());
-		}, config.timeout);
-		void config.promise.then((result) => {
+			resolve(timeoutConfig.onTimeout());
+		}, timeoutConfig.timeout);
+		void timeoutConfig.promise.then((result) => {
 			resolve(result);
 			if (timeout) {
 				clearTimeout(timeout);

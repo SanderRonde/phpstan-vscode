@@ -1,11 +1,11 @@
 import type { StatusBarProgress } from '../../../shared/notificationChannels';
+import { statusBarNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { statusBarNotification } from './notificationChannels';
 import type { Commands } from '../../../shared/commands/defs';
+import { getEditorConfiguration } from '../lib/editorConfig';
 import { OperationStatus } from '../../../shared/statusBar';
 import { assertUnreachable } from '../../../shared/util';
-import { log, STATUS_BAR_PREFIX } from './log';
-import { getConfiguration } from './config';
+import { log, STATUS_BAR_PREFIX } from '../lib/log';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
@@ -32,7 +32,7 @@ export class StatusBar implements Disposable {
 			fn: T
 		) => {
 			return (...args: A): void => {
-				if (!getConfiguration().get('phpstan.enableStatusBar')) {
+				if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
 					return;
 				}
 				fn(...args);
@@ -80,7 +80,7 @@ export class StatusBar implements Disposable {
 
 	private _showStatusBar(): void {
 		log(STATUS_BAR_PREFIX, 'Showing status bar');
-		if (!getConfiguration().get('phpstan.enableStatusBar')) {
+		if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
 			return;
 		}
 

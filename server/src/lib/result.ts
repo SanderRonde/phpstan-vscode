@@ -1,4 +1,4 @@
-import { OperationStatus } from '../../../../shared/statusBar';
+import { OperationStatus } from '../../../shared/statusBar';
 
 export class ReturnResult<R, E = void> {
 	protected constructor(

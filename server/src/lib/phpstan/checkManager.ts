@@ -1,34 +1,17 @@
 import type { WatcherNotificationFileData } from '../../../../shared/notificationChannels';
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
-import type { PHPStanVersion, WorkspaceFolders } from '../../server';
-import type { ProviderCheckHooks } from '../../providers/shared';
 import { OperationStatus } from '../../../../shared/statusBar';
 import type { PromiseObject } from '../../../../shared/util';
 import type { DocumentManager } from '../documentManager';
 import { checkPrefix, log, MANAGER_PREFIX } from '../log';
-import type { _Connection } from 'vscode-languageserver';
+import { getEditorConfiguration } from '../editorConfig';
 import type { Disposable } from 'vscode-languageserver';
-import type { ReportedErrors } from './outputParser';
-import type { PromisedValue } from '../../server';
-import type { StatusBar } from '../statusBar';
-import type { ProcessSpawner } from '../proc';
+import type { ReportedErrors } from './check';
 import { executeCommand } from '../commands';
-import { getConfiguration } from '../config';
+import type { ClassConfig } from '../types';
 import { showError } from '../errorUtil';
-import { ReturnResult } from './result';
+import { ReturnResult } from '../result';
 import { PHPStanCheck } from './check';
-
-export interface ClassConfig {
-	statusBar: StatusBar;
-	connection: _Connection;
-	workspaceFolders: PromisedValue<WorkspaceFolders | null>;
-	documents: DocumentManager;
-	hooks: {
-		provider: ProviderCheckHooks;
-	};
-	procSpawner: ProcessSpawner;
-	version: PromisedValue<PHPStanVersion | null>;
-}
 
 interface CheckOperation {
 	check: PHPStanCheck;
@@ -42,23 +25,23 @@ export class PHPStanCheckManager implements Disposable {
 	private _filePromises: Map<string, RecursivePromiseObject> = new Map();
 	private readonly _disposables: Disposable[] = [];
 
-	public constructor(private readonly _config: ClassConfig) {}
+	public constructor(
+		private readonly _classConfig: ClassConfig,
+		private readonly _getDocumentManager: () => DocumentManager
+	) {}
 
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
-		if (!config.suppressTimeoutMessage) {
+		const editorConfig = await getEditorConfiguration(this._classConfig);
+		if (!editorConfig.suppressTimeoutMessage) {
 			showError(
-				this._config.connection,
-				`PHPStan check timed out after ${config.projectTimeout}ms`,
+				this._classConfig.connection,
+				`PHPStan check timed out after ${editorConfig.projectTimeout}ms`,
 				[
 					{
 						title: 'Adjust timeout',
 						callback: () => {
 							void executeCommand(
-								this._config.connection,
+								this._classConfig.connection,
 								'workbench.action.openSettings',
 								'phpstan.projectCheckTimeout'
 							);
@@ -68,7 +51,7 @@ export class PHPStanCheckManager implements Disposable {
 						title: 'Stop showing this message',
 						callback: () => {
 							void executeCommand(
-								this._config.connection,
+								this._classConfig.connection,
 								'workbench.action.openSettings',
 								'phpstan.suppressTimeoutMessage'
 							);
@@ -78,9 +61,9 @@ export class PHPStanCheckManager implements Disposable {
 			);
 		}
 		void log(
-			this._config.connection,
+			this._classConfig.connection,
 			checkPrefix(check),
-			`PHPStan check timed out after ${config.projectTimeout}ms`
+			`PHPStan check timed out after ${editorConfig.projectTimeout}ms`
 		);
 	}
 
@@ -134,15 +117,15 @@ export class PHPStanCheckManager implements Disposable {
 
 	private async _performProjectCheck(): Promise<void> {
 		// Prep check
-		const check = new PHPStanCheck(this._config);
+		const check = new PHPStanCheck(this._classConfig);
 		void log(
-			this._config.connection,
+			this._classConfig.connection,
 			checkPrefix(check),
 			'Check started for project'
 		);
 
 		const hashes: Record<string, string> = {};
-		const allContents = this._config.documents.getAll();
+		const allContents = this._getDocumentManager().getAll();
 
 		for (const uri in allContents) {
 			const content = allContents[uri];
@@ -154,7 +137,7 @@ export class PHPStanCheckManager implements Disposable {
 		});
 
 		// Create statusbar operation
-		const operation = this._config.statusBar.createOperation();
+		const operation = this._classConfig.statusBar.createOperation();
 		await operation.start('Checking project');
 
 		check.onProgress((progress) => {
@@ -165,16 +148,13 @@ export class PHPStanCheckManager implements Disposable {
 		});
 
 		// Do check
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
+		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors>>
 		>({
 			promise: check.check(true),
-			timeout: config.projectTimeout,
+			timeout: editorConfig.projectTimeout,
 			onTimeout: async () => {
 				check.dispose();
 				void this._onTimeout(check);
@@ -190,7 +170,7 @@ export class PHPStanCheckManager implements Disposable {
 		await operation.finish(result.status);
 
 		void log(
-			this._config.connection,
+			this._classConfig.connection,
 			checkPrefix(check),
 			'Check completed for project, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
@@ -201,9 +181,9 @@ export class PHPStanCheckManager implements Disposable {
 		file: WatcherNotificationFileData
 	): Promise<void> {
 		// Prep check
-		const check = new PHPStanCheck(this._config);
+		const check = new PHPStanCheck(this._classConfig);
 		void log(
-			this._config.connection,
+			this._classConfig.connection,
 			checkPrefix(check),
 			`Check started for file: ${file.uri}`
 		);
@@ -216,20 +196,17 @@ export class PHPStanCheckManager implements Disposable {
 		});
 
 		// Create statusbar operation
-		const operation = this._config.statusBar.createOperation();
+		const operation = this._classConfig.statusBar.createOperation();
 		await operation.start('Checking');
 
 		// Do check
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
+		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors>>
 		>({
 			promise: check.check(true, file),
-			timeout: config.timeout,
+			timeout: editorConfig.timeout,
 			onTimeout: async () => {
 				check.dispose();
 				void this._onTimeout(check);
@@ -245,7 +222,7 @@ export class PHPStanCheckManager implements Disposable {
 		await operation.finish(result.status);
 
 		void log(
-			this._config.connection,
+			this._classConfig.connection,
 			checkPrefix(check),
 			'Check completed for file, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
@@ -261,10 +238,10 @@ export class PHPStanCheckManager implements Disposable {
 			this._operations.clear();
 		}
 
-		const invalidFile = this._config.documents.getInvalidFile();
+		const invalidFile = this._getDocumentManager().getInvalidFile();
 		if (invalidFile) {
 			void log(
-				this._config.connection,
+				this._classConfig.connection,
 				MANAGER_PREFIX,
 				`Not checking project because of invalid PHP file: ${invalidFile}`
 			);
@@ -318,7 +295,7 @@ export class PHPStanCheckManager implements Disposable {
 			projectCheck.hashes[file.uri] === basicHash(file.content)
 		) {
 			await log(
-				this._config.connection,
+				this._classConfig.connection,
 				MANAGER_PREFIX,
 				'No file changes, not checking'
 			);
@@ -330,11 +307,8 @@ export class PHPStanCheckManager implements Disposable {
 	public async check(
 		file: WatcherNotificationFileData | undefined
 	): Promise<void> {
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
-		if (!config.singleFileMode || !file) {
+		const editorConfig = await getEditorConfiguration(this._classConfig);
+		if (!editorConfig.singleFileMode || !file) {
 			return this._checkProject();
 		}
 		return this._checkFile(file);
@@ -343,11 +317,8 @@ export class PHPStanCheckManager implements Disposable {
 	public async checkIfChanged(
 		file: WatcherNotificationFileData
 	): Promise<void> {
-		const config = await getConfiguration(
-			this._config.connection,
-			this._config.workspaceFolders
-		);
-		if (!config.singleFileMode) {
+		const editorConfig = await getEditorConfiguration(this._classConfig);
+		if (!editorConfig.singleFileMode) {
 			return this._checkProjectIfFileChanged(file);
 		}
 		return this._checkFile(file);
@@ -355,7 +326,7 @@ export class PHPStanCheckManager implements Disposable {
 
 	public clear(): void {
 		this.dispose();
-		this._config.hooks.provider.clearReport();
+		this._classConfig.hooks.provider.clearReport();
 	}
 
 	public dispose(): void {

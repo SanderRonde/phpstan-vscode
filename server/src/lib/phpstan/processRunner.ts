@@ -3,22 +3,18 @@ import {
 	PROCESS_TIMEOUT,
 	SPAWN_ARGS,
 } from '../../../../shared/constants';
-import type { WatcherNotificationFileData } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { PHPStanCheck, ProgressListener } from './check';
-import { ConfigurationManager } from './configManager';
-import type { ReportedErrors } from './outputParser';
+import { ConfigurationManager } from '../checkConfigManager';
+import type { CheckConfig } from '../checkConfigManager';
+import { getEditorConfiguration } from '../editorConfig';
 import { Disposable } from 'vscode-languageserver';
-import type { CheckConfig } from './configManager';
 import type { ChildProcess } from 'child_process';
-import { OutputParser } from './outputParser';
 import { executeCommand } from '../commands';
-import type { ClassConfig } from './manager';
-import { getConfiguration } from '../config';
+import type { ClassConfig } from '../types';
 import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
-import { ReturnResult } from './result';
-import { URI } from 'vscode-uri';
+import { ReturnResult } from '../result';
 import * as os from 'os';
 
 export type PartialDocument = Pick<
@@ -48,12 +44,9 @@ export interface PHPStanCheckResult {
 export class PHPStanRunner implements Disposable {
 	private _cancelled: boolean = false;
 	private _process: ChildProcess | null = null;
-	private _configManager: ConfigurationManager = new ConfigurationManager(
-		this._config
-	);
-	private _disposables: Disposable[] = [this._configManager];
+	private _disposables: Disposable[] = [];
 
-	public constructor(private readonly _config: ClassConfig) {}
+	public constructor(private readonly _classConfig: ClassConfig) {}
 
 	public static escapeFilePath(filePath: string): string {
 		if (os.platform() !== 'win32') {
@@ -86,40 +79,6 @@ export class PHPStanRunner implements Disposable {
 				proc.kill('SIGKILL');
 			}, 2000);
 		}, 2000);
-	}
-
-	private async _spawnProcess(
-		config: CheckConfig,
-		check: PHPStanCheck,
-		withProgress: boolean
-	): Promise<ChildProcess> {
-		const [binStr, ...args] = await this._configManager.getArgs(
-			config,
-			withProgress
-		);
-		await log(
-			this._config.connection,
-			checkPrefix(check),
-			'Spawning PHPStan with the following configuration: ',
-			JSON.stringify({
-				binStr,
-				args: args,
-			})
-		);
-		const phpstan = await this._config.procSpawner.spawnWithRobustTimeout(
-			binStr,
-			args,
-			PROCESS_TIMEOUT,
-			{
-				...SPAWN_ARGS,
-				cwd: config.cwd,
-				encoding: 'utf-8',
-			}
-		);
-		this._disposables.push(
-			Disposable.create(() => !phpstan.killed && this._kill(phpstan))
-		);
-		return phpstan;
 	}
 
 	private _createOutputCapturer(
@@ -159,18 +118,19 @@ export class PHPStanRunner implements Disposable {
 		ignoredError: string
 	): Promise<void> {
 		const OPEN_SETTINGS = 'Fix in settings';
-		const choice = await this._config.connection.window.showErrorMessage(
-			`To-ignore error "${ignoredError}" is not a valid regular expression`,
-			{
-				title: OPEN_SETTINGS,
-			},
-			{
-				title: 'Close',
-			}
-		);
+		const choice =
+			await this._classConfig.connection.window.showErrorMessage(
+				`To-ignore error "${ignoredError}" is not a valid regular expression`,
+				{
+					title: OPEN_SETTINGS,
+				},
+				{
+					title: 'Close',
+				}
+			);
 		if (choice?.title === OPEN_SETTINGS) {
 			await executeCommand(
-				this._config.connection,
+				this._classConfig.connection,
 				'workbench.action.openSettings',
 				'phpstan.ignoreErrors'
 			);
@@ -202,8 +162,44 @@ export class PHPStanRunner implements Disposable {
 		return errors;
 	}
 
-	private async _runProcess(
-		config: CheckConfig,
+	private async _spawnProcess(
+		checkConfig: CheckConfig,
+		check: PHPStanCheck,
+		withProgress: boolean
+	): Promise<ChildProcess> {
+		const [binStr, ...args] = await ConfigurationManager.getArgs(
+			this._classConfig,
+			checkConfig,
+			withProgress
+		);
+		await log(
+			this._classConfig.connection,
+			checkPrefix(check),
+			'Spawning PHPStan with the following configuration: ',
+			JSON.stringify({
+				binStr,
+				args: args,
+			})
+		);
+		const phpstan =
+			await this._classConfig.procSpawner.spawnWithRobustTimeout(
+				binStr,
+				args,
+				PROCESS_TIMEOUT,
+				{
+					...SPAWN_ARGS,
+					cwd: checkConfig.cwd,
+					encoding: 'utf-8',
+				}
+			);
+		this._disposables.push(
+			Disposable.create(() => !phpstan.killed && this._kill(phpstan))
+		);
+		return phpstan;
+	}
+
+	public async runProcess(
+		checkConfig: CheckConfig,
 		check: PHPStanCheck,
 		{
 			onProgress,
@@ -211,7 +207,11 @@ export class PHPStanRunner implements Disposable {
 			onProgress?: ProgressListener;
 		} = {}
 	): Promise<ReturnResult<PHPStanCheckResult>> {
-		const phpstan = await this._spawnProcess(config, check, !!onProgress);
+		const phpstan = await this._spawnProcess(
+			checkConfig,
+			check,
+			!!onProgress
+		);
 		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(
@@ -227,16 +227,18 @@ export class PHPStanRunner implements Disposable {
 		);
 
 		const getFilteredErr = async (): Promise<string> => {
-			const config = await getConfiguration(
-				this._config.connection,
-				this._config.workspaceFolders
+			const editorConfig = await getEditorConfiguration(
+				this._classConfig
 			);
 
 			const errLines = getErr()
 				.split('\n')
 				.map((line) => line.trim())
 				.filter((line) => line.length);
-			return this._filterIgnoredErrors(errLines, config.ignoreErrors)
+			return this._filterIgnoredErrors(
+				errLines,
+				editorConfig.ignoreErrors
+			)
 				.map((line) => line.trim())
 				.join('\n');
 		};
@@ -250,14 +252,14 @@ export class PHPStanRunner implements Disposable {
 		const onError = async (extraData: string[] = []): Promise<void> => {
 			// On error
 			void log(
-				this._config.connection,
+				this._classConfig.connection,
 				checkPrefix(check),
 				'PHPStan process exited with error',
 				...(await getLogData()),
 				...extraData
 			);
 			showError(
-				this._config.connection,
+				this._classConfig.connection,
 				'PHPStan: process exited with error, see log for details'
 			);
 		};
@@ -279,14 +281,14 @@ export class PHPStanRunner implements Disposable {
 					// Check for warning
 					if (getErr().includes('Allowed memory size of')) {
 						showError(
-							this._config.connection,
+							this._classConfig.connection,
 							'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
 							[
 								{
 									title: 'Go to option',
 									callback: () => {
 										void executeCommand(
-											this._config.connection,
+											this._classConfig.connection,
 											'workbench.action.openSettings',
 											`@ext:${EXTENSION_ID} memoryLimit`
 										);
@@ -304,14 +306,14 @@ export class PHPStanRunner implements Disposable {
 						)
 					) {
 						showError(
-							this._config.connection,
+							this._classConfig.connection,
 							'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode',
 							[
 								{
 									title: 'View docs for "paths"',
 									callback: () => {
 										void executeCommand(
-											this._config.connection,
+											this._classConfig.connection,
 											'vscode.open',
 											'https://phpstan.org/config-reference#analysed-files'
 										);
@@ -321,7 +323,7 @@ export class PHPStanRunner implements Disposable {
 									title: 'Go to option single-file-check mode option',
 									callback: () => {
 										void executeCommand(
-											this._config.connection,
+											this._classConfig.connection,
 											'workbench.action.openSettings',
 											`@ext:${EXTENSION_ID} singleFileMode`
 										);
@@ -340,12 +342,12 @@ export class PHPStanRunner implements Disposable {
 					}
 
 					void log(
-						this._config.connection,
+						this._classConfig.connection,
 						checkPrefix(check),
 						'PHPStan process exited succesfully'
 					);
 
-					await this._config.hooks.provider.onCheckDone();
+					await this._classConfig.hooks.provider.onCheckDone();
 
 					resolve(
 						ReturnResult.success(
@@ -357,129 +359,8 @@ export class PHPStanRunner implements Disposable {
 		);
 	}
 
-	private async _checkProject(
-		check: PHPStanCheck,
-		onProgress: ProgressListener
-	): Promise<ReturnResult<ReportedErrors>> {
-		// Get config
-		const config = await this._configManager.collectConfiguration();
-		if (!config) {
-			return ReturnResult.error();
-		}
-		const pathMapper = await ConfigurationManager.getPathMapper(
-			this._config
-		);
-
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-		const result = await this._runProcess(config, check, {
-			onProgress,
-		});
-
-		return result.chain((output) => {
-			const parsed = new OutputParser(output).parse();
-
-			// Turn raw fs paths into URIs
-			const normalized: ReportedErrors = {
-				fileSpecificErrors: {},
-				notFileSpecificErrors: parsed.notFileSpecificErrors,
-			};
-			for (const filePath in parsed.fileSpecificErrors) {
-				normalized.fileSpecificErrors[
-					URI.from({
-						scheme: 'file',
-						path: pathMapper(filePath, true),
-					}).toString()
-				] = parsed.fileSpecificErrors[filePath];
-			}
-			return normalized;
-		});
-	}
-
-	private _escapeFilePath(filePath: string): string {
-		if (os.platform() !== 'win32') {
-			return filePath;
-		}
-		if (filePath.indexOf(' ') !== -1) {
-			filePath = '"' + filePath + '"';
-		}
-		return filePath;
-	}
-
-	private async _checkFile(
-		check: PHPStanCheck,
-		file: WatcherNotificationFileData
-	): Promise<ReturnResult<ReportedErrors>> {
-		// Get config
-		const config = await this._configManager.collectConfiguration();
-		if (!config) {
-			return ReturnResult.error();
-		}
-		const pathMapper = await ConfigurationManager.getPathMapper(
-			this._config
-		);
-		// Get file
-		const filePath = await ConfigurationManager.applyPathMapping(
-			this._config,
-			URI.parse(file.uri).fsPath
-		);
-
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
-		const result = await this._runProcess(
-			{
-				...config,
-				args: [...config.args, this._escapeFilePath(filePath)],
-			},
-			check
-		);
-
-		return result.chain((output) => {
-			const parsed = new OutputParser(output).parse();
-
-			const normalized: ReportedErrors = {
-				// Even if there are no errors we set the key so partial
-				// application will overwrite it to an empty array.
-				fileSpecificErrors: {
-					[file.uri]: [],
-				},
-				notFileSpecificErrors: parsed.notFileSpecificErrors,
-			};
-			for (const filePath in parsed.fileSpecificErrors) {
-				normalized.fileSpecificErrors[
-					URI.from({
-						scheme: 'file',
-						path: pathMapper(filePath, true),
-					}).toString()
-				] = parsed.fileSpecificErrors[filePath];
-			}
-			return normalized;
-		});
-	}
-
-	public async checkFile(
-		check: PHPStanCheck,
-		file: WatcherNotificationFileData
-	): Promise<ReturnResult<ReportedErrors>> {
-		const errors = await this._checkFile(check, file);
-		this.dispose();
-		return errors;
-	}
-
-	public async checkProject(
-		check: PHPStanCheck,
-		onProgress: ProgressListener
-	): Promise<ReturnResult<ReportedErrors>> {
-		const errors = await this._checkProject(check, onProgress);
-		this.dispose();
-		return errors;
-	}
-
 	public dispose(): void {
 		this._cancelled = true;
-		this._disposables.forEach((d) => d.dispose());
 		if (this._process && !this._process.killed) {
 			this._kill(this._process);
 		}
