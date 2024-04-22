@@ -2,35 +2,39 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.0.8
+
+-   Support non-quoted regular expressions in `phpstan.ignoreErrors` setting
+
 ### 3.0.7
 
 -   Publish version 3.0 🎉
 
-### 3.0.6
+### 3.0.6 (pre-release)
 
 -   Fix issue when an error had no linenumber (for example baseline errors)
 
-### 3.0.5
+### 3.0.5 (pre-release)
 
 -   Fix issue in TreeFetcher that would lead to recursive-json error
 -   Report errors in traits
 
-### 3.0.4
+### 3.0.4 (pre-release)
 
 -   Make checking validity of PHP file a setting
 -   Match PHPStan's default config resolution priority
 
-### 3.0.2
+### 3.0.2 (pre-release)
 
 -   Add PHPStan Pro support
 -   Disable language server by default
 -   Support tilde as first character in file paths
 
-### 3.0.1
+### 3.0.1 (pre-release)
 
 -   Only check on initial startup if the extension is enabled
 
-### 3.0.0
+### 3.0.0 (pre-release)
 
 -   Always perform whole-repository checks instead of single-file checks
     -   Ensures cache is always hit
