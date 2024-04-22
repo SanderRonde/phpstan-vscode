@@ -31,4 +31,9 @@ export type ConfigSettingsWithoutPrefix = {
 		? R
 		: unknown]: ConfigSettings[K];
 };
-export type ConfigSettings = GetConfigurationType<typeof config>;
+export type ConfigSettings = Omit<
+	GetConfigurationType<typeof config>,
+	'phpstan.ignoreErrors'
+> & {
+	'phpstan.ignoreErrors': (string | RegExp)[];
+};

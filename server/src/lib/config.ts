@@ -33,9 +33,14 @@ export async function getConfiguration(
 		options: config.options.map((option) =>
 			replaceVariables(option, workspaceFolders)
 		),
-		ignoreErrors: config.ignoreErrors.map((error) =>
-			replaceVariables(error, workspaceFolders)
-		),
+		ignoreErrors: config.ignoreErrors.map((error) => {
+			if (error instanceof RegExp) {
+				return new RegExp(
+					replaceVariables(error.source, workspaceFolders)
+				);
+			}
+			return replaceVariables(error, workspaceFolders);
+		}),
 	};
 }
 

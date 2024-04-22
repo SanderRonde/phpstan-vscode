@@ -174,10 +174,13 @@ export class PHPStanRunner implements Disposable {
 
 	private _filterIgnoredErrors(
 		errors: string[],
-		ignoredErrors: string[]
+		ignoredErrors: (string | RegExp)[]
 	): string[] {
 		for (const ignoreError of ignoredErrors) {
 			const regExp = (() => {
+				if (ignoreError instanceof RegExp) {
+					return ignoreError;
+				}
 				try {
 					return new RegExp(ignoreError);
 				} catch (e) {
