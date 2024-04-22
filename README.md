@@ -17,13 +17,14 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
 -   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. Unset by default.
 -   `phpstan.pro` - Enable PHPStan Pro support. Runs PHPStan Pro in the background and leaves watching to PHPStan while displaying any errors it catches in the editor. This requires a valid license. False by default.
+-   `phpstan.singleFileMode` - Whether to scan only the file that is being saved, instead of the whole project. This is not recommended since it busts the cache. Only use this if your computer can't handle a full-project scan
 
 ### Tuning
 
 -   `phpstan.options` - array of command line options to pass to PHPStan (defaults to `[]`)
 -   `phpstan.memoryLimit` - memory limit to use when running PHPStan (defaults to `1G`)
--   `phpstan.timeout` - timeout for checking single files after which the PHPStan process is killed in ms (defaults to 10000ms)
 -   `phpstan.projectTimeout` - timeout for checking the entire project after which the PHPStan process is killed in ms (defaults to 60000ms)
+-   `phpstan.timeout` - timeout for checking single files after which the PHPStan process is killed in ms (defaults to 10000ms). Only used if the `phpstan.singleFileMode` setting is enabled.
 -   `phpstan.suppressTimeoutMessage` - whether to disable the error message when the check times out (defaults to `false`)
 -   `phpstan.paths` - path mapping that allows for rewriting paths. Can be useful when developing inside a docker container or over SSH. Unset by default. Example for making the extension work in a docker container: `{ "/path/to/hostFolder": "/path/in/dockerContainer" }`
 -   `phpstan.ignoreErrors` - An array of regular expressions to ignore in error messages. If you find the PHPStan process erroring often because of a warning that can be ignored, put the warning in here and it'll be ignored in the future.

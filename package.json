@@ -31,6 +31,11 @@
 			"type": "object",
 			"title": "PHPStan",
 			"properties": {
+				"phpstan.singleFileMode": {
+					"type": "boolean",
+					"description": "Whether to scan only the file that is being saved, instead of the whole project. This is not recommended since it busts the cache. Only use this if your computer can't handle a full-project scan",
+					"default": false
+				},
 				"phpstan.binPath": {
 					"type": "string",
 					"default": "vendor/bin/phpstan",
@@ -102,6 +107,11 @@
 				"phpstan.projectTimeout": {
 					"type": "number",
 					"description": "Timeout in milliseconds for a full project check. After this time the checking process is canceled",
+					"default": 300000
+				},
+				"phpstan.timeout": {
+					"type": "number",
+					"description": "Timeout in milliseconds for a file check. After this time the checking process is canceled",
 					"default": 300000
 				},
 				"phpstan.suppressTimeoutMessage": {
@@ -280,7 +290,7 @@
 		"@types/rimraf": "^3",
 		"@typescript-eslint/eslint-plugin": "^5.12.0",
 		"@typescript-eslint/parser": "latest",
-		"esbuild": "0.20.0",
+		"esbuild": "^0.20.2",
 		"eslint": "latest",
 		"eslint-plugin-node": "^11.1.0",
 		"eslint-plugin-prettier": "latest",

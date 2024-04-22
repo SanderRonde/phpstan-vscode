@@ -264,7 +264,7 @@ export class ConfigurationManager implements Disposable {
 
 	public async getArgs(
 		config: CheckConfig,
-		progress: boolean = true
+		progress: boolean
 	): Promise<string[]> {
 		const args = [...config.initialArgs, 'analyse'];
 		if (config.remoteConfigFile) {

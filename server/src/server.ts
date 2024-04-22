@@ -121,8 +121,12 @@ function startIntegratedChecker(
 		const serverLiveFor = Date.now() - startedAtTime.getTime();
 		// Wait a while after start with checking so as to now tax the system too much
 		await wait(Math.max(5000 - serverLiveFor, 0));
-		if ((await getConfiguration(connection, workspaceFolders)).enabled) {
-			void phpstan.checkProject();
+		const configuration = await getConfiguration(
+			connection,
+			workspaceFolders
+		);
+		if (configuration.enabled && !configuration.singleFileMode) {
+			void phpstan.check(undefined);
 		}
 	})();
 

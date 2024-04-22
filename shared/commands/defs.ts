@@ -36,6 +36,14 @@ export const commands: Record<Commands, CommandDefinition> = {
 };
 
 export const config = {
+	'phpstan.singleFileMode': {
+		jsonDefinition: {
+			type: 'boolean',
+			description:
+				"Whether to scan only the file that is being saved, instead of the whole project. This is not recommended since it busts the cache. Only use this if your computer can't handle a full-project scan",
+			default: false,
+		},
+	},
 	'phpstan.binPath': {
 		jsonDefinition: {
 			type: 'string',
@@ -124,6 +132,14 @@ export const config = {
 			type: 'number',
 			description:
 				'Timeout in milliseconds for a full project check. After this time the checking process is canceled',
+			default: 300000,
+		},
+	},
+	'phpstan.timeout': {
+		jsonDefinition: {
+			type: 'number',
+			description:
+				'Timeout in milliseconds for a file check. After this time the checking process is canceled',
 			default: 300000,
 		},
 	},

@@ -3,6 +3,7 @@ import {
 	PROCESS_TIMEOUT,
 	SPAWN_ARGS,
 } from '../../../../shared/constants';
+import type { WatcherNotificationFileData } from '../../../../shared/notificationChannels';
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from './configManager';
@@ -89,9 +90,13 @@ export class PHPStanRunner implements Disposable {
 
 	private async _spawnProcess(
 		config: CheckConfig,
-		check: PHPStanCheck
+		check: PHPStanCheck,
+		withProgress: boolean
 	): Promise<ChildProcess> {
-		const [binStr, ...args] = await this._configManager.getArgs(config);
+		const [binStr, ...args] = await this._configManager.getArgs(
+			config,
+			withProgress
+		);
 		await log(
 			this._config.connection,
 			checkPrefix(check),
@@ -197,16 +202,16 @@ export class PHPStanRunner implements Disposable {
 		return errors;
 	}
 
-	private async _getProcessOutput(
+	private async _runProcess(
 		config: CheckConfig,
 		check: PHPStanCheck,
 		{
 			onProgress,
 		}: {
 			onProgress?: ProgressListener;
-		}
+		} = {}
 	): Promise<ReturnResult<PHPStanCheckResult>> {
-		const phpstan = await this._spawnProcess(config, check);
+		const phpstan = await this._spawnProcess(config, check, !!onProgress);
 		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(
@@ -282,8 +287,43 @@ export class PHPStanRunner implements Disposable {
 									callback: () => {
 										void executeCommand(
 											this._config.connection,
-											'workbench.actin.openSettings',
+											'workbench.action.openSettings',
 											`@ext:${EXTENSION_ID} memoryLimit`
+										);
+									},
+								},
+							]
+						);
+						resolve(ReturnResult.error());
+						return;
+					}
+
+					if (
+						getErr().includes(
+							'At least one path must be specified to analyse'
+						)
+					) {
+						showError(
+							this._config.connection,
+							'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode',
+							[
+								{
+									title: 'View docs for "paths"',
+									callback: () => {
+										void executeCommand(
+											this._config.connection,
+											'vscode.open',
+											'https://phpstan.org/config-reference#analysed-files'
+										);
+									},
+								},
+								{
+									title: 'Go to option single-file-check mode option',
+									callback: () => {
+										void executeCommand(
+											this._config.connection,
+											'workbench.action.openSettings',
+											`@ext:${EXTENSION_ID} singleFileMode`
 										);
 									},
 								},
@@ -326,18 +366,14 @@ export class PHPStanRunner implements Disposable {
 		if (!config) {
 			return ReturnResult.error();
 		}
-		if (this._cancelled) {
-			return ReturnResult.canceled();
-		}
 		const pathMapper = await ConfigurationManager.getPathMapper(
 			this._config
 		);
 
-		// Get args
 		if (this._cancelled) {
 			return ReturnResult.canceled();
 		}
-		const result = await this._getProcessOutput(config, check, {
+		const result = await this._runProcess(config, check, {
 			onProgress,
 		});
 
@@ -359,6 +395,77 @@ export class PHPStanRunner implements Disposable {
 			}
 			return normalized;
 		});
+	}
+
+	private _escapeFilePath(filePath: string): string {
+		if (os.platform() !== 'win32') {
+			return filePath;
+		}
+		if (filePath.indexOf(' ') !== -1) {
+			filePath = '"' + filePath + '"';
+		}
+		return filePath;
+	}
+
+	private async _checkFile(
+		check: PHPStanCheck,
+		file: WatcherNotificationFileData
+	): Promise<ReturnResult<ReportedErrors>> {
+		// Get config
+		const config = await this._configManager.collectConfiguration();
+		if (!config) {
+			return ReturnResult.error();
+		}
+		const pathMapper = await ConfigurationManager.getPathMapper(
+			this._config
+		);
+		// Get file
+		const filePath = await ConfigurationManager.applyPathMapping(
+			this._config,
+			URI.parse(file.uri).fsPath
+		);
+
+		if (this._cancelled) {
+			return ReturnResult.canceled();
+		}
+		const result = await this._runProcess(
+			{
+				...config,
+				args: [...config.args, this._escapeFilePath(filePath)],
+			},
+			check
+		);
+
+		return result.chain((output) => {
+			const parsed = new OutputParser(output).parse();
+
+			const normalized: ReportedErrors = {
+				// Even if there are no errors we set the key so partial
+				// application will overwrite it to an empty array.
+				fileSpecificErrors: {
+					[file.uri]: [],
+				},
+				notFileSpecificErrors: parsed.notFileSpecificErrors,
+			};
+			for (const filePath in parsed.fileSpecificErrors) {
+				normalized.fileSpecificErrors[
+					URI.from({
+						scheme: 'file',
+						path: pathMapper(filePath, true),
+					}).toString()
+				] = parsed.fileSpecificErrors[filePath];
+			}
+			return normalized;
+		});
+	}
+
+	public async checkFile(
+		check: PHPStanCheck,
+		file: WatcherNotificationFileData
+	): Promise<ReturnResult<ReportedErrors>> {
+		const errors = await this._checkFile(check, file);
+		this.dispose();
+		return errors;
 	}
 
 	public async checkProject(

@@ -1,3 +1,4 @@
+import type { WatcherNotificationFileData } from '../../../../shared/notificationChannels';
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
 import type { PHPStanVersion, WorkspaceFolders } from '../../server';
 import type { ProviderCheckHooks } from '../../providers/shared';
@@ -37,7 +38,7 @@ type RecursivePromiseObject = PromiseObject<RecursivePromiseObject> | null;
 
 const PROJECT_CHECK_STR = '__project__';
 export class PHPStanCheckManager implements Disposable {
-	private _operation: CheckOperation | null = null;
+	private _operations: Map<string, CheckOperation> = new Map();
 	private _filePromises: Map<string, RecursivePromiseObject> = new Map();
 	private readonly _disposables: Disposable[] = [];
 
@@ -131,7 +132,7 @@ export class PHPStanCheckManager implements Disposable {
 		});
 	}
 
-	private async _performCheck(): Promise<void> {
+	private async _performProjectCheck(): Promise<void> {
 		// Prep check
 		const check = new PHPStanCheck(this._config);
 		void log(
@@ -147,10 +148,10 @@ export class PHPStanCheckManager implements Disposable {
 			const content = allContents[uri];
 			hashes[uri] = basicHash(content);
 		}
-		this._operation = {
+		this._operations.set(PROJECT_CHECK_STR, {
 			check,
 			hashes,
-		};
+		});
 
 		// Create statusbar operation
 		const operation = this._config.statusBar.createOperation();
@@ -196,12 +197,68 @@ export class PHPStanCheckManager implements Disposable {
 		);
 	}
 
-	public async checkProject(): Promise<void> {
-		// Kill current running instances for this project
-		if (this._operation) {
-			// Different content, kill previous check and start new one
-			this._operation.check.dispose();
-			this._operation = null;
+	private async _performFileCheck(
+		file: WatcherNotificationFileData
+	): Promise<void> {
+		// Prep check
+		const check = new PHPStanCheck(this._config);
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			`Check started for file: ${file.uri}`
+		);
+
+		this._operations.set(file.uri, {
+			check,
+			hashes: {
+				[file.uri]: basicHash(file.content),
+			},
+		});
+
+		// Create statusbar operation
+		const operation = this._config.statusBar.createOperation();
+		await operation.start('Checking');
+
+		// Do check
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.workspaceFolders
+		);
+		const runningCheck = withTimeout<
+			ReturnResult<ReportedErrors>,
+			Promise<ReturnResult<ReportedErrors>>
+		>({
+			promise: check.check(true, file),
+			timeout: config.timeout,
+			onTimeout: async () => {
+				check.dispose();
+				void this._onTimeout(check);
+				await operation.finish(OperationStatus.KILLED);
+
+				return ReturnResult.killed();
+			},
+		});
+		this._disposables.push(runningCheck);
+		const result = await runningCheck.promise;
+
+		// Show result of operation in statusbar
+		await operation.finish(result.status);
+
+		void log(
+			this._config.connection,
+			checkPrefix(check),
+			'Check completed for file, errors=',
+			JSON.stringify(this._toErrorMessageMap(result))
+		);
+	}
+
+	private async _checkProject(): Promise<void> {
+		// Kill all current running instances
+		if (this._operations) {
+			for (const operation of this._operations.values()) {
+				operation.check.dispose();
+			}
+			this._operations.clear();
 		}
 
 		const invalidFile = this._config.documents.getInvalidFile();
@@ -216,25 +273,49 @@ export class PHPStanCheckManager implements Disposable {
 
 		await this._withRecursivePromise(
 			PROJECT_CHECK_STR,
-			this._performCheck()
+			this._performProjectCheck()
 		);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
 
-	public async checkProjectIfFileChanged(
-		uri: string,
-		fileContent: string | undefined
-	): Promise<void> {
-		if (!this._operation) {
-			return this.checkProject();
+	public async _checkFile(file: WatcherNotificationFileData): Promise<void> {
+		// Kill current running instances for this file
+		if (this._operations?.get(file.uri)) {
+			const currentOperationForFile = this._operations.get(file.uri)!;
+			if (
+				currentOperationForFile.hashes[file.uri] ===
+				basicHash(file.content)
+			) {
+				// File is the same, wait for the current check
+				return this._getFilePromise(file.uri);
+			}
+
+			// Different content, kill previous check and start new one
+			currentOperationForFile.check.dispose();
+			this._operations.delete(file.uri);
 		}
-		if (!fileContent) {
+
+		await this._withRecursivePromise(
+			file.uri,
+			this._performFileCheck(file)
+		);
+		return this._getFilePromise(file.uri);
+	}
+
+	private async _checkProjectIfFileChanged(
+		file: WatcherNotificationFileData
+	): Promise<void> {
+		const projectCheck = this._operations.get(PROJECT_CHECK_STR);
+		if (!projectCheck) {
+			return this._checkProject();
+		}
+		if (!file.content) {
 			// Already checked if part of any operation
 			return;
 		}
 		if (
-			!this._operation.hashes[uri] ||
-			this._operation.hashes[uri] === basicHash(fileContent)
+			!projectCheck.hashes[file.uri] ||
+			projectCheck.hashes[file.uri] === basicHash(file.content)
 		) {
 			await log(
 				this._config.connection,
@@ -243,7 +324,33 @@ export class PHPStanCheckManager implements Disposable {
 			);
 			return;
 		}
-		return this.checkProject();
+		return this._checkProject();
+	}
+
+	public async check(
+		file: WatcherNotificationFileData | undefined
+	): Promise<void> {
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.workspaceFolders
+		);
+		if (!config.singleFileMode || !file) {
+			return this._checkProject();
+		}
+		return this._checkFile(file);
+	}
+
+	public async checkIfChanged(
+		file: WatcherNotificationFileData
+	): Promise<void> {
+		const config = await getConfiguration(
+			this._config.connection,
+			this._config.workspaceFolders
+		);
+		if (!config.singleFileMode) {
+			return this._checkProjectIfFileChanged(file);
+		}
+		return this._checkFile(file);
 	}
 
 	public clear(): void {
@@ -252,7 +359,9 @@ export class PHPStanCheckManager implements Disposable {
 	}
 
 	public dispose(): void {
-		this._operation?.check.dispose();
-		this._operation = null;
+		for (const operation of this._operations.values()) {
+			operation.check.dispose();
+		}
+		this._operations.clear();
 	}
 }

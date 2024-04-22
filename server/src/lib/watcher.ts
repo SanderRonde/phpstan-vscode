@@ -93,7 +93,7 @@ export class Watcher implements Disposable {
 				WATCHER_PREFIX,
 				'Document changed, triggering'
 			);
-			await this._phpstan.checkProject();
+			await this._phpstan.check(e);
 		});
 	}
 
@@ -111,7 +111,7 @@ export class Watcher implements Disposable {
 				WATCHER_PREFIX,
 				'Document saved, triggering'
 			);
-			await this._phpstan.checkProject();
+			await this._phpstan.check(e);
 		});
 	}
 
@@ -137,7 +137,7 @@ export class Watcher implements Disposable {
 				`New document active (${e.uri}), triggering`
 			);
 			this._lastActiveDocument = this._toPartialDocument(e);
-			await this._phpstan.checkProjectIfFileChanged(e.uri, e.content);
+			await this._phpstan.checkIfChanged(e);
 		});
 	}
 
@@ -155,7 +155,7 @@ export class Watcher implements Disposable {
 				WATCHER_PREFIX,
 				'Document opened, triggering and re-applying errors'
 			);
-			await this._phpstan.checkProject();
+			await this._phpstan.check(e);
 		});
 	}
 
@@ -166,11 +166,11 @@ export class Watcher implements Disposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await this._phpstan.checkProject();
+		await this._phpstan.check(e);
 	}
 
 	public async onScanProject(): Promise<void> {
-		await this._phpstan.checkProject();
+		await this._phpstan.check(undefined);
 	}
 
 	public clearData(): void {

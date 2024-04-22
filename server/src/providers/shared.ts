@@ -72,8 +72,15 @@ export async function getFileReport(
 		);
 	}
 	const fileContent = providerArgs.documents.get(documentURI)?.content;
+	if (!fileContent) {
+		return null;
+	}
 	const promise = toCheckablePromise(
-		providerArgs.phpstan.checkProjectIfFileChanged(documentURI, fileContent)
+		providerArgs.phpstan.checkIfChanged({
+			content: fileContent,
+			uri: documentURI,
+			languageId: 'php',
+		})
 	);
 
 	// Check if the file is currently being checked. If so, wait for that to end.

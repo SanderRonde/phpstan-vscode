@@ -1,4 +1,7 @@
-import type { StatusBarProgress } from '../../../../shared/notificationChannels';
+import type {
+	StatusBarProgress,
+	WatcherNotificationFileData,
+} from '../../../../shared/notificationChannels';
 import { OperationStatus } from '../../../../shared/statusBar';
 import { errorNotification } from '../notificationChannels';
 import type { Disposable } from 'vscode-languageserver';
@@ -32,7 +35,8 @@ export class PHPStanCheck implements Disposable {
 	}
 
 	public async check(
-		applyErrors: boolean
+		applyErrors: boolean,
+		file?: WatcherNotificationFileData
 	): Promise<ReturnResult<ReportedErrors>> {
 		if (this._disposed) {
 			return ReturnResult.canceled();
@@ -41,12 +45,15 @@ export class PHPStanCheck implements Disposable {
 		const errorManager = new PHPStanCheckErrorManager(this._config);
 		this._disposables.push(runner);
 
-		const result = await runner.checkProject(
-			this,
-			this._onProgress.bind(this)
-		);
+		const result = await (() => {
+			if (file) {
+				return runner.checkFile(this, file);
+			} else {
+				return runner.checkProject(this, this._onProgress.bind(this));
+			}
+		})();
 		if (applyErrors) {
-			await errorManager.handleResult(result);
+			await errorManager.handleResult(result, !!file);
 		}
 
 		this.dispose();
@@ -68,6 +75,11 @@ export class PHPStanCheck implements Disposable {
 }
 
 class PHPStanCheckErrorManager {
+	private static _lastErrors: ReportedErrors = {
+		fileSpecificErrors: {},
+		notFileSpecificErrors: [],
+	};
+
 	public constructor(
 		private readonly _config: Pick<ClassConfig, 'connection'>
 	) {}
@@ -78,22 +90,39 @@ class PHPStanCheckErrorManager {
 		});
 	}
 
-	private async _clearErrors(): Promise<void> {
-		await this._config.connection.sendNotification(errorNotification, {
-			diagnostics: {
-				fileSpecificErrors: {},
-				notFileSpecificErrors: [],
+	private _applyPartialErrors(result: ReportedErrors): ReportedErrors {
+		return {
+			fileSpecificErrors: {
+				...PHPStanCheckErrorManager._lastErrors.fileSpecificErrors,
+				...result.fileSpecificErrors,
 			},
-		});
+			notFileSpecificErrors: result.notFileSpecificErrors,
+		};
 	}
 
 	public async handleResult(
-		result: ReturnResult<ReportedErrors>
+		result: ReturnResult<ReportedErrors>,
+		isPartial: boolean
 	): Promise<void> {
-		if (result.success()) {
-			await this._showErrors(result.value);
-		} else if (result.status === OperationStatus.ERROR) {
-			await this._clearErrors();
+		const errors = (() => {
+			if (result.status === OperationStatus.ERROR) {
+				return {
+					fileSpecificErrors: {},
+					notFileSpecificErrors: [],
+				};
+			} else if (result.success()) {
+				return isPartial
+					? this._applyPartialErrors(result.value)
+					: result.value;
+			}
+			return null;
+		})();
+
+		if (errors === null) {
+			return;
 		}
+
+		PHPStanCheckErrorManager._lastErrors = errors;
+		await this._showErrors(errors);
 	}
 }
