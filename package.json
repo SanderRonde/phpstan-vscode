@@ -165,6 +165,10 @@
 		},
 		"commands": [
 			{
+				"command": "phpstan.scanFileForErrors",
+				"title": "Scan current file for errors"
+			},
+			{
 				"command": "phpstan.scanProjectForErrors",
 				"title": "Scan project for errors"
 			},
@@ -183,6 +187,10 @@
 			{
 				"command": "phpstan.openPhpstanPro",
 				"title": "Open PHPStan Pro in browser"
+			},
+			{
+				"command": "cmd.phpstan.scanFileForErrors",
+				"title": "PHPStan: Scan current file for errors"
 			},
 			{
 				"command": "cmd.phpstan.scanProjectForErrors",
@@ -208,6 +216,10 @@
 		"menus": {
 			"commandPalette": [
 				{
+					"command": "phpstan.scanFileForErrors",
+					"when": "false"
+				},
+				{
 					"command": "phpstan.scanProjectForErrors",
 					"when": "false"
 				},
@@ -226,6 +238,10 @@
 				{
 					"command": "phpstan.openPhpstanPro",
 					"when": "false"
+				},
+				{
+					"command": "cmd.phpstan.scanFileForErrors",
+					"when": "true"
 				},
 				{
 					"command": "cmd.phpstan.scanProjectForErrors",
@@ -291,7 +307,7 @@
 		"@typescript-eslint/eslint-plugin": "^5.12.0",
 		"@typescript-eslint/parser": "latest",
 		"esbuild": "^0.20.2",
-		"eslint": "latest",
+		"eslint": "8",
 		"eslint-plugin-node": "^11.1.0",
 		"eslint-plugin-prettier": "latest",
 		"eslint-plugin-unused-imports": "^2.0.0",

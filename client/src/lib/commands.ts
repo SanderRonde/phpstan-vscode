@@ -8,6 +8,7 @@ import { commands, Commands } from '../../../shared/commands/defs';
 // eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
+import { getEditorConfiguration } from './editorConfig';
 import { showError } from './errorUtil';
 import * as vscode from 'vscode';
 
@@ -17,6 +18,39 @@ export function registerListeners(
 	errorManager: ErrorManager,
 	phpstanProManager: PHPStanProManager
 ): void {
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.SCAN_FILE_FOR_ERRORS,
+			async () => {
+				const editorConfig = await getEditorConfiguration();
+				if (!editorConfig.singleFileMode) {
+					showError(
+						'Please enable single-file mode in the settings to scan a single file. Instead use "Scan project for errors" to scan the whole project.'
+					);
+					return;
+				}
+
+				const doc = vscode.window.activeTextEditor?.document;
+				if (doc) {
+					if (doc.languageId !== 'php') {
+						showError('Only PHP files can be scanned for errors');
+						return;
+					}
+
+					await client.sendNotification(watcherNotification, {
+						operation: 'check',
+						file: {
+							content: doc.getText(),
+							uri: doc.uri.toString(),
+							languageId: doc.languageId,
+						},
+					});
+				}
+			},
+			commands
+		)
+	);
+
 	context.subscriptions.push(
 		autoRegisterCommand(
 			Commands.SCAN_PROJECT,
