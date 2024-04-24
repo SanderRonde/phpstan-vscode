@@ -33,32 +33,47 @@ export class PHPStanCheckManager implements Disposable {
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		if (!editorConfig.suppressTimeoutMessage) {
-			showError(
-				this._classConfig.connection,
-				`PHPStan check timed out after ${editorConfig.projectTimeout}ms`,
-				[
-					{
-						title: 'Adjust timeout',
-						callback: () => {
-							void executeCommand(
-								this._classConfig.connection,
-								'workbench.action.openSettings',
-								'phpstan.projectCheckTimeout'
-							);
-						},
+			let error = `PHPStan check timed out after ${editorConfig.projectTimeout}ms`;
+			if (!editorConfig.singleFileMode) {
+				error +=
+					". Consider bumping the timeout or switching to single-file check mode if your device can't handle full-project checks.";
+			}
+			showError(this._classConfig.connection, error, [
+				{
+					title: 'Adjust timeout',
+					callback: () => {
+						void executeCommand(
+							this._classConfig.connection,
+							'workbench.action.openSettings',
+							'phpstan.projectCheckTimeout'
+						);
 					},
-					{
-						title: 'Stop showing this message',
-						callback: () => {
-							void executeCommand(
-								this._classConfig.connection,
-								'workbench.action.openSettings',
-								'phpstan.suppressTimeoutMessage'
-							);
-						},
+				},
+				...(!editorConfig.singleFileMode
+					? [
+							{
+								title: 'Enable single-file check mode',
+								callback: () => {
+									void executeCommand(
+										this._classConfig.connection,
+										'workbench.action.openSettings',
+										'phpstan.singleFileMode'
+									);
+								},
+							},
+						]
+					: []),
+				{
+					title: 'Stop showing this message',
+					callback: () => {
+						void executeCommand(
+							this._classConfig.connection,
+							'workbench.action.openSettings',
+							'phpstan.suppressTimeoutMessage'
+						);
 					},
-				]
-			);
+				},
+			]);
 		}
 		void log(
 			this._classConfig.connection,
