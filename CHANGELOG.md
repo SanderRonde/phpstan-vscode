@@ -2,6 +2,12 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.1
+
+-   Improve killing of running processes when starting a new one
+-   Bring back `phpstan.scanFileForErrors` command
+-   Inform users of single-file checking mode when project scan times out
+
 ### 3.1.0
 
 -   Add back support for single-file checking behind a setting
