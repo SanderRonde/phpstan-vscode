@@ -2,13 +2,13 @@ import type { WatcherNotificationFileData } from '../../../../shared/notificatio
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
 import { OperationStatus } from '../../../../shared/statusBar';
 import type { PromiseObject } from '../../../../shared/util';
+import type { AsyncDisposable, ClassConfig } from '../types';
 import type { DocumentManager } from '../documentManager';
 import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import { getEditorConfiguration } from '../editorConfig';
 import type { Disposable } from 'vscode-languageserver';
 import type { ReportedErrors } from './check';
 import { executeCommand } from '../commands';
-import type { ClassConfig } from '../types';
 import { showError } from '../errorUtil';
 import { ReturnResult } from '../result';
 import { PHPStanCheck } from './check';
@@ -20,7 +20,7 @@ interface CheckOperation {
 type RecursivePromiseObject = PromiseObject<RecursivePromiseObject> | null;
 
 const PROJECT_CHECK_STR = '__project__';
-export class PHPStanCheckManager implements Disposable {
+export class PHPStanCheckManager implements AsyncDisposable {
 	private _operations: Map<string, CheckOperation> = new Map();
 	private _filePromises: Map<string, RecursivePromiseObject> = new Map();
 	private readonly _disposables: Disposable[] = [];
@@ -171,7 +171,7 @@ export class PHPStanCheckManager implements Disposable {
 			promise: check.check(true),
 			timeout: editorConfig.projectTimeout,
 			onTimeout: async () => {
-				check.dispose();
+				await check.dispose();
 				void this._onTimeout(check);
 				await operation.finish(OperationStatus.KILLED);
 
@@ -223,7 +223,7 @@ export class PHPStanCheckManager implements Disposable {
 			promise: check.check(true, file),
 			timeout: editorConfig.timeout,
 			onTimeout: async () => {
-				check.dispose();
+				await check.dispose();
 				void this._onTimeout(check);
 				await operation.finish(OperationStatus.KILLED);
 
@@ -247,9 +247,11 @@ export class PHPStanCheckManager implements Disposable {
 	private async _checkProject(): Promise<void> {
 		// Kill all current running instances
 		if (this._operations) {
-			for (const operation of this._operations.values()) {
-				operation.check.dispose();
-			}
+			await Promise.all(
+				[...this._operations.values()].map((operation) =>
+					operation.check.dispose()
+				)
+			);
 			this._operations.clear();
 		}
 
@@ -283,7 +285,7 @@ export class PHPStanCheckManager implements Disposable {
 			}
 
 			// Different content, kill previous check and start new one
-			currentOperationForFile.check.dispose();
+			await currentOperationForFile.check.dispose();
 			this._operations.delete(file.uri);
 		}
 
@@ -339,15 +341,15 @@ export class PHPStanCheckManager implements Disposable {
 		return this._checkFile(file);
 	}
 
-	public clear(): void {
-		this.dispose();
+	public async clear(): Promise<void> {
+		await this.dispose();
 		this._classConfig.hooks.provider.clearReport();
 	}
 
-	public dispose(): void {
-		for (const operation of this._operations.values()) {
-			operation.check.dispose();
-		}
+	public async dispose(): Promise<void> {
+		await Promise.all([
+			...this._disposables.map((disposable) => disposable.dispose()),
+		]);
 		this._operations.clear();
 	}
 }

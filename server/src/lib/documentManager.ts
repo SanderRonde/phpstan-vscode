@@ -103,7 +103,7 @@ export class DocumentManager implements Disposable {
 								this._documents.delete(data.file.uri);
 								return;
 							case 'clear':
-								this._clearData(checkManager);
+								void this._clearData(checkManager);
 								return;
 							case 'checkProject':
 								return this._onScanProject(checkManager);
@@ -177,7 +177,7 @@ export class DocumentManager implements Disposable {
 			timeout: setTimeout(() => {
 				this._queuedCalls.delete(identifier);
 				void callback();
-			}, 50),
+			}, 100),
 		});
 	}
 
@@ -292,8 +292,8 @@ export class DocumentManager implements Disposable {
 		await checkManager.check(undefined);
 	}
 
-	private _clearData(checkManager: PHPStanCheckManager): void {
-		checkManager.clear();
+	private async _clearData(checkManager: PHPStanCheckManager): Promise<void> {
+		await checkManager.clear();
 	}
 
 	public getFile(uri: string): WatcherNotificationFileData | null {

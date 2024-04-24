@@ -4,12 +4,11 @@ import type {
 } from '../../../../shared/notificationChannels';
 import { OperationStatus } from '../../../../shared/statusBar';
 import { ConfigurationManager } from '../checkConfigManager';
+import type { AsyncDisposable, ClassConfig } from '../types';
 import { errorNotification } from '../notificationChannels';
 import type { PHPStanCheckResult } from './processRunner';
 import type { CheckConfig } from '../checkConfigManager';
-import type { Disposable } from 'vscode-languageserver';
 import { PHPStanRunner } from './processRunner';
-import type { ClassConfig } from '../types';
 import { ReturnResult } from '../result';
 import { URI } from 'vscode-uri';
 import * as os from 'os';
@@ -17,9 +16,9 @@ import * as os from 'os';
 export type ProgressListener = (progress: StatusBarProgress) => void;
 
 const IN_CONTEXT_OF_PREFIX = ' (in context of';
-export class PHPStanCheck implements Disposable {
+export class PHPStanCheck implements AsyncDisposable {
 	private static _lastCheckId: number = 1;
-	private _disposables: Disposable[] = [];
+	private _disposables: AsyncDisposable[] = [];
 	private _done: boolean = false;
 	private _disposed: boolean = false;
 	private _progressListeners: ProgressListener[] = [];
@@ -200,7 +199,7 @@ export class PHPStanCheck implements Disposable {
 			await errorManager.handleResult(result, !!file);
 		}
 
-		this.dispose();
+		await this.dispose();
 		this._done = true;
 
 		return result;
@@ -210,8 +209,8 @@ export class PHPStanCheck implements Disposable {
 		this._progressListeners.push(callback);
 	}
 
-	public dispose(): void {
-		this._disposables.forEach((d) => void d.dispose());
+	public async dispose(): Promise<void> {
+		await Promise.all(this._disposables.map((d) => d.dispose()));
 		this._progressListeners = [];
 		this._disposables = [];
 		this._disposed = true;

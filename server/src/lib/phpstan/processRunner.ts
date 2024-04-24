@@ -6,12 +6,12 @@ import {
 import type { TextDocument } from 'vscode-languageserver-textdocument';
 import type { PHPStanCheck, ProgressListener } from './check';
 import { ConfigurationManager } from '../checkConfigManager';
+import type { AsyncDisposable, ClassConfig } from '../types';
 import type { CheckConfig } from '../checkConfigManager';
 import { getEditorConfiguration } from '../editorConfig';
-import { Disposable } from 'vscode-languageserver';
 import type { ChildProcess } from 'child_process';
+import { wait } from '../../../../shared/util';
 import { executeCommand } from '../commands';
-import type { ClassConfig } from '../types';
 import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from '../result';
@@ -41,10 +41,9 @@ export interface PHPStanCheckResult {
 	};
 }
 
-export class PHPStanRunner implements Disposable {
+export class PHPStanRunner implements AsyncDisposable {
 	private _cancelled: boolean = false;
-	private _process: ChildProcess | null = null;
-	private _disposables: Disposable[] = [];
+	private _disposables = new Set<() => Promise<void>>();
 
 	public constructor(private readonly _classConfig: ClassConfig) {}
 
@@ -58,27 +57,33 @@ export class PHPStanRunner implements Disposable {
 		return filePath;
 	}
 
-	private _kill(proc: ChildProcess): void {
-		let killed = false;
-		proc.once('exit', () => {
-			killed = true;
-		});
-		// Give it 2 seconds to exit gracefully
-		proc.kill('SIGINT');
-		setTimeout(() => {
-			// Then less gracefully
-			if (killed) {
-				return;
-			}
-			proc.kill('SIGTERM');
-			setTimeout(() => {
-				if (killed) {
-					return;
-				}
-				// Then we force it
-				proc.kill('SIGKILL');
-			}, 2000);
-		}, 2000);
+	private _kill(proc: ChildProcess): Promise<void> {
+		return Promise.race<void>([
+			new Promise((resolve) => {
+				let killed = false;
+				proc.once('exit', () => {
+					killed = true;
+					resolve();
+				});
+				// Give it 2 seconds to exit gracefully
+				proc.kill('SIGINT');
+				setTimeout(() => {
+					// Then less gracefully
+					if (killed) {
+						return;
+					}
+					proc.kill('SIGTERM');
+					setTimeout(() => {
+						if (killed) {
+							return;
+						}
+						// Then we force it
+						proc.kill('SIGKILL');
+					}, 2000);
+				}, 2000);
+			}),
+			wait(1000 * 10),
+		]);
 	}
 
 	private _createOutputCapturer(
@@ -192,9 +197,7 @@ export class PHPStanRunner implements Disposable {
 					encoding: 'utf-8',
 				}
 			);
-		this._disposables.push(
-			Disposable.create(() => !phpstan.killed && this._kill(phpstan))
-		);
+
 		return phpstan;
 	}
 
@@ -212,7 +215,6 @@ export class PHPStanRunner implements Disposable {
 			check,
 			!!onProgress
 		);
-		this._process = phpstan;
 
 		const getData = this._createOutputCapturer(
 			phpstan,
@@ -264,15 +266,19 @@ export class PHPStanRunner implements Disposable {
 			);
 		};
 
+		const killProc = (): Promise<void> => this._kill(phpstan);
+		this._disposables.add(killProc);
+
 		return await new Promise<ReturnResult<PHPStanCheckResult>>(
 			(resolve) => {
-				phpstan.on('error', (e) => {
+				phpstan.once('error', (e) => {
+					this._disposables.delete(killProc);
 					void onError([' errMsg=' + e.message]);
 					resolve(ReturnResult.error());
 				});
 				// eslint-disable-next-line @typescript-eslint/no-misused-promises
-				phpstan.on('exit', async () => {
-					// On exit
+				phpstan.once('exit', async () => {
+					this._disposables.delete(killProc);
 					if (this._cancelled) {
 						resolve(ReturnResult.canceled());
 						return;
@@ -359,11 +365,11 @@ export class PHPStanRunner implements Disposable {
 		);
 	}
 
-	public dispose(): void {
+	public async dispose(): Promise<void> {
 		this._cancelled = true;
-		if (this._process && !this._process.killed) {
-			this._kill(this._process);
-		}
-		this._disposables = [];
+		await Promise.all(
+			[...this._disposables].map((disposable) => disposable())
+		);
+		this._disposables.clear();
 	}
 }

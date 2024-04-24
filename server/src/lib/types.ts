@@ -45,3 +45,7 @@ export class PromisedValue<V> {
 		return this._wasSet;
 	}
 }
+
+export interface AsyncDisposable {
+	dispose: () => Promise<void>;
+}
