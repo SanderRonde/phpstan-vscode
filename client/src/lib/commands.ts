@@ -23,7 +23,7 @@ export function registerListeners(
 			Commands.SCAN_FILE_FOR_ERRORS,
 			async () => {
 				const editorConfig = getEditorConfiguration();
-				if (!editorConfig.singleFileMode) {
+				if (!editorConfig.get('phpstan.singleFileMode')) {
 					showError(
 						'Please enable single-file mode in the settings to scan a single file. Instead use "Scan project for errors" to scan the whole project.'
 					);
