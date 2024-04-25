@@ -54,6 +54,14 @@ First get your dev environment started by running `bun dev`. Note that this expe
 
 This command installs all JS and PHP dependencies and ensures you're ready to go for writing a PHPStan extension.
 
+### Running the extension
+
+To run the extension, you can use the `Launch Client` task in VSCode. This will start a new VSCode window with the extension running. Use `Client + Server` to also attach the debugger to the language server.
+
+### Building the extension for production
+
+To build for production or publish, use the VSCode Extension command (`vsce`). `vsce package` will build an installable `.vsix` file.
+
 ### Good-to-know commands
 
 The following command will run PHPStan on a demo file, this is handy for testing out changes to the PHPStan plugin that collects hover data.
