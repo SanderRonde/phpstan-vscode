@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.2
+
+-   Fix `phpstan.scanFileForErrors` command
+
 ### 3.1.1
 
 -   Improve killing of running processes when starting a new one
