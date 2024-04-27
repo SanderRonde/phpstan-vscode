@@ -1,10 +1,11 @@
 import type { WatcherNotificationFileData } from '../../../../shared/notificationChannels';
 import { basicHash, createPromise, withTimeout } from '../../../../shared/util';
+import { checkPrefix, log, MANAGER_PREFIX, WATCHER_PREFIX } from '../log';
 import { OperationStatus } from '../../../../shared/statusBar';
+import { CHECK_DEBOUNCE } from '../../../../shared/constants';
 import type { PromiseObject } from '../../../../shared/util';
 import type { AsyncDisposable, ClassConfig } from '../types';
 import type { DocumentManager } from '../documentManager';
-import { checkPrefix, log, MANAGER_PREFIX } from '../log';
 import { getEditorConfiguration } from '../editorConfig';
 import type { Disposable } from 'vscode-languageserver';
 import type { ReportedErrors } from './check';
@@ -23,12 +24,41 @@ const PROJECT_CHECK_STR = '__project__';
 export class PHPStanCheckManager implements AsyncDisposable {
 	private _operations: Map<string, CheckOperation> = new Map();
 	private _filePromises: Map<string, RecursivePromiseObject> = new Map();
+	private readonly _queuedCalls: Map<
+		string,
+		{
+			promiseResolvers: (() => void)[];
+			timeout: NodeJS.Timeout;
+		}
+	> = new Map();
 	private readonly _disposables: Disposable[] = [];
 
 	public constructor(
 		private readonly _classConfig: ClassConfig,
 		private readonly _getDocumentManager: () => DocumentManager
 	) {}
+
+	private _debounceWithKey(
+		identifier: string,
+		callback: () => void | Promise<void>
+	): Promise<void> {
+		const existing = this._queuedCalls.get(identifier);
+		if (existing) {
+			clearTimeout(existing.timeout);
+		}
+		return new Promise<void>((resolve) => {
+			this._queuedCalls.set(identifier, {
+				promiseResolvers: [
+					...(existing?.promiseResolvers ?? []),
+					resolve,
+				],
+				timeout: setTimeout(() => {
+					this._queuedCalls.delete(identifier);
+					void callback();
+				}, CHECK_DEBOUNCE),
+			});
+		});
+	}
 
 	private async _onTimeout(check: PHPStanCheck): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
@@ -322,23 +352,46 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	}
 
 	public async check(
-		file: WatcherNotificationFileData | undefined
+		file: WatcherNotificationFileData | undefined,
+		cause: string
 	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
-		if (!editorConfig.singleFileMode || !file) {
-			return this._checkProject();
-		}
-		return this._checkFile(file);
+		const shouldCheckProject = !editorConfig.singleFileMode || !file;
+		return this._debounceWithKey(
+			shouldCheckProject ? PROJECT_CHECK_STR : file.uri,
+			async () => {
+				await log(
+					this._classConfig.connection,
+					WATCHER_PREFIX,
+					`Checking: ${cause}`
+				);
+				if (shouldCheckProject) {
+					return this._checkProject();
+				}
+				return this._checkFile(file);
+			}
+		);
 	}
 
 	public async checkIfChanged(
-		file: WatcherNotificationFileData
+		file: WatcherNotificationFileData,
+		cause: string
 	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
-		if (!editorConfig.singleFileMode) {
-			return this._checkProjectIfFileChanged(file);
-		}
-		return this._checkFile(file);
+		return this._debounceWithKey(
+			editorConfig.singleFileMode ? file.uri : PROJECT_CHECK_STR,
+			async () => {
+				await log(
+					this._classConfig.connection,
+					WATCHER_PREFIX,
+					`Checking: ${cause}`
+				);
+				if (!editorConfig.singleFileMode) {
+					return this._checkProjectIfFileChanged(file);
+				}
+				return this._checkFile(file);
+			}
+		);
 	}
 
 	public async clear(): Promise<void> {

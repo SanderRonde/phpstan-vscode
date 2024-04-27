@@ -13,6 +13,7 @@ export const PHPSTAN_1_NEON_FILE = path.join(ROOT_FOLDER, 'php/config.neon');
 export const PHPSTAN_2_NEON_FILE = path.join(ROOT_FOLDER, 'php/config.2.neon');
 // Hard limit, process should never take longer than this
 export const PROCESS_TIMEOUT = 1000 * 60 * 15;
+export const CHECK_DEBOUNCE = 100;
 
 export const SPAWN_ARGS = {
 	shell: process.platform === 'win32',

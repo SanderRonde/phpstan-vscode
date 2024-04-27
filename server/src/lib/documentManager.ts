@@ -5,7 +5,6 @@ import { watcherNotification } from './notificationChannels';
 import { assertUnreachable } from '../../../shared/util';
 import type { Disposable } from 'vscode-languageserver';
 import { getEditorConfiguration } from './editorConfig';
-import { log, WATCHER_PREFIX } from './log';
 import type { ClassConfig } from './types';
 import * as phpParser from 'php-parser';
 import { URI } from 'vscode-uri';
@@ -53,13 +52,6 @@ export class DocumentManager implements Disposable {
 	private readonly _documents: Map<string, DocumentManagerFileData> =
 		new Map();
 	private readonly _onConnectionInitialized: Promise<void>;
-	private readonly _queuedCalls: Map<
-		string,
-		{
-			fn: () => void | Promise<void>;
-			timeout: NodeJS.Timeout;
-		}
-	> = new Map();
 
 	private async _hasEnabledValidityCheck(): Promise<boolean> {
 		return (await getEditorConfiguration(this._classConfig)).checkValidity;
@@ -165,22 +157,6 @@ export class DocumentManager implements Disposable {
 		};
 	}
 
-	private _debounceWithKey(
-		identifier: string,
-		callback: () => void | Promise<void>
-	): void {
-		if (this._queuedCalls.has(identifier)) {
-			clearTimeout(this._queuedCalls.get(identifier)!.timeout);
-		}
-		this._queuedCalls.set(identifier, {
-			fn: callback,
-			timeout: setTimeout(() => {
-				this._queuedCalls.delete(identifier);
-				void callback();
-			}, 100),
-		});
-	}
-
 	private async _onDocumentChange(
 		checkManager: PHPStanCheckManager,
 		e: WatcherNotificationFileData
@@ -192,14 +168,7 @@ export class DocumentManager implements Disposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		this._debounceWithKey(e.uri, async () => {
-			await log(
-				this._classConfig.connection,
-				WATCHER_PREFIX,
-				'Document changed, triggering'
-			);
-			await checkManager.check(e);
-		});
+		await checkManager.check(e, 'Document changed');
 	}
 
 	private async _onDocumentSave(
@@ -213,14 +182,7 @@ export class DocumentManager implements Disposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		this._debounceWithKey(e.uri, async () => {
-			await log(
-				this._classConfig.connection,
-				WATCHER_PREFIX,
-				'Document saved, triggering'
-			);
-			await checkManager.check(e);
-		});
+		await checkManager.check(e, 'Document saved');
 	}
 
 	private async _onDocumentActive(
@@ -239,15 +201,8 @@ export class DocumentManager implements Disposable {
 			return;
 		}
 
-		this._debounceWithKey(e.uri, async () => {
-			await log(
-				this._classConfig.connection,
-				WATCHER_PREFIX,
-				`New document active (${e.uri}), triggering`
-			);
-			this._lastActiveDocument = this._toPartialDocument(e);
-			await checkManager.checkIfChanged(e);
-		});
+		this._lastActiveDocument = this._toPartialDocument(e);
+		await checkManager.checkIfChanged(e, 'New document active active');
 	}
 
 	private async _onDocumentOpen(
@@ -261,35 +216,23 @@ export class DocumentManager implements Disposable {
 			return;
 		}
 
-		this._debounceWithKey(e.uri, async () => {
-			await log(
-				this._classConfig.connection,
-				WATCHER_PREFIX,
-				'Document opened, triggering and re-applying errors'
-			);
-			await checkManager.check(e);
-		});
+		await checkManager.check(e, 'Document opened');
 	}
 
 	private async _onDocumentCheck(
 		checkManager: PHPStanCheckManager,
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		await log(
-			this._classConfig.connection,
-			WATCHER_PREFIX,
-			'Force triggering project'
-		);
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.check(e);
+		await checkManager.check(e, 'Force trigger');
 	}
 
 	private async _onScanProject(
 		checkManager: PHPStanCheckManager
 	): Promise<void> {
-		await checkManager.check(undefined);
+		await checkManager.check(undefined, 'Manual project scan');
 	}
 
 	private async _clearData(checkManager: PHPStanCheckManager): Promise<void> {

@@ -61,7 +61,7 @@ export function startIntegratedChecker(
 			workspaceFolders,
 		});
 		if (configuration.enabled && !configuration.singleFileMode) {
-			void phpstan.check(undefined);
+			void phpstan.check(undefined, 'Initial check');
 		}
 	})();
 
