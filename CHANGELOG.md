@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.3
+
+-   Improve debouncing when triggering a bunch of checks in rapid succession in different files.
+
 ### 3.1.2
 
 -   Fix `phpstan.scanFileForErrors` command
