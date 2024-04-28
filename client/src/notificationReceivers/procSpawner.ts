@@ -52,7 +52,7 @@ export class ProcessSpawner implements Disposable {
 		}
 	}
 
-	private async _killProc(pid: number, binStr?: string): Promise<void> {
+	private _killProc(pid: number, binStr?: string): void {
 		if (!this._procExists(pid)) {
 			return;
 		}
@@ -62,7 +62,7 @@ export class ProcessSpawner implements Disposable {
 				return;
 			}
 
-			list.forEach(async (proc) => {
+			list.forEach((proc) => {
 				if (binStr && proc.command !== binStr) {
 					return;
 				}
@@ -89,7 +89,10 @@ export class ProcessSpawner implements Disposable {
 		Object.entries(processes).forEach(([pid, data]) => {
 			const descriptor =
 				typeof data === 'number'
-					? { timeout: data, binStr: undefined }
+					? {
+							timeout: data,
+							binStr: undefined,
+						}
 					: data;
 			if (
 				Date.now() > descriptor.timeout &&
