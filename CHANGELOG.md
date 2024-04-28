@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.4
+
+-   Only kill zombie PHPStan processes if the PID still points to a PHPStan process.
+
 ### 3.1.3
 
 -   Improve debouncing when triggering a bunch of checks in rapid succession in different files.
