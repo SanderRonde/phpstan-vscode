@@ -306,6 +306,33 @@ export class PHPStanRunner implements AsyncDisposable {
 						return;
 					}
 
+					if (getErr().includes('No files found to analyse')) {
+						const editorConfig = await getEditorConfiguration(
+							this._classConfig
+						);
+						if (editorConfig.singleFileMode) {
+							void log(
+								this._classConfig.connection,
+								checkPrefix(check),
+								'PHPStan found no files to analyse'
+							);
+
+							await this._classConfig.hooks.provider.onCheckDone();
+
+							resolve(
+								ReturnResult.success({
+									errors: [],
+									files: {},
+									totals: {
+										errors: 0,
+										file_errors: 0,
+									},
+								})
+							);
+							return;
+						}
+					}
+
 					if (
 						getErr().includes(
 							'At least one path must be specified to analyse'
