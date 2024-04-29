@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.5
+
+-   When using single file mode, ignore errors related to no files being specified. This happens when the checked file is not in `paths`.
+
 ### 3.1.4
 
 -   Only kill zombie PHPStan processes if the PID still points to a PHPStan process.
