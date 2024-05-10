@@ -52,9 +52,13 @@ export class PHPStanCheckManager implements AsyncDisposable {
 					...(existing?.promiseResolvers ?? []),
 					resolve,
 				],
-				timeout: setTimeout(() => {
+				// eslint-disable-next-line @typescript-eslint/no-misused-promises
+				timeout: setTimeout(async () => {
+					const promiseResolvers =
+						this._queuedCalls.get(identifier)!.promiseResolvers;
 					this._queuedCalls.delete(identifier);
-					void callback();
+					await callback();
+					promiseResolvers.forEach((resolve) => resolve());
 				}, CHECK_DEBOUNCE),
 			});
 		});
