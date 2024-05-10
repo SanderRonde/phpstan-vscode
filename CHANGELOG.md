@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.6
+
+-   Fix issue where language server hover wasn't working
+-   Ensure language server mode uses a different cache directory than the CLI mode to prevent them invalidating each others' caches.
+
 ### 3.1.5
 
 -   When using single file mode, ignore errors related to no files being specified. This happens when the checked file is not in `paths`.
