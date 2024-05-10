@@ -165,7 +165,9 @@ export class ProviderCheckHooks {
 			await fs.readFile(templateFile, {
 				encoding: 'utf-8',
 			})
-		).replace('../test/demo/phpstan.neon', userConfigFile);
+		)
+			.replace('../test/demo/phpstan.neon', userConfigFile)
+			.replace('../test/cacheDir', path.join(baseDir, 'cache'));
 		const tmpNeonFilePath = path.join(baseDir, 'config.neon');
 		await fs.writeFile(tmpNeonFilePath, neonFileContent, {
 			encoding: 'utf8',
