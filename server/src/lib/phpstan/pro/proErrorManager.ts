@@ -24,6 +24,64 @@ export class PHPStanProErrorManager implements Disposable {
 		this._connect();
 	}
 
+	private async _progressUpdate(
+		operation: StatusBarOperation | null,
+		progress: ProProgress,
+		onDone: () => Promise<void>
+	): Promise<void> {
+		if (!progress.inProgress) {
+			return onDone();
+		}
+
+		if (operation) {
+			const progressPercentage = Math.round(
+				(progress.done / progress.total) * 100
+			);
+			await operation.progress(
+				{
+					done: progress.done,
+					total: progress.total,
+					percentage: progressPercentage,
+				},
+				`PHPStan checking project - ${progress.done}/${progress.total} (${progressPercentage}%)`
+			);
+		}
+	}
+
+	private _activeRequest:
+		| {
+				state: 'pending';
+				queueNextRequest: boolean;
+		  }
+		| {
+				state: 'none';
+		  } = { state: 'none' };
+	private async _queueProgressUpdate(
+		operation: StatusBarOperation | null,
+		onDone: () => Promise<void>
+	): Promise<void> {
+		if (this._activeRequest.state === 'pending') {
+			this._activeRequest.queueNextRequest = true;
+			return;
+		}
+		this._activeRequest = {
+			state: 'pending',
+			queueNextRequest: false,
+		};
+		const progress = await this._collectProgress();
+		if (progress) {
+			await this._progressUpdate(operation, progress, onDone);
+		}
+
+		const nextRequest = this._activeRequest.queueNextRequest;
+		this._activeRequest = {
+			state: 'none',
+		};
+		if (nextRequest) {
+			void this._queueProgressUpdate(operation, onDone);
+		}
+	}
+
 	private _connect(): void {
 		const url = `ws://127.0.0.1:${this._port}/websocket`;
 		this._wsClient = new ws.WebSocket(url);
@@ -44,6 +102,7 @@ export class PHPStanProErrorManager implements Disposable {
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		this._wsClient.on('open', async () => {
 			await this._classConfig.hooks.provider.onCheckDone();
+
 			void this._applyErrors();
 		});
 
@@ -51,12 +110,27 @@ export class PHPStanProErrorManager implements Disposable {
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		this._wsClient.on('message', async (data: Buffer) => {
 			const msg = JSON.parse(data.toString()) as WSMessage;
-			void log(
-				this._classConfig.connection,
-				PRO_PREFIX,
-				`Received message of type: ${msg.action}`
-			);
-			if (msg.action === 'analysisStart') {
+			// ProgressUpdate requests are very spammy, let's not log every time
+			if (msg.action !== 'progressUpdate') {
+				void log(
+					this._classConfig.connection,
+					PRO_PREFIX,
+					`Received message of type: ${msg.action}`
+				);
+			}
+
+			const onAnalysisDone = async (): Promise<void> => {
+				if (checkOperation) {
+					await this._classConfig.hooks.provider.onCheckDone();
+					await checkOperation.finish(OperationStatus.SUCCESS);
+					checkOperation = null;
+				}
+				await this._applyErrors();
+			};
+			if (
+				msg.action === 'analysisStart' ||
+				msg.action === 'changedFile'
+			) {
 				checkOperation = this._classConfig.statusBar.createOperation();
 				await Promise.all([
 					checkOperation.start('PHPStan Pro Checking...'),
@@ -71,24 +145,31 @@ export class PHPStanProErrorManager implements Disposable {
 					),
 				]);
 			} else if (msg.action === 'analysisEnd') {
-				await this._classConfig.hooks.provider.onCheckDone();
-
-				await checkOperation?.finish(OperationStatus.SUCCESS);
-				await this._applyErrors();
+				await onAnalysisDone();
+			} else if (msg.action === 'progressUpdate') {
+				await this._queueProgressUpdate(checkOperation, onAnalysisDone);
 			}
 		});
 	}
 
+	private _collectProgress(): Promise<ProProgress | null> {
+		return this._collectData<ProProgress>('progress');
+	}
+
 	private _collectErrors(): Promise<ProReportedErrors | null> {
-		return new Promise<ProReportedErrors | null>((resolve) => {
-			const req = http.request(`http://127.0.0.1:${this._port}/errors`);
+		return this._collectData<ProReportedErrors>('errors');
+	}
+
+	private _collectData<T>(path: string): Promise<T | null> {
+		return new Promise<T | null>((resolve) => {
+			const req = http.request(`http://127.0.0.1:${this._port}/${path}`);
 			req.on('response', (res) => {
 				let data = '';
 				res.on('data', (chunk) => {
 					data += chunk;
 				});
 				res.on('end', () => {
-					const errors = JSON.parse(data) as ProReportedErrors;
+					const errors = JSON.parse(data) as T;
 					resolve(errors);
 				});
 			});
@@ -152,9 +233,19 @@ interface ProReportedErrors {
 	notFileSpecificErrors: string[];
 }
 
+interface ProProgress {
+	done: number;
+	total: number;
+	inProgress: boolean;
+}
+
 type WSMessage =
 	| {
-			action: 'analysisStart';
+			action: 'progressUpdate';
+			data: { id: string };
+	  }
+	| {
+			action: 'analysisStart' | 'changedFile';
 	  }
 	| {
 			action: 'analysisEnd';
