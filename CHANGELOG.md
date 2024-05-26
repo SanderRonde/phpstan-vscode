@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.7
+
+-   Fix Pro support for newest PHPStan update (3.1.11)
+
 ### 3.1.6
 
 -   Fix issue where language server hover wasn't working
