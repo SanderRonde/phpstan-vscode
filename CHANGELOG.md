@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.9
+
+-   Fix bug on Windows where errors would disappear when opening the file.
+    -Rename `proTmpDir` to `tmpDir` and apply it to non-pro checks as well.
+
 ### 3.1.7
 
 -   Fix Pro support for newest PHPStan update (3.1.11)
