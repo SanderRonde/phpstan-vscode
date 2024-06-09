@@ -112,10 +112,7 @@ export class PHPStanCheck implements AsyncDisposable {
 			};
 			for (const filePath in parsed.fileSpecificErrors) {
 				normalized.fileSpecificErrors[
-					URI.from({
-						scheme: 'file',
-						path: pathMapper(filePath, true),
-					}).toString()
+					URI.file(pathMapper(filePath, true)).toString()
 				] = parsed.fileSpecificErrors[filePath];
 			}
 			return normalized;
@@ -143,10 +140,7 @@ export class PHPStanCheck implements AsyncDisposable {
 			};
 			for (const filePath in parsed.fileSpecificErrors) {
 				normalized.fileSpecificErrors[
-					URI.from({
-						scheme: 'file',
-						path: pathMapper(filePath, true),
-					}).toString()
+					URI.file(pathMapper(filePath, true)).toString()
 				] = parsed.fileSpecificErrors[filePath];
 			}
 			return normalized;
