@@ -9,11 +9,6 @@ import type { ClassConfig } from '../../types';
 import { ReturnResult } from '../../result';
 import { PRO_PREFIX, log } from '../../log';
 import * as path from 'path';
-import * as os from 'os';
-
-function getDefaultConfigDirPath(): string {
-	return path.join(os.tmpdir(), 'phpstan-fixer');
-}
 
 export async function launchPro(
 	classConfig: ClassConfig,
@@ -24,7 +19,7 @@ export async function launchPro(
 	}) => void
 ): Promise<ReturnResult<PHPStanProProcess, string>> {
 	const settings = await getEditorConfiguration(classConfig);
-	const tmpPath = settings.proTmpDir || getDefaultConfigDirPath();
+	const tmpPath = settings.tmpDir;
 
 	const launchConfig =
 		await ConfigurationManager.collectConfiguration(classConfig);
@@ -37,14 +32,20 @@ export async function launchPro(
 		launchConfig,
 		false
 	);
+	const env = { ...process.env };
+	const configuration: Record<string, unknown> = {
+		binStr,
+		args: [...args, '--watch'],
+	};
+	if (tmpPath) {
+		env.TMPDIR = tmpPath;
+		configuration['tmpDir'] = tmpPath;
+	}
 	await log(
 		classConfig.connection,
 		PRO_PREFIX,
 		'Spawning PHPStan Pro with the following configuration: ',
-		JSON.stringify({
-			binStr,
-			args: [...args, '--watch'],
-		})
+		JSON.stringify(configuration)
 	);
 	const procSpawner = new ProcessSpawner(classConfig.connection);
 	const proc = await procSpawner.spawnWithRobustTimeout(
@@ -55,10 +56,7 @@ export async function launchPro(
 			...SPAWN_ARGS,
 			cwd: launchConfig.cwd,
 			encoding: 'utf-8',
-			env: {
-				...process.env,
-				TMPDIR: tmpPath,
-			},
+			env: env,
 		}
 	);
 

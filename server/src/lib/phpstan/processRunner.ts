@@ -177,14 +177,22 @@ export class PHPStanRunner implements AsyncDisposable {
 			checkConfig,
 			withProgress
 		);
+
+		const env = { ...process.env };
+		const configuration: Record<string, unknown> = {
+			binStr,
+			args: args,
+		};
+		if (checkConfig.tmpDir) {
+			env.TMPDIR = checkConfig.tmpDir;
+			configuration['tmpDir'] = checkConfig.tmpDir;
+		}
+
 		await log(
 			this._classConfig.connection,
 			checkPrefix(check),
 			'Spawning PHPStan with the following configuration: ',
-			JSON.stringify({
-				binStr,
-				args: args,
-			})
+			JSON.stringify(configuration)
 		);
 		const phpstan =
 			await this._classConfig.procSpawner.spawnWithRobustTimeout(
@@ -195,6 +203,7 @@ export class PHPStanRunner implements AsyncDisposable {
 					...SPAWN_ARGS,
 					cwd: checkConfig.cwd,
 					encoding: 'utf-8',
+					env: env,
 				}
 			);
 

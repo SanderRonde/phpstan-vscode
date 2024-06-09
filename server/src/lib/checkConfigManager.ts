@@ -16,6 +16,7 @@ export interface CheckConfig {
 	initialArgs: string[];
 	args: string[];
 	memoryLimit: string;
+	tmpDir: string;
 }
 
 export class ConfigurationManager {
@@ -243,6 +244,7 @@ export class ConfigurationManager {
 			binStr: binConfig.binCmd
 				? binConfig.binCmd
 				: ConfigurationManager.escapeFilePath(binConfig.binPath!),
+			tmpDir: extensionConfig.tmpDir,
 			...binConfig,
 		};
 	}

@@ -18,7 +18,7 @@ export const CONFIG_KEYS = [
 	'ignoreErrors',
 	'suppressWorkspaceMessage',
 	'pro',
-	'proTmpDir',
+	'tmpDir',
 	'checkValidity',
 ] as const;
 // Ideally we'd use `satisifies` here but the tooling (prettier & eslint) don't seem to support it yet.
@@ -36,4 +36,6 @@ export type ConfigSettings = Omit<
 	'phpstan.ignoreErrors'
 > & {
 	'phpstan.ignoreErrors': (string | RegExp)[];
+	// Legacy setting
+	'phpstan.proTmpDir'?: string;
 };

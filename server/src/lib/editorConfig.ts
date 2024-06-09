@@ -28,7 +28,10 @@ export async function getEditorConfiguration(
 				replaceVariables(value, workspaceFolders),
 			])
 		),
-		proTmpDir: replaceVariables(editorConfig.proTmpDir, workspaceFolders),
+		tmpDir: replaceVariables(
+			editorConfig.tmpDir || editorConfig.proTmpDir || '',
+			workspaceFolders
+		),
 		rootDir: replaceVariables(editorConfig.rootDir, workspaceFolders),
 		options: editorConfig.options.map((option) =>
 			replaceVariables(option, workspaceFolders)

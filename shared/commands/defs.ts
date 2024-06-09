@@ -199,11 +199,11 @@ export const config = {
 			default: false,
 		},
 	},
-	'phpstan.proTmpDir': {
+	'phpstan.tmpDir': {
 		jsonDefinition: {
 			type: 'string',
 			description:
-				"Path to the PHPStan Pro TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan-fixer)",
+				"Path to the PHPStan TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan)",
 		},
 	},
 	'phpstan.checkValidity': {
