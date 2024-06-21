@@ -6,14 +6,19 @@ import {
 	TREE_FETCHER_FILE,
 	PHPSTAN_2_NEON_FILE,
 } from '../../../shared/constants';
+import {
+	basicHash,
+	toCheckablePromise,
+	waitPeriodical,
+} from '../../../shared/util';
 import type { CancellationToken, _Connection } from 'vscode-languageserver';
-import { toCheckablePromise, waitPeriodical } from '../../../shared/util';
 import type { PHPStanCheckManager } from '../lib/phpstan/checkManager';
 import type { PromisedValue, WorkspaceFolders } from '../lib/types';
 import type { DocumentManager } from '../lib/documentManager';
 import type { CheckConfig } from '../lib/checkConfigManager';
 import { getEditorConfiguration } from '../lib/editorConfig';
 import type { PHPStanVersion } from '../start/getVersion';
+import { SERVER_PREFIX, log } from '../lib/log';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
@@ -133,16 +138,29 @@ export class ProviderCheckHooks {
 		private readonly _extensionPath: PromisedValue<URI>
 	) {}
 
-	private async _getReportPath(): Promise<string> {
+	private async _getConfigPath(): Promise<string | null> {
+		const workspaceFolder = await this._workspaceFolders.get();
+		if (!workspaceFolder) {
+			return null;
+		}
+
 		return path.join(
 			(await this._extensionPath.get()).fsPath,
 			'_config',
-			'reported.json'
+			basicHash(workspaceFolder.default.fsPath)
 		);
 	}
 
+	private async _getReportPath(configPath: string): Promise<string> {
+		return path.join(configPath, 'reported.json');
+	}
+
 	private async _getFileReport(): Promise<ProjectReport | null> {
-		const reportPath = await this._getReportPath();
+		const configPath = await this._getConfigPath();
+		if (!configPath) {
+			return null;
+		}
+		const reportPath = await this._getReportPath(configPath);
 		try {
 			const file = await fs.readFile(reportPath, {
 				encoding: 'utf-8',
@@ -183,7 +201,7 @@ export class ProviderCheckHooks {
 		const treeFetcherFilePath = path.join(baseDir, 'TreeFetcher.php');
 		const autoloadFilePath = path.join(baseDir, 'autoload.php');
 
-		const reportPath = await this._getReportPath();
+		const reportPath = await this._getReportPath(baseDir);
 		const treeFetcherContent = (
 			await fs.readFile(TREE_FETCHER_FILE, {
 				encoding: 'utf-8',
@@ -247,10 +265,14 @@ export class ProviderCheckHooks {
 			return args;
 		}
 
-		const baseDir = path.join(
-			(await this._extensionPath.get()).fsPath,
-			'_config'
-		);
+		const baseDir = await this._getConfigPath();
+		if (!baseDir) {
+			return args;
+		}
+
+		await fs.mkdir(baseDir, {
+			recursive: true,
+		});
 
 		const userAutoloadFile = this._findArg(
 			checkConfig,
