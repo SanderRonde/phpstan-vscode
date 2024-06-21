@@ -18,7 +18,6 @@ import type { DocumentManager } from '../lib/documentManager';
 import type { CheckConfig } from '../lib/checkConfigManager';
 import { getEditorConfiguration } from '../lib/editorConfig';
 import type { PHPStanVersion } from '../start/getVersion';
-import { SERVER_PREFIX, log } from '../lib/log';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
@@ -151,7 +150,7 @@ export class ProviderCheckHooks {
 		);
 	}
 
-	private async _getReportPath(configPath: string): Promise<string> {
+	private _getReportPath(configPath: string): string {
 		return path.join(configPath, 'reported.json');
 	}
 
@@ -160,7 +159,7 @@ export class ProviderCheckHooks {
 		if (!configPath) {
 			return null;
 		}
-		const reportPath = await this._getReportPath(configPath);
+		const reportPath = this._getReportPath(configPath);
 		try {
 			const file = await fs.readFile(reportPath, {
 				encoding: 'utf-8',
@@ -201,7 +200,7 @@ export class ProviderCheckHooks {
 		const treeFetcherFilePath = path.join(baseDir, 'TreeFetcher.php');
 		const autoloadFilePath = path.join(baseDir, 'autoload.php');
 
-		const reportPath = await this._getReportPath(baseDir);
+		const reportPath = this._getReportPath(baseDir);
 		const treeFetcherContent = (
 			await fs.readFile(TREE_FETCHER_FILE, {
 				encoding: 'utf-8',
