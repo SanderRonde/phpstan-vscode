@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.10
+
+-   Use a separate cachedir for each workspace when using the language server
+
 ### 3.1.9
 
 -   Fix bug on Windows where errors would disappear when opening the file.
