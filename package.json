@@ -291,7 +291,7 @@
 		"lint": "eslint client server --ext ts",
 		"format-staged": "(git diff --ignore-submodules --quiet && bun run format) || pretty-quick client server",
 		"format": "prettier --write client server",
-		"package": "bun run vsce package",
+		"package": "bun run vsce package --no-yarn",
 		"package-dev": "VARIANT=\"debug\" bun run vsce package",
 		"generate-package": "generate-package-json generate --input shared/commands/defs.ts -w -p package.json --handler client/src/lib/commands.ts --validate --name PHPStan --prefix PHPStan && prettier --write package.json",
 		"prepush": "bun run generate-package && bun run format-staged && bun run lint --fix && bun run compile",
