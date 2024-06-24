@@ -98,6 +98,19 @@ export class PHPStanProErrorManager implements Disposable {
 				this._connect();
 			}
 		});
+		// eslint-disable-next-line @typescript-eslint/no-misused-promises
+		this._wsClient.on('close', async () => {
+			const choice =
+				await this._classConfig.connection.window.showErrorMessage(
+					`PHPStan Pro disconnected from websocket URL: ${url}`,
+					{
+						title: 'Retry',
+					}
+				);
+			if (choice?.title === 'Retry') {
+				this._connect();
+			}
+		});
 
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		this._wsClient.on('open', async () => {
@@ -131,6 +144,11 @@ export class PHPStanProErrorManager implements Disposable {
 				msg.action === 'analysisStart' ||
 				msg.action === 'changedFile'
 			) {
+				if (checkOperation) {
+					// Check already exists, finish that one
+					await onAnalysisDone();
+				}
+
 				checkOperation = this._classConfig.statusBar.createOperation();
 				await Promise.all([
 					checkOperation.start('PHPStan Pro Checking...'),
