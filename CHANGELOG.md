@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.12
+
+-   Set default for `tmpDir` setting
+-   Update PHPStan Pro failure-to-launch error message
+
 ### 3.1.11
 
 -   Improve reliability of PHPStan Pro mode
