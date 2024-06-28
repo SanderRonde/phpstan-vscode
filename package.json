@@ -154,7 +154,8 @@
 				},
 				"phpstan.tmpDir": {
 					"type": "string",
-					"description": "Path to the PHPStan TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan)"
+					"description": "Path to the PHPStan TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan)",
+					"default": "/tmp/phpstan"
 				},
 				"phpstan.checkValidity": {
 					"type": "boolean",

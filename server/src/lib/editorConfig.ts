@@ -1,5 +1,6 @@
 import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
 import type { ClassConfig, WorkspaceFolders } from './types';
+import { DEFAULT_TMP_DIR } from '../../../shared/constants';
 import type { Disposable } from 'vscode-languageserver';
 import { fromEntries } from '../../../shared/util';
 
@@ -15,6 +16,10 @@ export async function getEditorConfiguration(
 			section: 'phpstan',
 		})) as ConfigSettingsWithoutPrefix;
 
+	let tmpDir = editorConfig.tmpDir;
+	if (tmpDir === DEFAULT_TMP_DIR) {
+		tmpDir = editorConfig.proTmpDir || editorConfig.tmpDir;
+	}
 	return {
 		...editorConfig,
 		binPath: replaceVariables(editorConfig.binPath, workspaceFolders),
@@ -28,10 +33,7 @@ export async function getEditorConfiguration(
 				replaceVariables(value, workspaceFolders),
 			])
 		),
-		tmpDir: replaceVariables(
-			editorConfig.tmpDir || editorConfig.proTmpDir || '',
-			workspaceFolders
-		),
+		tmpDir: replaceVariables(tmpDir, workspaceFolders),
 		rootDir: replaceVariables(editorConfig.rootDir, workspaceFolders),
 		options: editorConfig.options.map((option) =>
 			replaceVariables(option, workspaceFolders)

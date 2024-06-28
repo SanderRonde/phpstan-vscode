@@ -3,6 +3,7 @@ import type {
 	ViewDefinition,
 	ConfigurationDefinition,
 } from 'vscode-generate-package-json';
+import { DEFAULT_TMP_DIR } from '../constants';
 
 export enum Commands {
 	SCAN_FILE_FOR_ERRORS = 'phpstan.scanFileForErrors',
@@ -204,6 +205,7 @@ export const config = {
 			type: 'string',
 			description:
 				"Path to the PHPStan TMP directory. Defaults to PHPStan's default (which is /tmp/phpstan)",
+			default: DEFAULT_TMP_DIR,
 		},
 	},
 	'phpstan.checkValidity': {
