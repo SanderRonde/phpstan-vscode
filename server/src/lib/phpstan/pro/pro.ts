@@ -93,7 +93,7 @@ export async function launchPro(
 					if (!folderExists) {
 						resolve(
 							ReturnResult.error(
-								'Failed to launch PHPStan Pro (tmp folder does not exist)'
+								`Failed to launch PHPStan Pro (tmp folder does not exist: "${configDirPath}"). Does the \`phpstan.tmpDir\` setting match the tmpDir in your config file?`
 							)
 						);
 					} else {
