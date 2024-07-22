@@ -15,7 +15,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.configFile` - path to the config file, either relative to `phpstan.rootDir` or absolute. Use a comma-separated list to resolve in the listed order. For example if `phpstan.neon,phpstan.neon.dist` is used, the extension will first try to use `phpstan.neon` if it exists and fall back to `phpstan.neon.dist`.
 -   `phpstan.rootDir` - path to the root directory of your PHP project (defaults to `workspaceFolder`)
 -   `phpstan.binPath` - path to the PHPStan binary (defaults to `${workspaceFolder}/vendor/bin/phpstan`)
--   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. Unset by default.
+-   `phpstan.binCommand` - command that runs the PHPStan binary. Use this if, for example, PHPStan is already in your global path. If this is specified, it is used instead of `phpstan.binPath`. For example `["lando", "phpstan"]` or `["docker", "exec", "-t", "phpstan"]`. Unset by default.
 -   `phpstan.pro` - Enable PHPStan Pro support. Runs PHPStan Pro in the background and leaves watching to PHPStan while displaying any errors it catches in the editor. This requires a valid license. False by default.
 -   `phpstan.singleFileMode` - Whether to scan only the file that is being saved, instead of the whole project. This is not recommended since it busts the cache. Only use this if your computer can't handle a full-project scan
 
