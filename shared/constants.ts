@@ -19,4 +19,3 @@ export const SPAWN_ARGS = {
 	shell: process.platform === 'win32',
 	windowsVerbatimArguments: true,
 };
-export const DEFAULT_TMP_DIR = '/tmp/phpstan';

@@ -1,6 +1,5 @@
 import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
 import type { ClassConfig, WorkspaceFolders } from './types';
-import { DEFAULT_TMP_DIR } from '../../../shared/constants';
 import type { Disposable } from 'vscode-languageserver';
 import { fromEntries } from '../../../shared/util';
 
@@ -17,7 +16,7 @@ export async function getEditorConfiguration(
 		})) as ConfigSettingsWithoutPrefix;
 
 	let tmpDir = editorConfig.tmpDir;
-	if (tmpDir === DEFAULT_TMP_DIR) {
+	if (!tmpDir) {
 		tmpDir = editorConfig.proTmpDir || editorConfig.tmpDir;
 	}
 	return {
