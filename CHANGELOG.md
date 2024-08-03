@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.14
+
+-   Remove some unneeded files from the extension
+
 ### 3.1.13
 
 -   Don't overwrite temporary directory specified in config file
