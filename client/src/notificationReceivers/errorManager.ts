@@ -8,6 +8,7 @@ interface PHPStanError {
 	lineNumber: number | null;
 	ignorable: boolean;
 	identifier: string | null;
+	tip: string | null;
 }
 
 export class ErrorManager implements Disposable, vscode.CodeActionProvider {
@@ -68,6 +69,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 								lineNumber: null,
 								ignorable: false,
 								identifier: null,
+								tip: null,
 							})
 						),
 					]);
@@ -97,7 +99,18 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		range: vscode.Range,
 		error: PHPStanError
 	): vscode.Diagnostic {
-		const diagnostic = new vscode.Diagnostic(range, error.message);
+		const tip = error.tip
+			? '\n💡 ' +
+				error.tip
+					.split('\n')
+					.map((l) => l.trim())
+					.join(' ')
+			: '';
+
+		const diagnostic = new vscode.Diagnostic(
+			range,
+			`${error.message}${tip}`
+		);
 		diagnostic.source = 'PHPStan';
 		if (error.identifier) {
 			diagnostic.code = {

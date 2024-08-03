@@ -60,6 +60,7 @@ export class PHPStanCheck implements AsyncDisposable {
 					lineNumber: message.line,
 					ignorable: message.ignorable,
 					identifier: message.identifier ?? null,
+					tip: message.tip ?? null,
 				})),
 			];
 		}
@@ -274,6 +275,7 @@ export interface ReportedErrors {
 			lineNumber: number | null;
 			ignorable: boolean;
 			identifier: string | null;
+			tip: string | null;
 		}[]
 	>;
 	notFileSpecificErrors: string[];
