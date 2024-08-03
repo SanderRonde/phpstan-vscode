@@ -300,26 +300,67 @@ class ErrorCodeAction extends vscode.CodeAction {
 			return;
 		}
 
-		this.edit = new vscode.WorkspaceEdit();
-		const errorRange = new vscode.Range(
-			this._error.lineNumber - 1,
-			0,
-			this._error.lineNumber - 1,
-			this._document.lineAt(this._error.lineNumber - 1).text.length
-		);
+		const lineNumber = this._error.lineNumber - 1;
 		const ignoreCommentContent = this._error.identifier
 			? `@phpstan-ignore ${this._error.identifier}`
 			: '@phpstan-ignore-next-line';
+
+		const previousLineRange = new vscode.Range(
+			lineNumber - 1,
+			0,
+			lineNumber - 1,
+			this._document.lineAt(lineNumber - 1).text.length
+		);
+		const previousLineText = this._document.getText(previousLineRange);
+
+		const singlelineDocblockMatch = /^(\s*)\/\*\*+\s*(.*)\s*\*\/(\s*)/.exec(
+			previousLineText
+		);
+		if (singlelineDocblockMatch) {
+			const [, indent, content, trailingWhitespace] =
+				singlelineDocblockMatch;
+			const replacement =
+				`${indent}/**\n` +
+				`${indent} * ${content}\n` +
+				`${indent} * ${ignoreCommentContent}\n` +
+				`${indent} */${trailingWhitespace}`;
+			this._replace(previousLineRange, replacement);
+			return;
+		}
+
+		const multilineDocblockMatch = /^(\s*)(\*+)\/(\s*)/.exec(
+			previousLineText
+		);
+		if (multilineDocblockMatch) {
+			const [, indent, closingStars, trailingWhitespace] =
+				multilineDocblockMatch;
+			const replacement =
+				`${indent}* ${ignoreCommentContent}\n` +
+				`${indent}${closingStars}/${trailingWhitespace}`;
+			this._replace(previousLineRange, replacement);
+			return;
+		}
+
+		const errorRange = new vscode.Range(
+			lineNumber,
+			0,
+			lineNumber,
+			this._document.lineAt(lineNumber).text.length
+		);
 		const originalText = this._document.getText(errorRange);
 		const indent = /^(\s*)/.exec(originalText)?.[1] ?? '';
-		this.edit.replace(
-			this._document.uri,
+
+		this._replace(
 			errorRange,
-			`${indent}// ${ignoreCommentContent}\n${originalText}`,
-			{
-				label: 'Ignore PHPStan error',
-				needsConfirmation: false,
-			}
+			`${indent}// ${ignoreCommentContent}\n${originalText}`
 		);
+	}
+
+	private _replace(range: vscode.Range, newText: string): void {
+		this.edit = new vscode.WorkspaceEdit();
+		this.edit.replace(this._document.uri, range, newText, {
+			label: 'Ignore PHPStan error',
+			needsConfirmation: false,
+		});
 	}
 }
