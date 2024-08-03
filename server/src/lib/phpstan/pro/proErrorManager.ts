@@ -246,7 +246,6 @@ interface ReportedError {
 	id: string;
 	line: number | null;
 	message: string;
-	// todo: check whether this is correct. i don't have phpstan pro to test this
 	ignorable: boolean;
 	identifier: string | null;
 }
