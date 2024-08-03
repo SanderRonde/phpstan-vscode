@@ -20,6 +20,12 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		fileSpecificErrors: new Map(),
 		notFileSpecificErrors: [],
 	};
+	// Making this a map ensures that equality is always preserved.
+	// Making it a weakmap ensures we don't leak any memory.
+	private readonly _diagnosticMap = new WeakMap<
+		PHPStanError,
+		vscode.Diagnostic
+	>();
 	private _disposables: Disposable[] = [];
 
 	public constructor(client: LanguageClient) {
@@ -99,6 +105,10 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		range: vscode.Range,
 		error: PHPStanError
 	): vscode.Diagnostic {
+		if (this._diagnosticMap.has(error)) {
+			return this._diagnosticMap.get(error)!;
+		}
+
 		const tip = error.tip
 			? '\n💡 ' +
 				error.tip
@@ -120,6 +130,8 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 				),
 			};
 		}
+
+		this._diagnosticMap.set(error, diagnostic);
 		return diagnostic;
 	}
 
@@ -268,6 +280,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 				continue;
 			}
 			const action = new ErrorCodeAction(document, error);
+			action.diagnostics = [this._createDiagnostic(range, error)];
 			actions.push(action);
 		}
 
