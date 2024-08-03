@@ -6,18 +6,14 @@ import * as vscode from 'vscode';
 interface PHPStanError {
 	message: string;
 	lineNumber: number | null;
+	ignorable: boolean;
+	identifier: string | null;
 }
 
 export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	private readonly _diagnosticsCollection: vscode.DiagnosticCollection;
 	private _errors: {
-		fileSpecificErrors: Map<
-			string,
-			{
-				message: string;
-				lineNumber: number | null;
-			}[]
-		>;
+		fileSpecificErrors: Map<string, PHPStanError[]>;
 		notFileSpecificErrors: string[];
 	} = {
 		fileSpecificErrors: new Map(),
@@ -68,8 +64,10 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 						) ?? []),
 						...this._errors.notFileSpecificErrors.map(
 							(message) => ({
-								lineNumber: 0,
 								message,
+								lineNumber: null,
+								ignorable: false,
+								identifier: null,
 							})
 						),
 					]);
@@ -249,6 +247,9 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 			if (error.lineNumber !== range.start.line + 1) {
 				continue;
 			}
+			if (!error.ignorable) {
+				continue;
+			}
 			const action = new ErrorCodeAction(document, error);
 			actions.push(action);
 		}
@@ -289,14 +290,15 @@ class ErrorCodeAction extends vscode.CodeAction {
 			this._error.lineNumber - 1,
 			this._document.lineAt(this._error.lineNumber - 1).text.length
 		);
+		const ignoreCommentContent = this._error.identifier
+			? `@phpstan-ignore ${this._error.identifier}`
+			: '@phpstan-ignore-next-line';
 		const originalText = this._document.getText(errorRange);
-		const lineIndent = /^(\s*)/.exec(originalText);
+		const indent = /^(\s*)/.exec(originalText)?.[1] ?? '';
 		this.edit.replace(
 			this._document.uri,
 			errorRange,
-			`${
-				lineIndent?.[1] ?? ''
-			}// @phpstan-ignore-next-line\n${originalText}`,
+			`${indent}// ${ignoreCommentContent}\n${originalText}`,
 			{
 				label: 'Ignore PHPStan error',
 				needsConfirmation: false,
