@@ -26,7 +26,7 @@ type Prefix = string & {
 };
 
 export function log(prefix: Prefix, ...data: string[]): void {
-	data = [`[${new Date().toLocaleDateString()}]`, prefix, ...data];
+	data = [`[${new Date().toLocaleString()}]`, prefix, ...data];
 	if (DEBUG) {
 		console.log(data.join(' '));
 	}

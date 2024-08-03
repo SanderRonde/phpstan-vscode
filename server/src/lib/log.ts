@@ -8,7 +8,7 @@ export async function log(
 	...data: (string | number)[]
 ): Promise<void> {
 	data = [prefix, ...data];
-	console.log([`[${new Date().toLocaleDateString()}]`, ...data].join(' '));
+	console.log([`[${new Date().toLocaleString()}]`, ...data].join(' '));
 	await connection.sendNotification(logNotification, {
 		data: data.map((d) => String(d)),
 	});
