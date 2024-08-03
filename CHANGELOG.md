@@ -2,6 +2,15 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.1.13
+
+-   Don't overwrite temporary directory specified in config file
+-   Ignore PHPStan errors by identifier with quick if possible
+-   Show error identifiers in diagnostics
+-   Show PHPStan tip as part of error message
+-   Append ignore directive to existing docblocks if possible
+-   Applying a quickfix now immediately fixes the associated issue (without a re-check needed)
+
 ### 3.1.12
 
 -   Set default for `tmpDir` setting
