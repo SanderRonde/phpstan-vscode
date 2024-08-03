@@ -95,14 +95,18 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 
 	private _createDiagnostic(
 		range: vscode.Range,
-		message: string
+		error: PHPStanError
 	): vscode.Diagnostic {
-		const diagnostic = new vscode.Diagnostic(
-			range,
-			message,
-			vscode.DiagnosticSeverity.Error
-		);
+		const diagnostic = new vscode.Diagnostic(range, error.message);
 		diagnostic.source = 'PHPStan';
+		if (error.identifier) {
+			diagnostic.code = {
+				value: error.identifier,
+				target: vscode.Uri.parse(
+					`https://phpstan.org/error-identifiers/${error.identifier}`
+				),
+			};
+		}
 		return diagnostic;
 	}
 
@@ -118,7 +122,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 			if (!error.lineNumber) {
 				return this._createDiagnostic(
 					new vscode.Range(0, 0, 0, 0),
-					error.message
+					error
 				);
 			}
 
@@ -128,7 +132,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 				// Can't match on content, just use 0-char offset
 				return this._createDiagnostic(
 					new vscode.Range(lineNumber, 0, lineNumber, 0),
-					error.message
+					error
 				);
 			}
 
@@ -152,7 +156,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 
 			return this._createDiagnostic(
 				new vscode.Range(lineNumber, startChar, lineNumber, endChar),
-				error.message
+				error
 			);
 		});
 	}
