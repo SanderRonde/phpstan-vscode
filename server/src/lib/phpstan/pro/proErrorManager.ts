@@ -220,6 +220,7 @@ export class PHPStanProErrorManager implements Disposable {
 				lineNumber: fileError.line,
 				ignorable: fileError.ignorable,
 				identifier: fileError.identifier ?? null,
+				tip: fileError.tip ?? null,
 			});
 		}
 		void this._classConfig.connection.sendNotification(errorNotification, {
@@ -248,6 +249,7 @@ interface ReportedError {
 	message: string;
 	ignorable: boolean;
 	identifier: string | null;
+	tip: string | null;
 }
 
 interface ProReportedErrors {

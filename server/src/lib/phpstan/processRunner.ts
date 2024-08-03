@@ -33,6 +33,7 @@ export interface PHPStanCheckResult {
 				ignorable: boolean;
 				line: number;
 				message: string;
+				tip?: string;
 			}[];
 		}
 	>;
