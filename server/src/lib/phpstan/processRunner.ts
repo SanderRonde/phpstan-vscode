@@ -29,6 +29,7 @@ export interface PHPStanCheckResult {
 		{
 			errors: number;
 			messages: {
+				identifier?: string;
 				ignorable: boolean;
 				line: number;
 				message: string;

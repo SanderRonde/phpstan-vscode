@@ -218,6 +218,8 @@ export class PHPStanProErrorManager implements Disposable {
 			fileSpecificErrors[uri].push({
 				message: fileError.message,
 				lineNumber: fileError.line,
+				ignorable: fileError.ignorable,
+				identifier: fileError.identifier ?? null,
 			});
 		}
 		void this._classConfig.connection.sendNotification(errorNotification, {
@@ -244,6 +246,8 @@ interface ReportedError {
 	id: string;
 	line: number | null;
 	message: string;
+	ignorable: boolean;
+	identifier: string | null;
 }
 
 interface ProReportedErrors {

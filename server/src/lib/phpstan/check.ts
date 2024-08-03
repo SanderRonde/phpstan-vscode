@@ -58,6 +58,8 @@ export class PHPStanCheck implements AsyncDisposable {
 				...output.files[key].messages.map((message) => ({
 					message: message.message + messagePostfix,
 					lineNumber: message.line,
+					ignorable: message.ignorable,
+					identifier: message.identifier ?? null,
 				})),
 			];
 		}
@@ -270,6 +272,8 @@ export interface ReportedErrors {
 		{
 			message: string;
 			lineNumber: number | null;
+			ignorable: boolean;
+			identifier: string | null;
 		}[]
 	>;
 	notFileSpecificErrors: string[];
