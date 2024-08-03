@@ -19,3 +19,5 @@ shared
 php/composer.*
 test
 .github
+_config/**
+bun.lockb
