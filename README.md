@@ -34,7 +34,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 
 -   `phpstan.enabled` - whether to enable the on-save checker (defaults to `true`)
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
--   `phpstan.enableLanguageServer` - Whether to enable the language server that provides on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `true`)
+-   `phpstan.enableLanguageServer` - Whether to enable the language server that provides on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `false`)
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 -   `phpstan.checkValidity` - Whether to check the validity of PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.'. (defaults to `false`)
 
