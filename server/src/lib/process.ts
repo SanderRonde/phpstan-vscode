@@ -4,8 +4,8 @@ import type {
 } from 'child_process';
 import { processNotification } from './notificationChannels';
 import type { _Connection } from 'vscode-languageserver';
+import { execute, wait } from '../../../shared/util';
 import type { AsyncDisposable } from './types';
-import { wait } from '../../../shared/util';
 import { exec, spawn } from 'child_process';
 import { default as psTree } from 'ps-tree';
 import type { Disposable } from 'vscode';
@@ -14,6 +14,7 @@ import type { Readable } from 'stream';
 export class Process implements AsyncDisposable {
 	private readonly _children: Set<number> = new Set();
 	private readonly _disposables: Disposable[] = [];
+	public dockerPid: number | null = null;
 
 	public constructor(
 		connection: _Connection,
@@ -61,6 +62,47 @@ export class Process implements AsyncDisposable {
 				resolve([pid, ...children.map((c) => Number(c.PID))]);
 			});
 		});
+	}
+
+	private static async _getDockerChildPids(pid: number): Promise<number[]> {
+		const result = await execute('docker', [
+			'sh',
+			'-c',
+			"ls /proc | grep -E '^[0-9]+$' | xargs -I{} cat /proc/{}/stat",
+		]);
+		if (!result.success) {
+			return [];
+		}
+
+		console.log(result);
+		const tree = result.stdout.split('\n').map((str) => {
+			const matches = str.match(/(\d+) \((.*?)\)\s(.+?)\s(\d+)\s/g);
+			if (!matches) {
+				return null;
+			}
+			return {
+				PID: matches[1],
+				COMMAND: matches[2],
+				PPID: matches[3],
+				STAT: matches[4],
+			};
+		});
+		console.log(tree);
+
+		const parents = new Set<string>([pid.toString()]);
+		const children = new Set<string>();
+		for (const proc of tree) {
+			if (!proc) {
+				continue;
+			}
+			if (parents.has(proc.PPID)) {
+				parents.add(proc.PID);
+				children.add(proc.PID);
+			}
+		}
+		console.log(parents, children);
+
+		return [...children.values()].map((pid) => Number(pid));
 	}
 
 	private static async _getCodePage(): Promise<number | null> {
@@ -167,6 +209,11 @@ export class Process implements AsyncDisposable {
 		});
 	}
 
+	private async _killDockerProcess(pid: number): Promise<void> {
+		console.log(await Process._getDockerChildPids(pid));
+		await execute('docker', ['kill', '-9', pid.toString()]);
+	}
+
 	private async _kill(): Promise<void> {
 		const childPids = new Set([...this._children.values()]);
 		if (this._process.pid) {
@@ -183,6 +230,11 @@ export class Process implements AsyncDisposable {
 		if (this._process.pid) {
 			killPromises.push(this._killPid(this._process.pid));
 		}
+
+		if (this.dockerPid) {
+			killPromises.push(this._killDockerProcess(this.dockerPid));
+		}
+
 		return Promise.all(killPromises).then(() => undefined);
 	}
 

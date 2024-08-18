@@ -1,7 +1,7 @@
 export enum OperationStatus {
 	ERROR = 'Error',
 	// AKA superseded
-	CANCELED = 'Canceled',
+	CANCELLED = 'Canceled',
 	SUCCESS = 'Success',
 	KILLED = 'Killed',
 }

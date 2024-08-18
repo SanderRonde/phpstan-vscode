@@ -15,16 +15,24 @@ import {
 	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
 
+import {
+	PromisedValue,
+	ResolvedPromisedValue,
+	type WorkspaceFolders,
+} from './lib/types';
 import { startIntegratedChecker } from './start/startIntegratedChecker';
-import { PromisedValue, type WorkspaceFolders } from './lib/types';
+import type { PHPStanCheckManager } from './lib/phpstan/checkManager';
 import { ProviderCheckHooks } from './providers/providerUtil';
+import type { DocumentManager } from './lib/documentManager';
 import { getEditorConfiguration } from './lib/editorConfig';
 import type { PHPStanVersion } from './start/getVersion';
 import { initRequest } from './lib/requestChannels';
 import { getVersion } from './start/getVersion';
+import type { ClassConfig } from './lib/types';
 import { log, SERVER_PREFIX } from './lib/log';
 import { startPro } from './start/startPro';
 import { StatusBar } from './lib/statusBar';
+import { listenTest } from './lib/test';
 import { URI } from 'vscode-uri';
 
 async function main(): Promise<void> {
@@ -91,9 +99,12 @@ async function main(): Promise<void> {
 		});
 
 	// Create required values
+	const editorConfigOverride: ClassConfig['editorConfigOverride'] =
+		new ResolvedPromisedValue({});
 	const editorConfiguration = await getEditorConfiguration({
 		connection,
 		workspaceFolders,
+		editorConfigOverride: editorConfigOverride,
 	});
 	const providerHooks = new ProviderCheckHooks(
 		connection,
@@ -103,7 +114,7 @@ async function main(): Promise<void> {
 	);
 
 	const statusBar = new StatusBar(connection);
-	const classConfig = {
+	const classConfig: ClassConfig = {
 		statusBar,
 		connection,
 		workspaceFolders,
@@ -111,33 +122,56 @@ async function main(): Promise<void> {
 			provider: providerHooks,
 		},
 		version,
+		editorConfigOverride: editorConfigOverride,
 	};
 
 	// Check version
-	void getVersion(classConfig).then((version) =>
-		classConfig.version.set(version)
-	);
+	void getVersion(classConfig).then((result) => {
+		if (result.success) {
+			classConfig.version.set(result.version);
+		}
+	});
 
-	// Start actual checker
-	const { hoverProvider: _hoverProvider } = editorConfiguration.pro
-		? await startPro(
-				classConfig,
-				connection,
-				disposables,
-				onConnectionInitialized,
-				workspaceFolders
-			)
-		: startIntegratedChecker(
-				classConfig,
-				connection,
-				disposables,
-				onConnectionInitialized,
-				workspaceFolders,
-				extensionStartedAt
-			);
-	if (_hoverProvider) {
-		hoverProvider.set(_hoverProvider);
+	let result: StartResult;
+	if (editorConfiguration.pro) {
+		result = await startPro(
+			classConfig,
+			connection,
+			disposables,
+			onConnectionInitialized,
+			workspaceFolders,
+			editorConfigOverride
+		);
+	} else {
+		result = startIntegratedChecker(
+			classConfig,
+			connection,
+			disposables,
+			onConnectionInitialized,
+			workspaceFolders,
+			extensionStartedAt
+		);
 	}
+	hoverProvider.set(result.hoverProvider);
+	disposables.push(
+		listenTest(
+			connection,
+			classConfig,
+			result.documentManager,
+			result.checkManager
+		)
+	);
+}
+
+export interface StartResult {
+	hoverProvider: ServerRequestHandler<
+		HoverParams,
+		Hover | undefined | null,
+		never,
+		void
+	>;
+	documentManager: DocumentManager;
+	checkManager?: PHPStanCheckManager;
 }
 
 void main();

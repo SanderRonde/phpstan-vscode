@@ -1,3 +1,5 @@
+import { commandNotification } from './notificationChannels';
+import { Commands } from '../../../shared/commands/defs';
 import type { _Connection } from 'vscode-languageserver';
 import { ERROR_PREFIX, log } from './log';
 
@@ -12,7 +14,17 @@ export async function showErrorOnce(
 	if (shownWarnings.has(message)) {
 		return;
 	}
-	showError(connection, message);
+	showError(connection, message, [
+		{
+			title: 'Launch setup',
+			callback: () => {
+				void connection.sendNotification(commandNotification, {
+					commandName: Commands.LAUNCH_SETUP,
+					commandArgs: [],
+				});
+			},
+		},
+	]);
 	shownWarnings.add(message);
 }
 

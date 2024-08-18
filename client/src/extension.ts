@@ -80,6 +80,10 @@ async function startLanguageServer(
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
+	if (!getEditorConfiguration().get('phpstan.enabled')) {
+		return;
+	}
+
 	log(CLIENT_PREFIX, 'Initializing PHPStan extension');
 	createOutputChannel();
 	const client = await startLanguageServer(context);

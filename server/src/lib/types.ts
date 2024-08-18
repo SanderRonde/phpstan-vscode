@@ -1,3 +1,4 @@
+import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
 import type { ProviderCheckHooks } from '../providers/providerUtil';
 import type { PHPStanVersion } from '../start/getVersion';
 import type { _Connection } from 'vscode-languageserver';
@@ -12,6 +13,9 @@ export interface ClassConfig {
 		provider: ProviderCheckHooks;
 	};
 	version: PromisedValue<PHPStanVersion | null>;
+	editorConfigOverride: ResolvedPromisedValue<
+		Partial<ConfigSettingsWithoutPrefix>
+	>;
 }
 
 export type WorkspaceFolders = {
@@ -41,6 +45,15 @@ export class PromisedValue<V> {
 
 	public isSet(): boolean {
 		return this._wasSet;
+	}
+}
+
+export class ResolvedPromisedValue<V> extends PromisedValue<V> {
+	public constructor(value: V) {
+		super();
+		if (value) {
+			this.set(value);
+		}
 	}
 }
 

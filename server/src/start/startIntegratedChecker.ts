@@ -1,20 +1,16 @@
 import type {
-	_Connection,
-	Disposable,
-	ServerRequestHandler,
-	HoverParams,
-	Hover,
-} from 'vscode-languageserver';
-import type {
 	ClassConfig,
-	PromisedValue,
 	WorkspaceFolders,
+	PromisedValue,
 } from '../lib/types';
+import type { _Connection, Disposable } from 'vscode-languageserver';
 import { PHPStanCheckManager } from '../lib/phpstan/checkManager';
 import { createHoverProvider } from '../providers/hoverProvider';
 import type { ProviderArgs } from '../providers/providerUtil';
 import { getEditorConfiguration } from '../lib/editorConfig';
 import { DocumentManager } from '../lib/documentManager';
+import { ResolvedPromisedValue } from '../lib/types';
+import type { StartResult } from '../server';
 import { wait } from '../../../shared/util';
 
 export function startIntegratedChecker(
@@ -24,28 +20,21 @@ export function startIntegratedChecker(
 	onConnectionInitialized: Promise<void>,
 	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
 	startedAt: PromisedValue<Date>
-): {
-	hoverProvider: ServerRequestHandler<
-		HoverParams,
-		Hover | undefined | null,
-		never,
-		void
-	> | null;
-} {
-	const phpstan: PHPStanCheckManager = new PHPStanCheckManager(
+): StartResult {
+	const checkManager: PHPStanCheckManager = new PHPStanCheckManager(
 		classConfig,
 		() => documentManager
 	);
 	const documentManager = new DocumentManager(classConfig, {
-		phpstan,
+		phpstan: checkManager,
 		onConnectionInitialized,
 	});
-	disposables.push(phpstan, documentManager);
+	disposables.push(checkManager, documentManager);
 
 	const providerArgs: ProviderArgs = {
 		connection,
 		hooks: classConfig.hooks.provider,
-		phpstan,
+		phpstan: checkManager,
 		workspaceFolders,
 		onConnectionInitialized,
 		documents: documentManager,
@@ -59,13 +48,20 @@ export function startIntegratedChecker(
 		const configuration = await getEditorConfiguration({
 			connection,
 			workspaceFolders,
+			editorConfigOverride: new ResolvedPromisedValue({}),
 		});
 		if (configuration.enabled && !configuration.singleFileMode) {
-			void phpstan.check(undefined, 'Initial check');
+			void checkManager.checkWithDebounce(
+				undefined,
+				'Initial check',
+				null
+			);
 		}
 	})();
 
 	return {
 		hoverProvider: createHoverProvider(providerArgs),
+		checkManager,
+		documentManager,
 	};
 }

@@ -18,7 +18,9 @@ interface CheckOperation {
 	check: PHPStanCheck;
 	hashes: Record<string, string>;
 }
-type RecursivePromiseObject = PromiseObject<RecursivePromiseObject> | null;
+type RecursivePromiseObject =
+	| PromiseObject<RecursivePromiseObject>
+	| OperationStatus;
 
 const PROJECT_CHECK_STR = '__project__';
 export class PHPStanCheckManager implements AsyncDisposable {
@@ -64,7 +66,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		});
 	}
 
-	private async _onTimeout(check: PHPStanCheck): Promise<void> {
+	private async _onTimeout(
+		check: PHPStanCheck,
+		onError: null | ((error: string) => void)
+	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		if (!editorConfig.suppressTimeoutMessage) {
 			let error = `PHPStan check timed out after ${editorConfig.projectTimeout}ms`;
@@ -109,11 +114,17 @@ export class PHPStanCheckManager implements AsyncDisposable {
 				},
 			]);
 		}
+
 		void log(
 			this._classConfig.connection,
 			checkPrefix(check),
 			`PHPStan check timed out after ${editorConfig.projectTimeout}ms`
 		);
+		if (onError) {
+			onError(
+				`PHPStan check timed out after ${editorConfig.projectTimeout}ms`
+			);
+		}
 	}
 
 	private _toErrorMessageMap(result: ReturnResult<ReportedErrors>): {
@@ -138,33 +149,36 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		};
 	}
 
-	private async _getFilePromise(uri: string): Promise<void> {
+	private async _getFilePromise(uri: string): Promise<OperationStatus> {
 		if (!this._filePromises.has(uri)) {
-			return Promise.resolve();
+			return Promise.resolve(OperationStatus.ERROR);
 		}
 		let obj: RecursivePromiseObject = this._filePromises.get(uri)!;
-		do {
+		while (typeof obj === 'object') {
 			obj = await obj.promise;
-		} while (obj !== null);
+		}
+		return obj;
 	}
 
 	private async _withRecursivePromise(
 		uri: string,
-		operation: Promise<void>
+		operation: Promise<OperationStatus>
 	): Promise<void> {
 		const promise = await createPromise<RecursivePromiseObject>();
 		const prevPromise = this._filePromises.get(uri);
-		if (prevPromise) {
+		if (typeof prevPromise === 'object') {
 			prevPromise.resolve(promise);
 		}
 		this._filePromises.set(uri, promise);
 
-		void operation.then(() => {
-			promise.resolve(null);
+		void operation.then((status) => {
+			promise.resolve(status);
 		});
 	}
 
-	private async _performProjectCheck(): Promise<void> {
+	private async _performProjectCheck(
+		onError: null | ((error: string) => void)
+	): Promise<OperationStatus> {
 		// Prep check
 		const check = new PHPStanCheck(this._classConfig);
 		void log(
@@ -202,11 +216,11 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors>>
 		>({
-			promise: check.check(true),
+			promise: check.check(true, onError),
 			timeout: editorConfig.projectTimeout,
 			onTimeout: async () => {
 				await check.dispose();
-				void this._onTimeout(check);
+				void this._onTimeout(check, onError);
 				await operation.finish(OperationStatus.KILLED);
 
 				return ReturnResult.killed();
@@ -224,11 +238,14 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			'Check completed for project, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
 		);
+
+		return result.status;
 	}
 
 	private async _performFileCheck(
-		file: WatcherNotificationFileData
-	): Promise<void> {
+		file: WatcherNotificationFileData,
+		onError: null | ((error: string) => void)
+	): Promise<OperationStatus> {
 		// Prep check
 		const check = new PHPStanCheck(this._classConfig);
 		void log(
@@ -254,11 +271,11 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors>>
 		>({
-			promise: check.check(true, file),
+			promise: check.check(true, onError, file),
 			timeout: editorConfig.timeout,
 			onTimeout: async () => {
 				await check.dispose();
-				void this._onTimeout(check);
+				void this._onTimeout(check, onError);
 				await operation.finish(OperationStatus.KILLED);
 
 				return ReturnResult.killed();
@@ -276,9 +293,13 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			'Check completed for file, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
 		);
+
+		return result.status;
 	}
 
-	private async _checkProject(): Promise<void> {
+	private async _checkProject(
+		onError: null | ((error: string) => void)
+	): Promise<OperationStatus> {
 		// Kill all current running instances
 		if (this._operations) {
 			await Promise.all(
@@ -296,17 +317,23 @@ export class PHPStanCheckManager implements AsyncDisposable {
 				MANAGER_PREFIX,
 				`Not checking project because of invalid PHP file: ${invalidFile}`
 			);
-			return;
+			if (onError) {
+				onError(`Invalid PHP file: ${invalidFile}`);
+			}
+			return OperationStatus.ERROR;
 		}
 
 		await this._withRecursivePromise(
 			PROJECT_CHECK_STR,
-			this._performProjectCheck()
+			this._performProjectCheck(onError)
 		);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
 
-	public async _checkFile(file: WatcherNotificationFileData): Promise<void> {
+	public async _checkFile(
+		file: WatcherNotificationFileData,
+		onError: null | ((error: string) => void)
+	): Promise<OperationStatus> {
 		// Kill current running instances for this file
 		if (this._operations?.get(file.uri)) {
 			const currentOperationForFile = this._operations.get(file.uri)!;
@@ -325,21 +352,22 @@ export class PHPStanCheckManager implements AsyncDisposable {
 
 		await this._withRecursivePromise(
 			file.uri,
-			this._performFileCheck(file)
+			this._performFileCheck(file, onError)
 		);
 		return this._getFilePromise(file.uri);
 	}
 
 	private async _checkProjectIfFileChanged(
-		file: WatcherNotificationFileData
-	): Promise<void> {
+		file: WatcherNotificationFileData,
+		onError: null | ((error: string) => void)
+	): Promise<OperationStatus> {
 		const projectCheck = this._operations.get(PROJECT_CHECK_STR);
 		if (!projectCheck) {
-			return this._checkProject();
+			return this._checkProject(onError);
 		}
 		if (!file.content) {
 			// Already checked if part of any operation
-			return;
+			return OperationStatus.CANCELLED;
 		}
 		if (
 			!projectCheck.hashes[file.uri] ||
@@ -350,29 +378,40 @@ export class PHPStanCheckManager implements AsyncDisposable {
 				MANAGER_PREFIX,
 				'No file changes, not checking'
 			);
-			return;
+			return OperationStatus.CANCELLED;
 		}
-		return this._checkProject();
+		return this._checkProject(onError);
 	}
 
 	public async check(
 		file: WatcherNotificationFileData | undefined,
-		cause: string
+		cause: string,
+		onError: null | ((error: string) => void)
+	): Promise<OperationStatus> {
+		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const shouldCheckProject = !editorConfig.singleFileMode || !file;
+		await log(
+			this._classConfig.connection,
+			WATCHER_PREFIX,
+			`Checking: ${cause}`
+		);
+		if (shouldCheckProject) {
+			return this._checkProject(onError);
+		}
+		return this._checkFile(file, onError);
+	}
+
+	public async checkWithDebounce(
+		file: WatcherNotificationFileData | undefined,
+		cause: string,
+		onError: null | ((error: string) => void)
 	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const shouldCheckProject = !editorConfig.singleFileMode || !file;
 		return this._debounceWithKey(
 			shouldCheckProject ? PROJECT_CHECK_STR : file.uri,
 			async () => {
-				await log(
-					this._classConfig.connection,
-					WATCHER_PREFIX,
-					`Checking: ${cause}`
-				);
-				if (shouldCheckProject) {
-					return this._checkProject();
-				}
-				return this._checkFile(file);
+				await this.check(file, cause, onError);
 			}
 		);
 	}
@@ -391,9 +430,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 					`Checking: ${cause}`
 				);
 				if (!editorConfig.singleFileMode) {
-					return this._checkProjectIfFileChanged(file);
+					await this._checkProjectIfFileChanged(file, null);
+				} else {
+					await this._checkFile(file, null);
 				}
-				return this._checkFile(file);
 			}
 		);
 	}

@@ -10,6 +10,7 @@ import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { getEditorConfiguration } from './editorConfig';
 import { showError } from './errorUtil';
+import { launchSetup } from './setup';
 import * as vscode from 'vscode';
 
 export function registerListeners(
@@ -127,6 +128,14 @@ export function registerListeners(
 					});
 				}
 			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.LAUNCH_SETUP,
+			() => launchSetup(client),
 			commands
 		)
 	);

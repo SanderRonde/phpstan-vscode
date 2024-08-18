@@ -13,11 +13,12 @@ import {
 } from '../../../shared/util';
 import type { CancellationToken, _Connection } from 'vscode-languageserver';
 import type { PHPStanCheckManager } from '../lib/phpstan/checkManager';
-import type { PromisedValue, WorkspaceFolders } from '../lib/types';
+import type { WorkspaceFolders, PromisedValue } from '../lib/types';
 import type { DocumentManager } from '../lib/documentManager';
 import type { CheckConfig } from '../lib/checkConfigManager';
 import { getEditorConfiguration } from '../lib/editorConfig';
 import type { PHPStanVersion } from '../start/getVersion';
+import { ResolvedPromisedValue } from '../lib/types';
 import * as fs from 'fs/promises';
 import { URI } from 'vscode-uri';
 import * as path from 'path';
@@ -125,6 +126,7 @@ export class ProviderCheckHooks {
 				await getEditorConfiguration({
 					connection: this._connection,
 					workspaceFolders: this._workspaceFolders,
+					editorConfigOverride: new ResolvedPromisedValue({}),
 				})
 			).enableLanguageServer;
 		})();
@@ -308,7 +310,10 @@ export class ProviderCheckHooks {
 export async function providerEnabled(
 	providerArgs: ProviderArgs
 ): Promise<boolean> {
-	const configuration = await getEditorConfiguration(providerArgs);
+	const configuration = await getEditorConfiguration({
+		...providerArgs,
+		editorConfigOverride: new ResolvedPromisedValue({}),
+	});
 	return (
 		configuration.enableLanguageServer &&
 		configuration.enabled &&

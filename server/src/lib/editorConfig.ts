@@ -1,19 +1,25 @@
+import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
 import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
-import type { ClassConfig, WorkspaceFolders } from './types';
 import type { Disposable } from 'vscode-languageserver';
 import { fromEntries } from '../../../shared/util';
+import type { ClassConfig } from './types';
 
 export async function getEditorConfiguration(
-	classConfig: Pick<ClassConfig, 'connection' | 'workspaceFolders'>
+	classConfig: Pick<
+		ClassConfig,
+		'connection' | 'workspaceFolders' | 'editorConfigOverride'
+	>
 ): Promise<ConfigSettingsWithoutPrefix> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
 	const scope = workspaceFolders?.default.toString();
 
-	const editorConfig =
-		(await classConfig.connection.workspace.getConfiguration({
+	const editorConfig = {
+		...((await classConfig.connection.workspace.getConfiguration({
 			scopeUri: scope,
 			section: 'phpstan',
-		})) as ConfigSettingsWithoutPrefix;
+		})) as ConfigSettingsWithoutPrefix),
+		...(await classConfig.editorConfigOverride.get()),
+	};
 
 	let tmpDir = editorConfig.tmpDir;
 	if (!tmpDir) {
@@ -21,19 +27,25 @@ export async function getEditorConfiguration(
 	}
 	return {
 		...editorConfig,
-		binPath: replaceVariables(editorConfig.binPath, workspaceFolders),
-		binCommand: editorConfig.binCommand.map((part) =>
-			replaceVariables(part, workspaceFolders)
+		binPath: replaceHomeDir(
+			replaceVariables(editorConfig.binPath, workspaceFolders)
 		),
-		configFile: replaceVariables(editorConfig.configFile, workspaceFolders),
+		binCommand: editorConfig.binCommand.map((part) =>
+			replaceHomeDir(replaceVariables(part, workspaceFolders))
+		),
+		configFile: replaceHomeDir(
+			replaceVariables(editorConfig.configFile, workspaceFolders)
+		),
 		paths: fromEntries(
 			Object.entries(editorConfig.paths).map(([key, value]) => [
 				replaceVariables(key, workspaceFolders),
 				replaceVariables(value, workspaceFolders),
 			])
 		),
-		tmpDir: replaceVariables(tmpDir, workspaceFolders),
-		rootDir: replaceVariables(editorConfig.rootDir, workspaceFolders),
+		tmpDir: replaceHomeDir(replaceVariables(tmpDir, workspaceFolders)),
+		rootDir: replaceHomeDir(
+			replaceVariables(editorConfig.rootDir, workspaceFolders)
+		),
 		options: editorConfig.options.map((option) =>
 			replaceVariables(option, workspaceFolders)
 		),
@@ -48,43 +60,13 @@ export async function getEditorConfiguration(
 	};
 }
 
-function replaceVariables(
-	str: string,
-	workspaceFolders: WorkspaceFolders | null
-): string {
-	return str.replace(
-		/\${workspaceFolder(?::(\w+))?}/g,
-		(_fullMatch, workspaceName: string | undefined) => {
-			if (workspaceName) {
-				if (!workspaceFolders) {
-					throw new Error(
-						'workspaceFolder:name is not set but is used in a variable'
-					);
-				}
-				const folder = workspaceFolders[workspaceName];
-				if (!folder) {
-					throw new Error(
-						`workspaceFolder:${workspaceName} is not set but is used in a variable`
-					);
-				}
-				return folder.fsPath;
-			}
-
-			const workspaceFolder = workspaceFolders?.default;
-			if (!workspaceFolder) {
-				throw new Error(
-					'workspaceFolder is not set but is used in a variable'
-				);
-			}
-			return workspaceFolder.fsPath;
-		}
-	);
-}
-
 export function onChangeEditorConfiguration<
 	K extends keyof ConfigSettingsWithoutPrefix,
 >(
-	classConfig: Pick<ClassConfig, 'connection' | 'workspaceFolders'>,
+	classConfig: Pick<
+		ClassConfig,
+		'connection' | 'workspaceFolders' | 'editorConfigOverride'
+	>,
 	key: K,
 	handler: (value: ConfigSettingsWithoutPrefix[K]) => void
 ): Disposable {

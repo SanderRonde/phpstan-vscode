@@ -11,6 +11,7 @@ export enum Commands {
 	NEXT_ERROR = 'phpstan.nextError',
 	PREVIOUS_ERROR = 'phpstan.previousError',
 	OPEN_PHPSTAN_PRO = 'phpstan.openPhpstanPro',
+	LAUNCH_SETUP = 'phpstan.launchSetup',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -36,6 +37,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.OPEN_PHPSTAN_PRO]: {
 		title: 'Open PHPStan Pro in browser',
+		inCommandPalette: true,
+	},
+	[Commands.LAUNCH_SETUP]: {
+		title: 'Launch setup',
 		inCommandPalette: true,
 	},
 };
@@ -91,7 +96,14 @@ export const config = {
 				},
 			],
 			description:
-				'Path mapping for scanned files. Allows for rewriting paths for for example SSH or Docker.',
+				'Path mapping for scanned files. Allows for rewriting paths for for example Docker.',
+		},
+	},
+	'phpstan.dockerContainerName': {
+		jsonDefinition: {
+			type: 'string',
+			description: 'Name of the Docker container to use for scanning',
+			examples: ['docker-phpstan-php-1'],
 		},
 	},
 	'phpstan.rootDir': {
