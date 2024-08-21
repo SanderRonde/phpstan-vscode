@@ -393,11 +393,21 @@ export class PHPStanRunner implements AsyncDisposable {
 
 					await this._classConfig.hooks.provider.onCheckDone();
 
-					resolve(
-						ReturnResult.success(
-							JSON.parse(getData()) as PHPStanCheckResult
-						)
-					);
+					const stdout = getData();
+					try {
+						resolve(
+							ReturnResult.success(
+								JSON.parse(stdout) as PHPStanCheckResult
+							)
+						);
+					} catch (e) {
+						void log(
+							this._classConfig.connection,
+							checkPrefix(check),
+							`Failed to parse PHPStan output: ${stdout}`
+						);
+						resolve(ReturnResult.error());
+					}
 				});
 			}
 		);
