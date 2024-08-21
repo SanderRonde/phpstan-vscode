@@ -7,9 +7,12 @@ import { lookup, kill } from 'ps-node';
 interface ProcessDescriptor {
 	timeout: number;
 	binStr: string;
+	children?: {
+		binStr: string | undefined;
+	}[];
 }
 
-export class ProcessSpawner implements Disposable {
+export class ZombieKiller implements Disposable {
 	private static STORAGE_KEY = 'phpstan.processes';
 	private _disposables: Disposable[] = [];
 
@@ -19,23 +22,31 @@ export class ProcessSpawner implements Disposable {
 	) {
 		this._kill(true);
 		this._disposables.push(
-			client.onNotification(processNotification, ({ pid, timeout }) => {
-				log(
-					PROCESS_SPAWNER_PREFIX,
-					'Spawning process',
-					String(pid),
-					'with timeout',
-					String(timeout)
-				);
-				lookup({ pid }, (err, list) => {
-					if (err || !list.length) {
-						void this._pushPid(pid, timeout);
-						return;
-					}
+			client.onNotification(
+				processNotification,
+				({ pid, children, timeout }) => {
+					log(
+						PROCESS_SPAWNER_PREFIX,
+						'Spawning process',
+						String(pid),
+						'with timeout',
+						String(timeout)
+					);
+					lookup({ pid }, (err, list) => {
+						if (err || !list.length) {
+							void this._pushPid(pid, children ?? [], timeout);
+							return;
+						}
 
-					void this._pushPid(pid, timeout, list[0].command);
-				});
-			})
+						void this._pushPid(
+							pid,
+							children ?? [],
+							timeout,
+							list[0].command
+						);
+					});
+				}
+			)
 		);
 		const interval = setInterval(() => this._kill(), 1000 * 60 * 30);
 		this._disposables.push({
@@ -78,7 +89,7 @@ export class ProcessSpawner implements Disposable {
 
 	private _kill(killTimeoutless: boolean = false): void {
 		const processes = this._context.workspaceState.get(
-			ProcessSpawner.STORAGE_KEY,
+			ZombieKiller.STORAGE_KEY,
 			{}
 		) as Record<number, number | ProcessDescriptor>;
 		if (Object.keys(processes).length === 0) {
@@ -92,6 +103,7 @@ export class ProcessSpawner implements Disposable {
 					? {
 							timeout: data,
 							binStr: undefined,
+							children: [],
 						}
 					: data;
 			if (
@@ -101,6 +113,11 @@ export class ProcessSpawner implements Disposable {
 				const pidNum = parseInt(pid, 10);
 				killed.push(pidNum);
 				void this._killProc(pidNum, descriptor.binStr);
+				if (descriptor.children) {
+					descriptor.children.forEach((child) => {
+						void this._killProc(0, child.binStr);
+					});
+				}
 			}
 		});
 
@@ -112,23 +129,42 @@ export class ProcessSpawner implements Disposable {
 			newProcesses[pid] = processes[pid];
 		}
 		void this._context.workspaceState.update(
-			ProcessSpawner.STORAGE_KEY,
+			ZombieKiller.STORAGE_KEY,
 			newProcesses
 		);
 	}
 
 	private async _pushPid(
 		pid: number,
+		children: number[],
 		timeout: number,
 		binStr?: string
 	): Promise<void> {
+		const childBinStrs = await Promise.all(
+			children.map((pid) => {
+				return new Promise<string | undefined>((resolve) => {
+					lookup({ pid }, (err, list) => {
+						if (err || list.length === 0) {
+							resolve(undefined);
+							return;
+						}
+
+						resolve(list[0].command);
+					});
+				});
+			})
+		);
+
 		const targetTime = timeout === 0 ? 0 : Date.now() + timeout;
-		await this._context.workspaceState.update(ProcessSpawner.STORAGE_KEY, {
-			...this._context.workspaceState.get(ProcessSpawner.STORAGE_KEY, {}),
+		await this._context.workspaceState.update(ZombieKiller.STORAGE_KEY, {
+			...this._context.workspaceState.get(ZombieKiller.STORAGE_KEY, {}),
 			[pid]: binStr
 				? {
 						timeout: targetTime,
 						binStr,
+						children: children.map((_, i) => ({
+							binStr: childBinStrs[i],
+						})),
 					}
 				: targetTime,
 		});

@@ -92,6 +92,7 @@ export type StatusBarNotificationType =
 export interface ProcessNotificationType {
 	pid: number;
 	timeout: number;
+	children?: number[];
 }
 
 export type PHPStanProNotificationType =

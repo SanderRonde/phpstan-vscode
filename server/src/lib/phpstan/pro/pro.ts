@@ -4,10 +4,10 @@ import { SPAWN_ARGS } from '../../../../../shared/constants';
 import { getEditorConfiguration } from '../../editorConfig';
 import { PHPStanProErrorManager } from './proErrorManager';
 import type { Disposable } from 'vscode-languageserver';
-import { ProcessSpawner } from '../../procSpawner';
 import type { ClassConfig } from '../../types';
 import { ReturnResult } from '../../result';
 import { PRO_PREFIX, log } from '../../log';
+import { Process } from '../../process';
 import * as path from 'path';
 
 export async function launchPro(
@@ -47,8 +47,8 @@ export async function launchPro(
 		'Spawning PHPStan Pro with the following configuration: ',
 		JSON.stringify(configuration)
 	);
-	const procSpawner = new ProcessSpawner(classConfig.connection);
-	const proc = await procSpawner.spawnWithRobustTimeout(
+	const proc = await Process.spawnWithRobustTimeout(
+		classConfig.connection,
 		binStr,
 		[...args, '--watch'],
 		0,
@@ -112,14 +112,14 @@ export async function launchPro(
 		proc.stderr?.on('data', (chunk: string | Buffer) => {
 			stderr += chunk.toString();
 		});
-		proc.on('error', (error) => {
+		proc.onError((error) => {
 			resolve(
 				ReturnResult.error(
 					`Failed to launch PHPStan Pro: ${error.message} - ${stderr}`
 				)
 			);
 		});
-		proc.on('exit', (code) => {
+		proc.onExit((code) => {
 			resolve(
 				ReturnResult.error(
 					`PHPStan Pro exited with code ${code ?? '?'}: ${stderr}`

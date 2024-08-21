@@ -9,12 +9,11 @@ import { ConfigurationManager } from '../checkConfigManager';
 import type { AsyncDisposable, ClassConfig } from '../types';
 import type { CheckConfig } from '../checkConfigManager';
 import { getEditorConfiguration } from '../editorConfig';
-import type { ChildProcess } from 'child_process';
-import { wait } from '../../../../shared/util';
 import { executeCommand } from '../commands';
 import { checkPrefix, log } from '../log';
 import { showError } from '../errorUtil';
 import { ReturnResult } from '../result';
+import { Process } from '../process';
 import * as os from 'os';
 
 export type PartialDocument = Pick<
@@ -45,7 +44,7 @@ export interface PHPStanCheckResult {
 
 export class PHPStanRunner implements AsyncDisposable {
 	private _cancelled: boolean = false;
-	private _disposables = new Set<() => Promise<void>>();
+	private _disposables: AsyncDisposable[] = [];
 
 	public constructor(private readonly _classConfig: ClassConfig) {}
 
@@ -59,37 +58,8 @@ export class PHPStanRunner implements AsyncDisposable {
 		return filePath;
 	}
 
-	private _kill(proc: ChildProcess): Promise<void> {
-		return Promise.race<void>([
-			new Promise((resolve) => {
-				let killed = false;
-				proc.once('exit', () => {
-					killed = true;
-					resolve();
-				});
-				// Give it 2 seconds to exit gracefully
-				proc.kill('SIGINT');
-				setTimeout(() => {
-					// Then less gracefully
-					if (killed) {
-						return;
-					}
-					proc.kill('SIGTERM');
-					setTimeout(() => {
-						if (killed) {
-							return;
-						}
-						// Then we force it
-						proc.kill('SIGKILL');
-					}, 2000);
-				}, 2000);
-			}),
-			wait(1000 * 10),
-		]);
-	}
-
 	private _createOutputCapturer(
-		proc: ChildProcess,
+		proc: Process,
 		channel: 'stdout' | 'stderr',
 		onProgress?: ProgressListener
 	): () => string {
@@ -173,7 +143,7 @@ export class PHPStanRunner implements AsyncDisposable {
 		checkConfig: CheckConfig,
 		check: PHPStanCheck,
 		withProgress: boolean
-	): Promise<ChildProcess> {
+	): Promise<Process> {
 		const [binStr, ...args] = await ConfigurationManager.getArgs(
 			this._classConfig,
 			checkConfig,
@@ -196,18 +166,18 @@ export class PHPStanRunner implements AsyncDisposable {
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify(configuration)
 		);
-		const phpstan =
-			await this._classConfig.procSpawner.spawnWithRobustTimeout(
-				binStr,
-				args,
-				PROCESS_TIMEOUT,
-				{
-					...SPAWN_ARGS,
-					cwd: checkConfig.cwd,
-					encoding: 'utf-8',
-					env: env,
-				}
-			);
+		const phpstan = await Process.spawnWithRobustTimeout(
+			this._classConfig.connection,
+			binStr,
+			args,
+			PROCESS_TIMEOUT,
+			{
+				...SPAWN_ARGS,
+				cwd: checkConfig.cwd,
+				encoding: 'utf-8',
+				env: env,
+			}
+		);
 
 		return phpstan;
 	}
@@ -277,19 +247,16 @@ export class PHPStanRunner implements AsyncDisposable {
 			);
 		};
 
-		const killProc = (): Promise<void> => this._kill(phpstan);
-		this._disposables.add(killProc);
+		this._disposables.push(phpstan);
 
 		return await new Promise<ReturnResult<PHPStanCheckResult>>(
 			(resolve) => {
-				phpstan.once('error', (e) => {
-					this._disposables.delete(killProc);
+				phpstan.onError((e) => {
 					void onError([' errMsg=' + e.message]);
 					resolve(ReturnResult.error());
 				});
 				// eslint-disable-next-line @typescript-eslint/no-misused-promises
-				phpstan.once('exit', async () => {
-					this._disposables.delete(killProc);
+				phpstan.onExit(async () => {
 					if (this._cancelled) {
 						resolve(ReturnResult.canceled());
 						return;
@@ -416,8 +383,8 @@ export class PHPStanRunner implements AsyncDisposable {
 	public async dispose(): Promise<void> {
 		this._cancelled = true;
 		await Promise.all(
-			[...this._disposables].map((disposable) => disposable())
+			[...this._disposables].map((disposable) => disposable.dispose())
 		);
-		this._disposables.clear();
+		this._disposables = [];
 	}
 }

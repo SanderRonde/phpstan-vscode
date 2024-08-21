@@ -12,6 +12,7 @@
 		"noUnusedParameters": true,
 		"noImplicitOverride": true,
 		"skipLibCheck": true,
+		"esModuleInterop": true,
 		"noEmit": true
 	},
 	"exclude": ["../node_modules", "../.vscode-test"]

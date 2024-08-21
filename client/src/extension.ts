@@ -19,7 +19,6 @@ import type {
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { DocumentManager } from './notificationSenders/documentManager';
-import { ProcessSpawner } from './notificationReceivers/procSpawner';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { PHPStanProManager } from './notificationReceivers/pro';
 import { StatusBar } from './notificationReceivers/statusBar';
@@ -87,19 +86,12 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
 	const errorManager = new ErrorManager(client);
-	const procSpawner = new ProcessSpawner(client, context);
 	const proManager = new PHPStanProManager(client);
 
 	registerListeners(context, client, errorManager, proManager);
 	registerEditorConfigurationListener();
 	registerLogMessager(context, client);
-	context.subscriptions.push(
-		statusBar,
-		watcher,
-		errorManager,
-		procSpawner,
-		proManager
-	);
+	context.subscriptions.push(statusBar, watcher, errorManager, proManager);
 
 	let wasReady = false;
 	const startedAt = Date.now();

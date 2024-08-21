@@ -1,7 +1,6 @@
 import type { ProviderCheckHooks } from '../providers/providerUtil';
 import type { PHPStanVersion } from '../start/getVersion';
 import type { _Connection } from 'vscode-languageserver';
-import type { ProcessSpawner } from './procSpawner';
 import type { StatusBar } from './statusBar';
 import type { URI } from 'vscode-uri';
 
@@ -12,7 +11,6 @@ export interface ClassConfig {
 	hooks: {
 		provider: ProviderCheckHooks;
 	};
-	procSpawner: ProcessSpawner;
 	version: PromisedValue<PHPStanVersion | null>;
 }
 

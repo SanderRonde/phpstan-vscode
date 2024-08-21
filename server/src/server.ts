@@ -21,7 +21,6 @@ import { ProviderCheckHooks } from './providers/providerUtil';
 import { getEditorConfiguration } from './lib/editorConfig';
 import type { PHPStanVersion } from './start/getVersion';
 import { initRequest } from './lib/requestChannels';
-import { ProcessSpawner } from './lib/procSpawner';
 import { getVersion } from './start/getVersion';
 import { log, SERVER_PREFIX } from './lib/log';
 import { startPro } from './start/startPro';
@@ -96,7 +95,6 @@ async function main(): Promise<void> {
 		connection,
 		workspaceFolders,
 	});
-	const procSpawner = new ProcessSpawner(connection);
 	const providerHooks = new ProviderCheckHooks(
 		connection,
 		version,
@@ -112,7 +110,6 @@ async function main(): Promise<void> {
 		hooks: {
 			provider: providerHooks,
 		},
-		procSpawner,
 		version,
 	};
 
