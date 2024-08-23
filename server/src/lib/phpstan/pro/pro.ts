@@ -50,7 +50,7 @@ export async function launchPro(
 		JSON.stringify(configuration)
 	);
 	const proc = await Process.spawnWithRobustTimeout(
-		classConfig.connection,
+		classConfig,
 		binStr,
 		[...args, '--watch'],
 		0,

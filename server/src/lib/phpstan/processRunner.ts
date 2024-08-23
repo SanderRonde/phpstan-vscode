@@ -186,7 +186,7 @@ export class PHPStanRunner implements AsyncDisposable {
 			JSON.stringify(configuration)
 		);
 		const phpstan = await Process.spawnWithRobustTimeout(
-			this._classConfig.connection,
+			this._classConfig,
 			binStr,
 			args,
 			PROCESS_TIMEOUT,
