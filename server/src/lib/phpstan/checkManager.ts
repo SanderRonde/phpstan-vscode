@@ -398,6 +398,13 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		);
 	}
 
+	public clearCheckIfChangedCache(): void {
+		const projectCheck = this._operations.get(PROJECT_CHECK_STR);
+		if (projectCheck) {
+			projectCheck.hashes = {};
+		}
+	}
+
 	public async clear(): Promise<void> {
 		await this.dispose();
 		this._classConfig.hooks.provider.clearReport();

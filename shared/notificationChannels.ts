@@ -48,6 +48,9 @@ export type WatcherNotificationType =
 			operation: 'checkProject';
 	  }
 	| {
+			operation: 'onConfigChange';
+	  }
+	| {
 			operation: 'clear';
 	  };
 

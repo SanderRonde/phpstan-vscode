@@ -1,6 +1,7 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import { watcherNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
+import { getEditorConfiguration } from '../lib/editorConfig';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
@@ -21,6 +22,22 @@ export class DocumentManager implements Disposable {
 		return e.languageId === 'php' && !e.isDirty;
 	}
 
+	private _isConfigFile(e: PartialDocument): boolean {
+		if (e.isDirty) {
+			return false;
+		}
+		const configFiles = getEditorConfiguration()
+			.get('phpstan.configFile')
+			.split(',')
+			.map((e) => e.trim());
+		for (const configFile of configFiles) {
+			if (e.uri.fsPath.includes(configFile)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private _toSendData(e: PartialDocument): WatcherNotificationFileData {
 		return {
 			uri: e.uri.toString(),
@@ -30,57 +47,57 @@ export class DocumentManager implements Disposable {
 	}
 
 	private async _onDocumentChange(e: vscode.TextDocument): Promise<void> {
-		if (!this._shouldSyncDocument(e)) {
-			return;
+		if (this._isConfigFile(e)) {
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'onConfigChange',
+			});
 		}
-		await this._client.sendNotification(watcherNotification, {
-			operation: 'change',
-			file: this._toSendData(e),
-		});
+		if (this._shouldSyncDocument(e)) {
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'change',
+				file: this._toSendData(e),
+			});
+		}
 	}
 
 	private async _onDocumentSave(e: vscode.TextDocument): Promise<void> {
-		if (!this._shouldSyncDocument(e)) {
-			return;
+		if (this._shouldSyncDocument(e)) {
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'save',
+				file: this._toSendData(e),
+			});
 		}
-		await this._client.sendNotification(watcherNotification, {
-			operation: 'save',
-			file: this._toSendData(e),
-		});
 	}
 
 	private async _onDocumentActive(e: vscode.TextDocument): Promise<void> {
-		if (!this._shouldSyncDocument(e)) {
-			return;
+		if (this._shouldSyncDocument(e)) {
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'setActive',
+				file: this._toSendData(e),
+			});
 		}
-		await this._client.sendNotification(watcherNotification, {
-			operation: 'setActive',
-			file: this._toSendData(e),
-		});
 	}
 
 	private async _onDocumentOpen(
 		e: vscode.TextDocument,
 		check: boolean
 	): Promise<void> {
-		if (!this._shouldSyncDocument(e)) {
-			return;
+		if (this._shouldSyncDocument(e)) {
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'open',
+				file: this._toSendData(e),
+				check,
+			});
 		}
-		await this._client.sendNotification(watcherNotification, {
-			operation: 'open',
-			file: this._toSendData(e),
-			check,
-		});
 	}
 
 	private async _onDocumentClose(e: PartialDocument): Promise<void> {
-		if (!this._shouldSyncDocument(e)) {
-			return;
+		if (this._shouldSyncDocument(e)) {
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'close',
+				file: this._toSendData(e),
+			});
 		}
-		await this._client.sendNotification(watcherNotification, {
-			operation: 'close',
-			file: this._toSendData(e),
-		});
 	}
 
 	public async watch(): Promise<void> {

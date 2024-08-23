@@ -99,6 +99,17 @@ export class DocumentManager implements Disposable {
 								return;
 							case 'checkProject':
 								return this._onScanProject(checkManager);
+							case 'onConfigChange': {
+								checkManager.clearCheckIfChangedCache();
+								const editorConfig =
+									await getEditorConfiguration(
+										this._classConfig
+									);
+								if (!editorConfig.singleFileMode) {
+									return this._onScanProject(checkManager);
+								}
+								return;
+							}
 						}
 
 						this._documents.set(

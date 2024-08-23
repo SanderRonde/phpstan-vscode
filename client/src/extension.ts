@@ -89,7 +89,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const proManager = new PHPStanProManager(client);
 
 	registerListeners(context, client, errorManager, proManager);
-	registerEditorConfigurationListener();
+	registerEditorConfigurationListener(client);
 	registerLogMessager(context, client);
 	context.subscriptions.push(statusBar, watcher, errorManager, proManager);
 

@@ -1,7 +1,9 @@
 // eslint-disable-next-line node/no-extraneous-import
 import type { TypedWorkspaceConfiguration } from 'vscode-generate-package-json/dist/types/src/configuration';
 
+import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ConfigSettings } from '../../../shared/config';
+import { watcherNotification } from './notificationChannels';
 import { CONFIG_KEYS } from '../../../shared/config';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
@@ -16,7 +18,9 @@ export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSett
 	return workspace.getConfiguration();
 }
 
-export function registerEditorConfigurationListener(): void {
+export function registerEditorConfigurationListener(
+	client: LanguageClient
+): void {
 	const editorConfig = getEditorConfiguration();
 	const configValues: Record<string, unknown> = {};
 	for (const key of CONFIG_KEYS) {
@@ -29,6 +33,10 @@ export function registerEditorConfigurationListener(): void {
 	);
 
 	workspace.onDidChangeConfiguration(async (e) => {
+		await client.sendNotification(watcherNotification, {
+			operation: 'onConfigChange',
+		});
+
 		if (e.affectsConfiguration('phpstan.paths')) {
 			const editorConfig = getEditorConfiguration();
 			const paths = editorConfig.get('phpstan.paths');
