@@ -5,6 +5,7 @@ import type {
 import { processNotification } from './notificationChannels';
 import type { _Connection } from 'vscode-languageserver';
 import type { AsyncDisposable } from './types';
+import { wait } from '../../../shared/util';
 import { exec, spawn } from 'child_process';
 import { default as psTree } from 'ps-tree';
 import type { Disposable } from 'vscode';
@@ -15,9 +16,9 @@ export class Process implements AsyncDisposable {
 	private readonly _disposables: Disposable[] = [];
 
 	public constructor(
-		private readonly _connection: _Connection,
+		connection: _Connection,
 		private readonly _process: ChildProcess,
-		private readonly _timeout: number
+		timeout: number
 	) {
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		const interval = setInterval(async () => {
@@ -29,9 +30,9 @@ export class Process implements AsyncDisposable {
 				this._children.add(pid);
 			});
 
-			void _connection.sendNotification(processNotification, {
+			void connection.sendNotification(processNotification, {
 				pid: _process.pid,
-				timeout: _timeout,
+				timeout: timeout,
 				children: [...children.values()],
 			});
 		}, 100);
@@ -186,7 +187,7 @@ export class Process implements AsyncDisposable {
 	}
 
 	public async dispose(): Promise<void> {
-		await this._kill();
+		await Promise.race([this._kill(), wait(1000 * 10)]);
 		this._disposables.forEach((d) => void d.dispose());
 	}
 }
