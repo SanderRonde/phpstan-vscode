@@ -80,6 +80,11 @@ export class PHPStanRunner implements AsyncDisposable {
 				return;
 			}
 
+			if (/Note: Using configuration file/.test(str)) {
+				// Ignore this line
+				return;
+			}
+
 			// Ignore control characters in output
 			// eslint-disable-next-line no-control-regex
 			const ansiRegex = /\x1b\[(\d+)/g;
