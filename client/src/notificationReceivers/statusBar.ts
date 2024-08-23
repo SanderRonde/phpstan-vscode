@@ -10,7 +10,11 @@ import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
 export class StatusBar implements Disposable {
-	private readonly _opTracker: OperationTracker;
+	private _runningOperation: {
+		tooltip: string;
+		id: number;
+	} | null = null;
+
 	private readonly _textManager = new TextManager();
 	private _fallback:
 		| {
@@ -24,41 +28,40 @@ export class StatusBar implements Disposable {
 		context: vscode.ExtensionContext,
 		client: LanguageClient
 	) {
-		const operationWrapper = <
-			T extends (...args: A) => R,
-			A extends unknown[],
-			R,
-		>(
-			fn: T
-		) => {
-			return (...args: A): void => {
+		context.subscriptions.push(
+			client.onNotification(statusBarNotification, (params) => {
+				log(
+					STATUS_BAR_PREFIX,
+					"notification:'",
+					JSON.stringify(params)
+				);
+
 				if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
 					return;
 				}
-				fn(...args);
-			};
-		};
-		this._opTracker = new OperationTracker(
-			operationWrapper(() => this._showStatusBar()),
-			operationWrapper((lastResult: OperationStatus) =>
-				this._completeWithResult(lastResult)
-			),
-			operationWrapper((tooltips: string[]) =>
-				this._textManager.setTooltips(tooltips)
-			)
-		);
-		context.subscriptions.push(
-			client.onNotification(statusBarNotification, (params) => {
+
 				switch (params.type) {
 					case 'new':
 						this.startOperation(params.opId, params.tooltip);
 						break;
 					case 'progress':
-						this.operationProgress(params.progress);
-						this.setTooltip(params.opId, params.tooltip);
+						if (!this._runningOperation) {
+							this.startOperation(params.opId, params.tooltip);
+						}
+						if (params.opId === this._runningOperation?.id) {
+							this.operationProgress(
+								params.progress,
+								params.tooltip
+							);
+						}
 						break;
 					case 'done':
-						this.finishOperation(params.opId, params.result);
+						if (params.opId === this._runningOperation?.id) {
+							this._completeWithResult(
+								params.opId,
+								params.result
+							);
+						}
 						break;
 					case 'fallback':
 						if (params.text === undefined) {
@@ -69,7 +72,7 @@ export class StatusBar implements Disposable {
 								command: params.command,
 							};
 						}
-						if (!this._opTracker.runningOperationCount) {
+						if (!this._runningOperation) {
 							this._fallbackOrHide();
 						}
 						break;
@@ -103,169 +106,84 @@ export class StatusBar implements Disposable {
 		this._textManager.show();
 	}
 
-	private _completeWithResult(lastResult: OperationStatus): void {
+	private _completeWithResult(
+		operationId: number,
+		result: OperationStatus
+	): void {
 		log(
 			STATUS_BAR_PREFIX,
 			'Hiding status bar, last operation result =',
-			lastResult
+			result
 		);
-		if (lastResult === OperationStatus.KILLED) {
+		if (result === OperationStatus.KILLED) {
 			this._textManager.setText(
 				'PHPStan process killed (timeout)',
 				this._fallback?.command
 			);
-		} else if (lastResult === OperationStatus.SUCCESS) {
+		} else if (result === OperationStatus.SUCCESS) {
 			this._textManager.setText(
 				'PHPStan checking done',
 				this._fallback?.command
 			);
-		} else if (lastResult === OperationStatus.ERROR) {
+		} else if (result === OperationStatus.ERROR) {
 			this._textManager.setText(
 				'PHPStan checking errored (see log)',
 				this._fallback?.command
 			);
-		} else if (lastResult !== OperationStatus.CANCELED) {
-			assertUnreachable(lastResult);
+		} else if (result !== OperationStatus.CANCELED) {
+			assertUnreachable(result);
 		}
 		this._textManager.setText(
 			'PHPStan checking done',
 			this._fallback?.command
 		);
+		this._textManager.setTooltips(undefined);
 		this._hideTimeout = setTimeout(
 			() => {
 				this._fallbackOrHide();
+				if (this._runningOperation?.id === operationId) {
+					this._runningOperation = null;
+				}
 			},
-			lastResult === OperationStatus.ERROR ? 2000 : 500
+			result === OperationStatus.ERROR ? 2000 : 500
 		);
 	}
 
 	private startOperation(operationId: number, tooltip: string): void {
-		this._opTracker.startOperation(operationId, tooltip);
+		this._runningOperation = {
+			tooltip: tooltip,
+			id: operationId,
+		};
+
+		if (!this._textManager.isShown()) {
+			this._showStatusBar();
+		}
 	}
 
-	private setTooltip(operationId: number, tooltip: string): void {
-		this._opTracker.setTooltip(operationId, tooltip);
-	}
-
-	private operationProgress(progress: StatusBarProgress): void {
+	private operationProgress(
+		progress: StatusBarProgress,
+		tooltip: string
+	): void {
 		this._textManager.setText(
 			`PHPStan checking project ${progress.done}/${progress.total} - ${progress.percentage}% ${TextManager.LOADING_SPIN}`,
 			this._fallback?.command
 		);
+		this._runningOperation!.tooltip = tooltip;
+		this._textManager.setTooltips(tooltip);
+
 		this._textManager.show();
 	}
 
-	private finishOperation(
-		operationId: number,
-		result: OperationStatus
-	): void {
-		this._opTracker.finishOperation(operationId, result);
-	}
-
 	public clearAllRunning(): void {
-		this._opTracker.clearAllRunning();
+		if (this._runningOperation) {
+			this._runningOperation = null;
+		}
 		this._textManager.hide();
 	}
 
 	public dispose(): void {
-		this._opTracker.dispose();
 		this._fallback = undefined;
 		this._textManager.dispose();
-	}
-}
-
-class OperationTracker implements Disposable {
-	private _runningOperations: Map<
-		number,
-		{
-			promise: Resolvable;
-			tooltip: string;
-		}
-	> = new Map();
-
-	private get _tooltip(): string[] {
-		return [...this._runningOperations.values()].map((o) => o.tooltip);
-	}
-
-	public get runningOperationCount(): number {
-		for (const operationId of this._runningOperations.keys()) {
-			if (this._runningOperations.get(operationId)!.promise.done) {
-				this._runningOperations.delete(operationId);
-			}
-		}
-
-		return this._runningOperations.size;
-	}
-
-	public constructor(
-		private readonly _onHasOperations: () => void,
-		private readonly _onNoOperations: (lastResult: OperationStatus) => void,
-		private readonly _onTooltip: (tooltips: string[]) => void
-	) {}
-
-	private _checkOperations(): void {
-		let lastOperation: OperationStatus | null = null;
-		for (const operationId of this._runningOperations.keys()) {
-			if (this._runningOperations.get(operationId)!.promise.done) {
-				lastOperation =
-					this._runningOperations.get(operationId)!.promise.result;
-				this._runningOperations.delete(operationId);
-			}
-		}
-
-		if (this._runningOperations.size === 0 && lastOperation) {
-			this._onNoOperations(lastOperation);
-		}
-	}
-
-	public startOperation(operationId: number, tooltip: string): void {
-		const hadOperations = this._runningOperations.size > 0;
-		this._runningOperations.set(operationId, {
-			promise: new Resolvable(),
-			tooltip,
-		});
-		if (!hadOperations) {
-			this._onHasOperations();
-		}
-		this._onTooltip(this._tooltip);
-	}
-
-	public setTooltip(operationId: number, tooltip: string): void {
-		if (!this._runningOperations.has(operationId)) {
-			return;
-		}
-		this._runningOperations.get(operationId)!.tooltip = tooltip;
-		this._onTooltip(this._tooltip);
-	}
-
-	public finishOperation(operationId: number, result: OperationStatus): void {
-		if (this._runningOperations.has(operationId)) {
-			this._runningOperations.get(operationId)?.promise.complete(result);
-		}
-		this._checkOperations();
-		this._onTooltip(this._tooltip);
-	}
-
-	public clearAllRunning(): void {
-		for (const operation of this._runningOperations.values()) {
-			operation.promise.complete(OperationStatus.KILLED);
-		}
-		this._checkOperations();
-		this._onTooltip(this._tooltip);
-	}
-
-	public dispose(): void {
-		this._runningOperations.clear();
-	}
-}
-
-class Resolvable {
-	public done: boolean = false;
-	public result: null | OperationStatus = null;
-
-	public complete(result: OperationStatus): void {
-		this.done = true;
-		this.result = result;
 	}
 }
 
@@ -282,6 +200,7 @@ class TextManager implements Disposable {
 	);
 	private _pendingStatusBarText: string | null = null;
 	private _statusBarInterval: NodeJS.Timeout | null = null;
+	private _isShown: boolean = false;
 
 	public constructor() {}
 
@@ -290,6 +209,10 @@ class TextManager implements Disposable {
 			this._statusBar.text = this._pendingStatusBarText;
 			this._pendingStatusBarText = null;
 		}
+	}
+
+	public isShown(): boolean {
+		return this._isShown;
 	}
 
 	public setText(text: string, command?: Commands): void {
@@ -325,11 +248,12 @@ class TextManager implements Disposable {
 		this._pendingStatusBarText = text;
 	}
 
-	public setTooltips(tooltips: string[]): void {
-		this._statusBar.tooltip = tooltips.join('\n');
+	public setTooltips(tooltip: string | undefined): void {
+		this._statusBar.tooltip = tooltip;
 	}
 
 	public hide(): void {
+		this._isShown = false;
 		this._statusBar.hide();
 		if (this._statusBarInterval) {
 			clearInterval(this._statusBarInterval);
@@ -339,6 +263,7 @@ class TextManager implements Disposable {
 	}
 
 	public show(): void {
+		this._isShown = true;
 		this._statusBar.show();
 	}
 
