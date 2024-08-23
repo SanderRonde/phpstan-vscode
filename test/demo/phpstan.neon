@@ -4,3 +4,4 @@ parameters:
 		- php
 	paths:
 		- php
+	tmpDir: %currentWorkingDirectory%/cache/phpstan
