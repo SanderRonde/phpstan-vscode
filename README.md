@@ -44,6 +44,10 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 
 If you find XDebug-related issues (such as checks failing with `The Xdebug PHP extension is active, but "--xdebug" is not used` in the output), see these issues: https://github.com/SanderRonde/phpstan-vscode/issues/17, https://github.com/SanderRonde/phpstan-vscode/issues/19.
 
+### Does this extension support checking multiple workspaces?
+
+The extension currently doesn't support checking multiple workspaces. You can use the extension just fine in a multi-workspace project, but only a single PHPStan configuration can be checked. The one that will be checked is configurable using the above configuration options. If you really would like multi-workspace support, feel free to mention so in [this issue](https://github.com/SanderRonde/phpstan-vscode/issues/55) and I might eventually add support for it if there's enough demand.
+
 ## Development
 
 First get your dev environment started by running `bun dev`. Note that this expects you to have a few programs installed:
