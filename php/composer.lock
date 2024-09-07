@@ -4,31 +4,33 @@
 		"Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
 		"This file is @generated automatically"
 	],
-	"content-hash": "203132561e9831b208822f6e4ec2bbb8",
+	"content-hash": "480462a92ad3c2bb7346424989941659",
 	"packages": [
 		{
 			"name": "nikic/php-parser",
-			"version": "v4.17.1",
+			"version": "v4.19.1",
 			"source": {
 				"type": "git",
 				"url": "https://github.com/nikic/PHP-Parser.git",
-				"reference": "a6303e50c90c355c7eeee2c4a8b27fe8dc8fef1d"
+				"reference": "4e1b88d21c69391150ace211e9eaf05810858d0b"
 			},
 			"dist": {
 				"type": "zip",
-				"url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/a6303e50c90c355c7eeee2c4a8b27fe8dc8fef1d",
-				"reference": "a6303e50c90c355c7eeee2c4a8b27fe8dc8fef1d",
+				"url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/4e1b88d21c69391150ace211e9eaf05810858d0b",
+				"reference": "4e1b88d21c69391150ace211e9eaf05810858d0b",
 				"shasum": ""
 			},
 			"require": {
 				"ext-tokenizer": "*",
-				"php": ">=7.0"
+				"php": ">=7.1"
 			},
 			"require-dev": {
 				"ircmaxell/php-yacc": "^0.0.7",
 				"phpunit/phpunit": "^6.5 || ^7.0 || ^8.0 || ^9.0"
 			},
-			"bin": ["bin/php-parse"],
+			"bin": [
+				"bin/php-parse"
+			],
 			"type": "library",
 			"extra": {
 				"branch-alias": {
@@ -41,32 +43,37 @@
 				}
 			},
 			"notification-url": "https://packagist.org/downloads/",
-			"license": ["BSD-3-Clause"],
+			"license": [
+				"BSD-3-Clause"
+			],
 			"authors": [
 				{
 					"name": "Nikita Popov"
 				}
 			],
 			"description": "A PHP parser written in PHP",
-			"keywords": ["parser", "php"],
+			"keywords": [
+				"parser",
+				"php"
+			],
 			"support": {
 				"issues": "https://github.com/nikic/PHP-Parser/issues",
-				"source": "https://github.com/nikic/PHP-Parser/tree/v4.17.1"
+				"source": "https://github.com/nikic/PHP-Parser/tree/v4.19.1"
 			},
-			"time": "2023-08-13T19:53:39+00:00"
+			"time": "2024-03-17T08:10:35+00:00"
 		},
 		{
 			"name": "phpstan/phpstan",
-			"version": "1.10.44",
+			"version": "1.12.0",
 			"source": {
 				"type": "git",
 				"url": "https://github.com/phpstan/phpstan.git",
-				"reference": "bf84367c53a23f759513985c54ffe0d0c249825b"
+				"reference": "384af967d35b2162f69526c7276acadce534d0e1"
 			},
 			"dist": {
 				"type": "zip",
-				"url": "https://api.github.com/repos/phpstan/phpstan/zipball/bf84367c53a23f759513985c54ffe0d0c249825b",
-				"reference": "bf84367c53a23f759513985c54ffe0d0c249825b",
+				"url": "https://api.github.com/repos/phpstan/phpstan/zipball/384af967d35b2162f69526c7276acadce534d0e1",
+				"reference": "384af967d35b2162f69526c7276acadce534d0e1",
 				"shasum": ""
 			},
 			"require": {
@@ -75,15 +82,25 @@
 			"conflict": {
 				"phpstan/phpstan-shim": "*"
 			},
-			"bin": ["phpstan", "phpstan.phar"],
+			"bin": [
+				"phpstan",
+				"phpstan.phar"
+			],
 			"type": "library",
 			"autoload": {
-				"files": ["bootstrap.php"]
+				"files": [
+					"bootstrap.php"
+				]
 			},
 			"notification-url": "https://packagist.org/downloads/",
-			"license": ["MIT"],
+			"license": [
+				"MIT"
+			],
 			"description": "PHPStan - PHP Static Analysis Tool",
-			"keywords": ["dev", "static analysis"],
+			"keywords": [
+				"dev",
+				"static analysis"
+			],
 			"support": {
 				"docs": "https://phpstan.org/user-guide/getting-started",
 				"forum": "https://github.com/phpstan/phpstan/discussions",
@@ -99,13 +116,9 @@
 				{
 					"url": "https://github.com/phpstan",
 					"type": "github"
-				},
-				{
-					"url": "https://tidelift.com/funding/github/packagist/phpstan/phpstan",
-					"type": "tidelift"
 				}
 			],
-			"time": "2023-11-21T16:30:46+00:00"
+			"time": "2024-08-27T09:18:05+00:00"
 		}
 	],
 	"packages-dev": [],
@@ -116,5 +129,5 @@
 	"prefer-lowest": false,
 	"platform": [],
 	"platform-dev": [],
-	"plugin-api-version": "2.2.0"
+	"plugin-api-version": "2.6.0"
 }
