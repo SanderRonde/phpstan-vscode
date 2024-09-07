@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.2
+
+-   Watch files that are not open in the workspace for changes too (requires PHPStan 1.12 or higher)
+
 ### 3.2.1
 
 -   Fall back to v1 when `--version` does not output a valid PHPStan version
