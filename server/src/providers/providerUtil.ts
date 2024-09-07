@@ -178,7 +178,7 @@ export class ProviderCheckHooks {
 		userConfigFile: string
 	): Promise<string> {
 		const templateFile =
-			(await this._version.get()) === '2.*'
+			(await this._version.get())?.major === 2
 				? PHPSTAN_2_NEON_FILE
 				: PHPSTAN_1_NEON_FILE;
 		const neonFileContent = (
