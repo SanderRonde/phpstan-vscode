@@ -1,6 +1,7 @@
 import { OperationStatus } from '../../../../../shared/statusBar';
-import { ConfigurationManager } from '../../checkConfigManager';
 import { errorNotification } from '../../notificationChannels';
+import { getEditorConfiguration } from '../../editorConfig';
+import { getPathMapper } from '../../../../../shared/util';
 import type { StatusBarOperation } from '../../statusBar';
 import type { Disposable } from 'vscode-languageserver';
 import type { ClassConfig } from '../../types';
@@ -12,15 +13,14 @@ import * as ws from 'ws';
 
 export class PHPStanProErrorManager implements Disposable {
 	private _wsClient: ws.WebSocket | null = null;
-	private readonly _pathMapper: Promise<
-		(filePath: string, inverse?: boolean) => string
-	>;
+	private _pathMapper:
+		| ((filePath: string, inverse?: boolean) => string)
+		| undefined = undefined;
 
 	public constructor(
 		private readonly _classConfig: ClassConfig,
 		private readonly _port: number
 	) {
-		this._pathMapper = ConfigurationManager.getPathMapper(_classConfig);
 		this._connect();
 	}
 
@@ -207,12 +207,15 @@ export class PHPStanProErrorManager implements Disposable {
 			return;
 		}
 
-		const pathMapper = await this._pathMapper;
+		this._pathMapper ??= getPathMapper(
+			(await getEditorConfiguration(this._classConfig)).paths,
+			(await this._classConfig.workspaceFolders.get())?.default.fsPath
+		);
 		const fileSpecificErrors: ReportedErrors['fileSpecificErrors'] = {};
 		for (const fileError of errors.fileSpecificErrors) {
 			const uri = URI.from({
 				scheme: 'file',
-				path: pathMapper(fileError.file, true),
+				path: this._pathMapper(fileError.file, true),
 			}).toString();
 			fileSpecificErrors[uri] ??= [];
 			fileSpecificErrors[uri].push({

@@ -60,12 +60,26 @@ export class PHPStanRunner implements AsyncDisposable {
 
 	private _createOutputCapturer(
 		proc: Process,
+		check: PHPStanCheck,
 		channel: 'stdout' | 'stderr',
 		onProgress?: ProgressListener
 	): () => string {
 		let data: string = '';
 		proc[channel]?.on('data', (dataPart: string | Buffer) => {
 			const str = dataPart.toString('utf-8');
+
+			const pidMatch = /docker-pid:(\d+)/.exec(str);
+			if (pidMatch) {
+				const pid = parseInt(pidMatch[1], 10);
+				void log(
+					this._classConfig.connection,
+					checkPrefix(check),
+					`PHPStan docker PID: ${pid}`
+				);
+				proc.dockerPid = pid;
+				return;
+			}
+
 			const progressMatch = onProgress
 				? [...str.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g)]
 				: [];
@@ -172,7 +186,7 @@ export class PHPStanRunner implements AsyncDisposable {
 			JSON.stringify(configuration)
 		);
 		const phpstan = await Process.spawnWithRobustTimeout(
-			this._classConfig.connection,
+			this._classConfig,
 			binStr,
 			args,
 			PROCESS_TIMEOUT,
@@ -192,9 +206,11 @@ export class PHPStanRunner implements AsyncDisposable {
 		check: PHPStanCheck,
 		{
 			onProgress,
+			onError: _onError,
 		}: {
 			onProgress?: ProgressListener;
-		} = {}
+			onError: null | ((error: string) => void);
+		}
 	): Promise<ReturnResult<PHPStanCheckResult>> {
 		const phpstan = await this._spawnProcess(
 			checkConfig,
@@ -204,12 +220,14 @@ export class PHPStanRunner implements AsyncDisposable {
 
 		const getData = this._createOutputCapturer(
 			phpstan,
+			check,
 			'stdout',
 			onProgress
 		);
 		// Not sure why progress is pumped into stderr but oh well
 		const getErr = this._createOutputCapturer(
 			phpstan,
+			check,
 			'stderr',
 			onProgress
 		);
@@ -246,10 +264,16 @@ export class PHPStanRunner implements AsyncDisposable {
 				...(await getLogData()),
 				...extraData
 			);
-			showError(
-				this._classConfig.connection,
-				'PHPStan: process exited with error, see log for details'
-			);
+			if (_onError) {
+				_onError(
+					`Process exited with error: ${await getFilteredErr()} ${getErr()}`
+				);
+			} else {
+				showError(
+					this._classConfig.connection,
+					'PHPStan: process exited with error, see log for details'
+				);
+			}
 		};
 
 		this._disposables.push(phpstan);
@@ -269,22 +293,28 @@ export class PHPStanRunner implements AsyncDisposable {
 
 					// Check for warning
 					if (getErr().includes('Allowed memory size of')) {
-						showError(
-							this._classConfig.connection,
-							'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
-							[
-								{
-									title: 'Go to option',
-									callback: () => {
-										void executeCommand(
-											this._classConfig.connection,
-											'workbench.action.openSettings',
-											`@ext:${EXTENSION_ID} memoryLimit`
-										);
+						if (_onError) {
+							_onError(
+								'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option'
+							);
+						} else {
+							showError(
+								this._classConfig.connection,
+								'PHPStan: Out of memory, try adding more memory by setting the phpstan.memoryLimit option',
+								[
+									{
+										title: 'Go to option',
+										callback: () => {
+											void executeCommand(
+												this._classConfig.connection,
+												'workbench.action.openSettings',
+												`@ext:${EXTENSION_ID} memoryLimit`
+											);
+										},
 									},
-								},
-							]
-						);
+								]
+							);
+						}
 						resolve(ReturnResult.error());
 						return;
 					}
@@ -321,32 +351,38 @@ export class PHPStanRunner implements AsyncDisposable {
 							'At least one path must be specified to analyse'
 						)
 					) {
-						showError(
-							this._classConfig.connection,
-							'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode',
-							[
-								{
-									title: 'View docs for "paths"',
-									callback: () => {
-										void executeCommand(
-											this._classConfig.connection,
-											'vscode.open',
-											'https://phpstan.org/config-reference#analysed-files'
-										);
+						if (_onError) {
+							_onError(
+								'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode'
+							);
+						} else {
+							showError(
+								this._classConfig.connection,
+								'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode',
+								[
+									{
+										title: 'View docs for "paths"',
+										callback: () => {
+											void executeCommand(
+												this._classConfig.connection,
+												'vscode.open',
+												'https://phpstan.org/config-reference#analysed-files'
+											);
+										},
 									},
-								},
-								{
-									title: 'Go to option single-file-check mode option',
-									callback: () => {
-										void executeCommand(
-											this._classConfig.connection,
-											'workbench.action.openSettings',
-											`@ext:${EXTENSION_ID} singleFileMode`
-										);
+									{
+										title: 'Go to option single-file-check mode option',
+										callback: () => {
+											void executeCommand(
+												this._classConfig.connection,
+												'workbench.action.openSettings',
+												`@ext:${EXTENSION_ID} singleFileMode`
+											);
+										},
 									},
-								},
-							]
-						);
+								]
+							);
+						}
 						resolve(ReturnResult.error());
 						return;
 					}

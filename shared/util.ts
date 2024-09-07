@@ -1,7 +1,15 @@
+import type {
+	SpawnOptionsWithStdioTuple,
+	StdioNull,
+	StdioPipe,
+} from 'child_process';
 import type { Disposable } from 'vscode';
+import { spawn } from 'child_process';
 import * as fs from 'fs/promises';
 import * as crypto from 'crypto';
 import { constants } from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
 	const result: Partial<A & B> = {};
@@ -33,12 +41,10 @@ export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
 /**
  * Assert that forces TS to check whether a route is reachable
  */
-export function assertUnreachable(x: never): void {
-	if (x) {
-		throw new Error(
-			`Value of type '${typeof x}' was not expected and should be unreachable`
-		);
-	}
+export function assertUnreachable(x: never): never {
+	throw new Error(
+		`Value of type '${typeof x}' was not expected and should be unreachable`
+	);
 }
 
 export async function wait(time: number): Promise<void> {
@@ -134,7 +140,7 @@ export function normalizePath(filePath: string): string {
 
 export async function pathExists(filePath: string): Promise<boolean> {
 	try {
-		await fs.access(filePath, constants.F_OK);
+		await fs.access(filePath, constants.R_OK);
 		return true;
 	} catch (e) {
 		return false;
@@ -170,4 +176,117 @@ export function fromEntries<T>(
 		result[key] = value;
 	}
 	return result;
+}
+
+export async function getConfigFile(
+	configFile: string,
+	cwd: string,
+	pathExistsFn: (filePath: string) => Promise<boolean> = pathExists
+): Promise<string | null> {
+	const absoluteConfigPaths = configFile
+		? configFile.split(',').map((c) => getAbsolutePath(c.trim(), cwd))
+		: [];
+	for (const absoluteConfigPath of absoluteConfigPaths) {
+		if (absoluteConfigPath && (await pathExistsFn(absoluteConfigPath))) {
+			return absoluteConfigPath;
+		}
+	}
+
+	return null;
+}
+
+export function getAbsolutePath(
+	filePath: string | null,
+	cwd?: string
+): string | null {
+	if (!filePath) {
+		return null;
+	}
+
+	if (path.isAbsolute(filePath)) {
+		return filePath;
+	}
+	if (!cwd) {
+		return null;
+	}
+	return path.join(cwd, filePath);
+}
+
+export async function execute(
+	binary: string,
+	args: ReadonlyArray<string>,
+	options: Omit<
+		SpawnOptionsWithStdioTuple<StdioNull, StdioPipe, StdioPipe>,
+		'stdio'
+	> = {}
+): Promise<{
+	success: boolean;
+	code: number;
+	stdout: string;
+	stderr: string;
+	err: Error | null;
+}> {
+	const proc = spawn(binary, args, {
+		...options,
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+	let stdout = '';
+	proc.stdout.on('data', (data: string | Buffer) => {
+		stdout += data.toString();
+	});
+	let stderr = '';
+	proc.stderr.on('data', (data: string | Buffer) => {
+		stderr += data.toString();
+	});
+
+	return new Promise((resolve) => {
+		proc.once('error', (err) => {
+			resolve({
+				success: false,
+				code: 1,
+				stdout: stdout,
+				stderr: stderr,
+				err,
+			});
+		});
+		proc.once('exit', (code: number) => {
+			resolve({
+				success: code === 0,
+				code,
+				stdout: stdout,
+				stderr: stderr,
+				err: null,
+			});
+		});
+	});
+}
+
+export function getPathMapper(
+	pathMapping: Record<string, string>,
+	cwd?: string
+): (filePath: string, inverse?: boolean) => string {
+	return (filePath: string, inverse: boolean = false) => {
+		if (Object.keys(pathMapping).length === 0) {
+			return filePath;
+		}
+		const expandedFilePath = filePath.replace(/^~/, os.homedir());
+		// eslint-disable-next-line prefer-const
+		for (let [fromPath, toPath] of Object.entries(pathMapping)) {
+			if (!path.isAbsolute(fromPath) && cwd) {
+				fromPath = path.join(cwd, fromPath);
+			}
+
+			const [from, to] = inverse
+				? [toPath, fromPath]
+				: [fromPath, toPath];
+			const expandedFromPath = from.replace(/^~/, os.homedir());
+			if (expandedFilePath.startsWith(expandedFromPath)) {
+				return expandedFilePath.replace(
+					expandedFromPath,
+					to.replace(/^~/, os.homedir())
+				);
+			}
+		}
+		return filePath;
+	};
 }

@@ -8,21 +8,33 @@ export type PHPStanVersion = '1.*' | '2.*';
 
 export async function getVersion(
 	classConfig: ClassConfig
-): Promise<PHPStanVersion | null> {
+): Promise<
+	| { success: true; version: PHPStanVersion }
+	| { success: false; error: string }
+> {
 	// Test if we can get the PHPStan version
 	const cwd = await ConfigurationManager.getCwd(classConfig);
 	if (!cwd) {
-		return Promise.resolve(null);
+		return {
+			success: false,
+			error: 'Failed to find cwd',
+		};
 	}
 
-	const binConfig = await ConfigurationManager.getBinConfig(classConfig, cwd);
-	const binPath = binConfig?.binCmd ?? binConfig?.binPath;
-	if (!binPath) {
-		return Promise.resolve(null);
+	const binConfigResult = await ConfigurationManager.getBinComand(
+		classConfig,
+		cwd
+	);
+	if (!binConfigResult.success) {
+		return {
+			success: false,
+			error: binConfigResult.error,
+		};
 	}
 
 	return new Promise((resolve) => {
-		const proc = spawn(binPath, ['--version'], {
+		const binArgs = binConfigResult.getBinCommand(['--version']);
+		const proc = spawn(binArgs[0], binArgs.slice(1), {
 			...SPAWN_ARGS,
 			cwd: cwd,
 		});
@@ -41,11 +53,17 @@ export async function getVersion(
 				SERVER_PREFIX,
 				`Failed to get PHPStan version, is the path to your PHPStan binary correct? Error: ${err.message}`
 			);
-			resolve(null);
+			resolve({
+				success: false,
+				error: `Failed to run: ${err.message}`,
+			});
 		});
 		proc.on('close', (code) => {
-			if (code !== 0) {
-				resolve(null);
+			if (code !== null && code !== 0) {
+				resolve({
+					success: false,
+					error: `Exited with exit code ${code}: ${data}`,
+				});
 				return;
 			}
 
@@ -62,9 +80,15 @@ export async function getVersion(
 
 			const [, major] = versionMatch;
 			if (major === '2') {
-				resolve('2.*');
+				resolve({
+					success: true,
+					version: '2.*',
+				});
 			} else if (major === '1') {
-				resolve('1.*');
+				resolve({
+					success: true,
+					version: '1.*',
+				});
 			}
 		});
 	});

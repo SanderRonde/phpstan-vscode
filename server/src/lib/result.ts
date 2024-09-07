@@ -19,7 +19,7 @@ export class ReturnResult<R, E = void> {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public static canceled(): ReturnResult<any> {
-		return new ReturnResult(OperationStatus.CANCELED, null);
+		return new ReturnResult(OperationStatus.CANCELLED, null);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any

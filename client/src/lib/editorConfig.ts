@@ -4,7 +4,7 @@ import type { TypedWorkspaceConfiguration } from 'vscode-generate-package-json/d
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ConfigSettings } from '../../../shared/config';
 import { watcherNotification } from './notificationChannels';
-import { CONFIG_KEYS } from '../../../shared/config';
+import { config } from '../../../shared/commands/defs';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
@@ -23,8 +23,8 @@ export function registerEditorConfigurationListener(
 ): void {
 	const editorConfig = getEditorConfiguration();
 	const configValues: Record<string, unknown> = {};
-	for (const key of CONFIG_KEYS) {
-		configValues[key] = editorConfig.get(`phpstan.${key}`);
+	for (const key in config) {
+		configValues[key] = editorConfig.get(key as keyof ConfigSettings);
 	}
 	log(
 		CLIENT_PREFIX,
@@ -40,7 +40,10 @@ export function registerEditorConfigurationListener(
 		if (e.affectsConfiguration('phpstan.paths')) {
 			const editorConfig = getEditorConfiguration();
 			const paths = editorConfig.get('phpstan.paths');
-			if (Object.keys(paths).length > 0) {
+			if (
+				editorConfig.get('phpstan.enableLanguageServer') &&
+				Object.keys(paths).length > 0
+			) {
 				await window.showWarningMessage(
 					'On-hover type information is disabled when the paths setting is being used'
 				);

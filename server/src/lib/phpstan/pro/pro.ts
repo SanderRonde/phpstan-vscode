@@ -21,8 +21,10 @@ export async function launchPro(
 	const settings = await getEditorConfiguration(classConfig);
 	const tmpPath = settings.tmpDir;
 
-	const launchConfig =
-		await ConfigurationManager.collectConfiguration(classConfig);
+	const launchConfig = await ConfigurationManager.collectConfiguration(
+		classConfig,
+		null
+	);
 	if (!launchConfig) {
 		return ReturnResult.error('Failed to find launch configuration');
 	}
@@ -48,7 +50,7 @@ export async function launchPro(
 		JSON.stringify(configuration)
 	);
 	const proc = await Process.spawnWithRobustTimeout(
-		classConfig.connection,
+		classConfig,
 		binStr,
 		[...args, '--watch'],
 		0,

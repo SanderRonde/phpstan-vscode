@@ -8,6 +8,8 @@ import type { AsyncDisposable, ClassConfig } from '../types';
 import { errorNotification } from '../notificationChannels';
 import type { PHPStanCheckResult } from './processRunner';
 import type { CheckConfig } from '../checkConfigManager';
+import { getEditorConfiguration } from '../editorConfig';
+import { getPathMapper } from '../../../../shared/util';
 import { PHPStanRunner } from './processRunner';
 import { ReturnResult } from '../result';
 import { URI } from 'vscode-uri';
@@ -18,11 +20,11 @@ export type ProgressListener = (progress: StatusBarProgress) => void;
 const IN_CONTEXT_OF_PREFIX = ' (in context of';
 export class PHPStanCheck implements AsyncDisposable {
 	private static _lastCheckId: number = 1;
-	private _disposables: AsyncDisposable[] = [];
 	private _done: boolean = false;
 	private _disposed: boolean = false;
 	private _progressListeners: ProgressListener[] = [];
 	private _id: number = PHPStanCheck._lastCheckId++;
+	public disposables: AsyncDisposable[] = [];
 
 	public get id(): number {
 		return this._id;
@@ -86,7 +88,8 @@ export class PHPStanCheck implements AsyncDisposable {
 		runner: PHPStanRunner,
 		checkConfig: CheckConfig,
 		pathMapper: (filePath: string, inverse?: boolean | undefined) => string,
-		file: WatcherNotificationFileData
+		file: WatcherNotificationFileData,
+		onError: null | ((error: string) => void)
 	): Promise<ReturnResult<ReportedErrors>> {
 		// Get file
 		const filePath = await ConfigurationManager.applyPathMapping(
@@ -99,7 +102,10 @@ export class PHPStanCheck implements AsyncDisposable {
 				...checkConfig,
 				args: [...checkConfig.args, this._escapeFilePath(filePath)],
 			},
-			check
+			check,
+			{
+				onError: onError,
+			}
 		);
 
 		return result.chain((output) => {
@@ -127,10 +133,12 @@ export class PHPStanCheck implements AsyncDisposable {
 		runner: PHPStanRunner,
 		checkConfig: CheckConfig,
 		pathMapper: (filePath: string, inverse?: boolean | undefined) => string,
-		onProgress: ProgressListener
+		onProgress: ProgressListener,
+		onError: null | ((error: string) => void)
 	): Promise<ReturnResult<ReportedErrors>> {
 		const result = await runner.runProcess(checkConfig, check, {
 			onProgress,
+			onError,
 		});
 
 		return result.chain((output) => {
@@ -152,22 +160,25 @@ export class PHPStanCheck implements AsyncDisposable {
 
 	public async check(
 		applyErrors: boolean,
+		onError: null | ((error: string) => void),
 		file?: WatcherNotificationFileData
 	): Promise<ReturnResult<ReportedErrors>> {
 		// Get config
 		const checkConfig = await ConfigurationManager.collectConfiguration(
-			this._classConfig
+			this._classConfig,
+			onError
 		);
 		if (!checkConfig) {
 			return ReturnResult.error();
 		}
 
 		const errorManager = new PHPStanCheckErrorManager(this._classConfig);
-		const pathMapper = await ConfigurationManager.getPathMapper(
-			this._classConfig
+		const pathMapper = getPathMapper(
+			(await getEditorConfiguration(this._classConfig)).paths,
+			(await this._classConfig.workspaceFolders.get())?.default.fsPath
 		);
 		const runner = new PHPStanRunner(this._classConfig);
-		this._disposables.push(runner);
+		this.disposables.push(runner);
 
 		if (this._disposed) {
 			return ReturnResult.canceled();
@@ -180,7 +191,8 @@ export class PHPStanCheck implements AsyncDisposable {
 					runner,
 					checkConfig,
 					pathMapper,
-					file
+					file,
+					onError
 				);
 			} else {
 				return this._checkProject(
@@ -188,7 +200,8 @@ export class PHPStanCheck implements AsyncDisposable {
 					runner,
 					checkConfig,
 					pathMapper,
-					this._onProgress.bind(this)
+					this._onProgress.bind(this),
+					onError
 				);
 			}
 		})();
@@ -207,9 +220,9 @@ export class PHPStanCheck implements AsyncDisposable {
 	}
 
 	public async dispose(): Promise<void> {
-		await Promise.all(this._disposables.map((d) => d.dispose()));
+		await Promise.all(this.disposables.map((d) => d.dispose()));
 		this._progressListeners = [];
-		this._disposables = [];
+		this.disposables = [];
 		this._disposed = true;
 	}
 }

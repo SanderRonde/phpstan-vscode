@@ -75,7 +75,14 @@
 							"/path/to/hostFolder": "/path/in/dockerContainer"
 						}
 					],
-					"description": "Path mapping for scanned files. Allows for rewriting paths for for example SSH or Docker."
+					"description": "Path mapping for scanned files. Allows for rewriting paths for for example Docker."
+				},
+				"phpstan.dockerContainerName": {
+					"type": "string",
+					"description": "Name of the Docker container to use for scanning",
+					"examples": [
+						"docker-phpstan-php-1"
+					]
 				},
 				"phpstan.rootDir": {
 					"type": "string",
@@ -189,6 +196,10 @@
 				"title": "Open PHPStan Pro in browser"
 			},
 			{
+				"command": "phpstan.launchSetup",
+				"title": "Launch setup"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
 			},
@@ -211,6 +222,10 @@
 			{
 				"command": "cmd.phpstan.openPhpstanPro",
 				"title": "PHPStan: Open PHPStan Pro in browser"
+			},
+			{
+				"command": "cmd.phpstan.launchSetup",
+				"title": "PHPStan: Launch setup"
 			}
 		],
 		"menus": {
@@ -240,6 +255,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.launchSetup",
+					"when": "false"
+				},
+				{
 					"command": "cmd.phpstan.scanFileForErrors",
 					"when": "true"
 				},
@@ -261,6 +280,10 @@
 				},
 				{
 					"command": "cmd.phpstan.openPhpstanPro",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.launchSetup",
 					"when": "true"
 				}
 			]

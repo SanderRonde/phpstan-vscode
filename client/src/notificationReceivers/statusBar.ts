@@ -130,7 +130,7 @@ export class StatusBar implements Disposable {
 				'PHPStan checking errored (see log)',
 				this._fallback?.command
 			);
-		} else if (result !== OperationStatus.CANCELED) {
+		} else if (result !== OperationStatus.CANCELLED) {
 			assertUnreachable(result);
 		}
 		this._textManager.setText(

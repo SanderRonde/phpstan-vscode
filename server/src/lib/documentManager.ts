@@ -71,7 +71,7 @@ export class DocumentManager implements Disposable {
 	public constructor(
 		private readonly _classConfig: Pick<
 			ClassConfig,
-			'connection' | 'workspaceFolders'
+			'connection' | 'workspaceFolders' | 'editorConfigOverride'
 		>,
 		{
 			phpstan: checkManager,
@@ -179,7 +179,7 @@ export class DocumentManager implements Disposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.check(e, 'Document changed');
+		await checkManager.checkWithDebounce(e, 'Document changed', null);
 	}
 
 	private async _onDocumentSave(
@@ -193,7 +193,7 @@ export class DocumentManager implements Disposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.check(e, 'Document saved');
+		await checkManager.checkWithDebounce(e, 'Document saved', null);
 	}
 
 	private async _onDocumentActive(
@@ -227,7 +227,7 @@ export class DocumentManager implements Disposable {
 			return;
 		}
 
-		await checkManager.check(e, 'Document opened');
+		await checkManager.checkWithDebounce(e, 'Document opened', null);
 	}
 
 	private async _onDocumentCheck(
@@ -237,13 +237,17 @@ export class DocumentManager implements Disposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.check(e, 'Force trigger');
+		await checkManager.checkWithDebounce(e, 'Force trigger', null);
 	}
 
 	private async _onScanProject(
 		checkManager: PHPStanCheckManager
 	): Promise<void> {
-		await checkManager.check(undefined, 'Manual project scan');
+		await checkManager.checkWithDebounce(
+			undefined,
+			'Manual project scan',
+			null
+		);
 	}
 
 	private async _clearData(checkManager: PHPStanCheckManager): Promise<void> {

@@ -10,6 +10,7 @@ export enum NotificationChannel {
 	ERROR = 'phpstan.error',
 	SPAWNER = 'phpstan.spawner',
 	PHPSTAN_PRO = 'phpstan.phpstanPro',
+	TEST = 'phpstan.test',
 }
 
 export interface WatcherNotificationFileData {

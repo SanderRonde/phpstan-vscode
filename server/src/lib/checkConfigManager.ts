@@ -1,3 +1,4 @@
+import { execute, getConfigFile, getPathMapper } from '../../../shared/util';
 import { getEditorConfiguration } from './editorConfig';
 import { showErrorOnce } from './errorUtil';
 import type { ClassConfig } from './types';
@@ -10,23 +11,13 @@ export interface CheckConfig {
 	cwd: string;
 	configFile: string | null;
 	remoteConfigFile: string | null;
-	binCmd: string | null;
-	binStr: string;
-	binPath: string | null;
-	initialArgs: string[];
+	getBinCommand: (args: string[]) => string[];
 	args: string[];
 	memoryLimit: string;
 	tmpDir: string | undefined;
 }
 
 export class ConfigurationManager {
-	public static async applyPathMapping(
-		classConfig: ClassConfig,
-		filePath: string
-	): Promise<string> {
-		return (await this.getPathMapper(classConfig))(filePath);
-	}
-
 	public static escapeFilePath(filePath: string): string {
 		if (os.platform() !== 'win32') {
 			return filePath;
@@ -37,34 +28,39 @@ export class ConfigurationManager {
 		return filePath;
 	}
 
-	public static async getPathMapper(
-		classConfig: ClassConfig
-	): Promise<(filePath: string, inverse?: boolean) => string> {
-		const pathMapping =
-			(await getEditorConfiguration(classConfig)).paths ?? {};
-
-		return (filePath: string, inverse: boolean = false) => {
-			if (Object.keys(pathMapping).length === 0) {
-				return filePath;
-			}
-			const expandedFilePath = filePath.replace(/^~/, os.homedir());
-			for (const [fromPath, toPath] of Object.entries(pathMapping)) {
-				const [from, to] = inverse
-					? [toPath, fromPath]
-					: [fromPath, toPath];
-				const expandedFromPath = from.replace(/^~/, os.homedir());
-				if (expandedFilePath.startsWith(expandedFromPath)) {
-					return expandedFilePath.replace(
-						expandedFromPath,
-						to.replace(/^~/, os.homedir())
-					);
-				}
-			}
-			return filePath;
-		};
+	public static async applyPathMapping(
+		classConfig: ClassConfig,
+		filePath: string
+	): Promise<string> {
+		const paths = (await getEditorConfiguration(classConfig)).paths;
+		const cwd = (await classConfig.workspaceFolders.get())?.default.fsPath;
+		return getPathMapper(paths, cwd)(filePath);
 	}
 
 	private static async _fileIfExists(
+		classConfig: ClassConfig,
+		filePath: string,
+		isDir: boolean
+	): Promise<string | null> {
+		const dockerContainerName = (await getEditorConfiguration(classConfig))
+			.dockerContainerName;
+		if (dockerContainerName) {
+			const exists = (
+				await execute('docker', [
+					'exec',
+					dockerContainerName,
+					'sh',
+					'-c',
+					`[ -${isDir ? 'd' : 'f'} ${filePath} ]`,
+				])
+			).success;
+			return exists ? filePath : null;
+		}
+
+		return this._localFileIfExists(filePath);
+	}
+
+	private static async _localFileIfExists(
 		filePath: string
 	): Promise<string | null> {
 		try {
@@ -97,30 +93,21 @@ export class ConfigurationManager {
 		cwd: string
 	): Promise<string | null> {
 		const extensionConfig = await getEditorConfiguration(classConfig);
-		const absoluteConfigPaths = extensionConfig.configFile
-			? extensionConfig.configFile
-					.split(',')
-					.map((c) => c.trim())
-					.map((c) => this._getAbsolutePath(c, cwd))
-			: [];
-		for (const absoluteConfigPath of absoluteConfigPaths) {
-			if (
-				absoluteConfigPath &&
-				(await this._fileIfExists(absoluteConfigPath))
-			) {
-				return absoluteConfigPath;
+		const absoluteConfigPath = await getConfigFile(
+			extensionConfig.configFile,
+			cwd
+		);
+		if (!absoluteConfigPath) {
+			// Config file was set but not found
+			if (extensionConfig.configFile) {
+				await showErrorOnce(
+					classConfig.connection,
+					`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
+				);
 			}
 		}
 
-		// Config file was set but not found
-		if (extensionConfig.configFile) {
-			await showErrorOnce(
-				classConfig.connection,
-				`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
-			);
-		}
-
-		return null;
+		return absoluteConfigPath;
 	}
 
 	public static async getCwd(
@@ -135,14 +122,6 @@ export class ConfigurationManager {
 				workspaceRoot?.fsPath ?? undefined
 			) || workspaceRoot?.fsPath;
 
-		if (cwd && !(await this._fileIfExists(cwd))) {
-			await showErrorOnce(
-				classConfig.connection,
-				`PHPStan: rootDir "${cwd}" does not exist`
-			);
-			return null;
-		}
-
 		if (!cwd) {
 			await showErrorOnce(
 				classConfig.connection,
@@ -153,13 +132,30 @@ export class ConfigurationManager {
 			return null;
 		}
 
+		if (!(await this._localFileIfExists(cwd))) {
+			await showErrorOnce(
+				classConfig.connection,
+				`PHPStan: rootDir "${cwd}" does not exist`
+			);
+			return null;
+		}
+
 		return cwd;
 	}
 
-	public static async getBinConfig(
+	public static async getBinComand(
 		classConfig: ClassConfig,
 		cwd: string
-	): Promise<Pick<CheckConfig, 'initialArgs' | 'binPath' | 'binCmd'> | null> {
+	): Promise<
+		| {
+				success: true;
+				getBinCommand: (args: string[]) => string[];
+		  }
+		| {
+				success: false;
+				error: string;
+		  }
+	> {
 		const extensionConfig = await getEditorConfiguration(classConfig);
 		const defaultBinPath = this._getAbsolutePath(
 			extensionConfig.binPath,
@@ -169,50 +165,52 @@ export class ConfigurationManager {
 		if (binPath.startsWith('~')) {
 			binPath = `${process.env.HOME ?? '~'}${binPath.slice(1)}`;
 		}
+		binPath = await this.applyPathMapping(classConfig, binPath);
+
 		const binCommand = extensionConfig.binCommand;
-
-		if (!binPath && (!binCommand || binCommand.length === 0)) {
-			// No binary and no command
-			await showErrorOnce(
-				classConfig.connection,
-				'PHPStan: failed to find binary path'
-			);
-			return null;
-		}
-
 		if (
 			(!binCommand || binCommand.length === 0) &&
-			!(await this._fileIfExists(binPath))
+			!(await this._fileIfExists(classConfig, binPath, false))
 		) {
 			// Command binary does not exist
-			await showErrorOnce(
-				classConfig.connection,
-				`PHPStan: failed to find binary at "${binPath}"`
-			);
-			return null;
+			return {
+				success: false,
+				error: `Failed to find binary at "${binPath}"`,
+			};
+		}
+
+		if (!binCommand.length && extensionConfig.dockerContainerName) {
+			return {
+				success: true,
+				getBinCommand: (args) => [
+					'docker',
+					'exec',
+					extensionConfig.dockerContainerName,
+					'sh',
+					'-c',
+					`${ConfigurationManager.escapeFilePath(binPath)} ${args.join(' ')} & echo docker-pid:$! && wait $!`,
+				],
+			};
 		}
 
 		if (binCommand?.length) {
-			// eslint-disable-next-line prefer-const
-			let [binCmd, ...initialArgs] = binCommand;
-			if (binCmd.startsWith('~')) {
-				binCmd = `${process.env.HOME ?? '~'}${binCmd.slice(1)}`;
-			}
 			return {
-				binCmd,
-				binPath: null,
-				initialArgs,
+				success: true,
+				getBinCommand: (args) => [...binCommand, ...args],
 			};
 		}
 		return {
-			binCmd: null,
-			binPath,
-			initialArgs: [],
+			success: true,
+			getBinCommand: (args) => [
+				ConfigurationManager.escapeFilePath(binPath),
+				...args,
+			],
 		};
 	}
 
 	public static async collectConfiguration(
-		classConfig: ClassConfig
+		classConfig: ClassConfig,
+		onError: null | ((error: string) => void)
 	): Promise<CheckConfig | null> {
 		// Settings
 		const extensionConfig = await getEditorConfiguration(classConfig);
@@ -221,12 +219,23 @@ export class ConfigurationManager {
 		if (!cwd) {
 			return null;
 		}
-		const binConfig = await this.getBinConfig(classConfig, cwd);
-		if (!binConfig) {
+		const result = await this.getBinComand(classConfig, cwd);
+		if (!result.success) {
+			if (onError) {
+				onError(result.error);
+			} else {
+				await showErrorOnce(
+					classConfig.connection,
+					`PHPStan: ${result.error}`
+				);
+			}
 			return null;
 		}
 		const configFile = await this._getConfigFile(classConfig, cwd);
 		if (!configFile) {
+			if (onError) {
+				onError('Failed to find config file');
+			}
 			return null;
 		}
 
@@ -243,11 +252,8 @@ export class ConfigurationManager {
 				: null,
 			args: extensionConfig.options ?? [],
 			memoryLimit: extensionConfig.memoryLimit,
-			binStr: binConfig.binCmd
-				? binConfig.binCmd
-				: ConfigurationManager.escapeFilePath(binConfig.binPath!),
 			tmpDir: tmpDir,
-			...binConfig,
+			getBinCommand: result.getBinCommand,
 		};
 	}
 
@@ -256,7 +262,7 @@ export class ConfigurationManager {
 		checkConfig: CheckConfig,
 		progress: boolean
 	): Promise<string[]> {
-		const args = [...checkConfig.initialArgs, 'analyse'];
+		const args = ['analyse'];
 		if (checkConfig.remoteConfigFile) {
 			args.push(
 				...[
@@ -279,9 +285,8 @@ export class ConfigurationManager {
 			args.push('--no-progress');
 		}
 		args.push(...checkConfig.args);
-		return await classConfig.hooks.provider.transformArgs(checkConfig, [
-			checkConfig.binStr,
-			...args,
-		]);
+		return checkConfig.getBinCommand(
+			await classConfig.hooks.provider.transformArgs(checkConfig, args)
+		);
 	}
 }

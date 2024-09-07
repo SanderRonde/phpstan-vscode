@@ -1,10 +1,3 @@
-import type {
-	_Connection,
-	Disposable,
-	Hover,
-	HoverParams,
-	ServerRequestHandler,
-} from 'vscode-languageserver';
 import {
 	statusBarNotification,
 	phpstanProNotification,
@@ -14,46 +7,22 @@ import type {
 	PromisedValue,
 	WorkspaceFolders,
 } from '../lib/types';
+import type { _Connection, Disposable } from 'vscode-languageserver';
 import { createHoverProvider } from '../providers/hoverProvider';
 import type { ProviderArgs } from '../providers/providerUtil';
-import { getEditorConfiguration } from '../lib/editorConfig';
 import { Commands } from '../../../shared/commands/defs';
 import { DocumentManager } from '../lib/documentManager';
 import { launchPro } from '../lib/phpstan/pro/pro';
-import { log, SERVER_PREFIX } from '../lib/log';
+import type { StartResult } from '../server';
 
 export async function startPro(
 	classConfig: ClassConfig,
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
-	workspaceFolders: PromisedValue<WorkspaceFolders | null>
-): Promise<{
-	hoverProvider: ServerRequestHandler<
-		HoverParams,
-		Hover | undefined | null,
-		never,
-		void
-	> | null;
-}> {
-	if (
-		!(
-			await getEditorConfiguration({
-				connection,
-				workspaceFolders,
-			})
-		).enabled
-	) {
-		void log(
-			connection,
-			SERVER_PREFIX,
-			'Not starting pro since extension has been disabled'
-		);
-		return {
-			hoverProvider: null,
-		};
-	}
-
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
+	editorConfigOverride: PromisedValue<Record<string, unknown>>
+): Promise<StartResult> {
 	void connection.sendNotification(statusBarNotification, {
 		type: 'fallback',
 		text: 'PHPStan Pro starting...',
@@ -103,6 +72,7 @@ export async function startPro(
 		{
 			connection: connection,
 			workspaceFolders: workspaceFolders,
+			editorConfigOverride,
 		},
 		{
 			onConnectionInitialized,
@@ -120,5 +90,6 @@ export async function startPro(
 
 	return {
 		hoverProvider: createHoverProvider(providerArgs),
+		documentManager,
 	};
 }
