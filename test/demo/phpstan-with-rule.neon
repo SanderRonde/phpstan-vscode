@@ -4,6 +4,7 @@ parameters:
 		- .
 	paths:
 		- .
+	tmpDir: %currentWorkingDirectory%/cache/phpstan
 
 rules:
 	- TreeFetcher
