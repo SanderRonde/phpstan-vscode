@@ -73,8 +73,13 @@ export async function getVersion(
 				`PHPStan version: ${data}`
 			);
 
-			const versionMatch = /(\d+)\.(\d+)\.(\d+)/.exec(data);
+			const versionMatch = /(\d+)\.(\d+)/.exec(data);
 			if (!versionMatch) {
+				// Assume 1.* if we can't find the version (bugged in v1.12.2)
+				resolve({
+					success: true,
+					version: '1.*',
+				});
 				return;
 			}
 
