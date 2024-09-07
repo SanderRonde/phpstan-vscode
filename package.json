@@ -2,7 +2,7 @@
 	"name": "phpstan-vscode",
 	"displayName": "phpstan",
 	"description": "PHPStan inline error provider",
-	"version": "3.1.14",
+	"version": "3.2.0",
 	"engines": {
 		"vscode": "^1.64.0",
 		"node": ">=14.16.0"
