@@ -15,3 +15,10 @@ services:
 		class: PHPStanVSCodeTreeFetcherCollector
 		tags:
 			- phpstan.collector
+	-
+		class: PHPStanVSCodeDiagnoser
+		tags:
+			- phpstan.diagnoseExtension
+		arguments:
+			analysedPaths: %analysedPaths%
+			currentWorkingDirectory: %currentWorkingDirectory%

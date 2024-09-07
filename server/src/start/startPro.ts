@@ -76,6 +76,7 @@ export async function startPro(
 		},
 		{
 			onConnectionInitialized,
+			watcher: null,
 		}
 	);
 	disposables.push(documentManager);

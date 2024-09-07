@@ -352,6 +352,7 @@
 		"vscode-test": "^1.6.1"
 	},
 	"dependencies": {
+		"chokidar": "^3.6.0",
 		"ps-node": "^0.1.6",
 		"ps-tree": "^1.2.0",
 		"tmp-promise": "^3.0.3"

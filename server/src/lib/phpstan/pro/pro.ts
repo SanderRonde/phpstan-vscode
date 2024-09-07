@@ -23,6 +23,7 @@ export async function launchPro(
 
 	const launchConfig = await ConfigurationManager.collectConfiguration(
 		classConfig,
+		'analyse',
 		null
 	);
 	if (!launchConfig) {

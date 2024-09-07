@@ -4,7 +4,10 @@ import type { ClassConfig } from '../lib/types';
 import { log, SERVER_PREFIX } from '../lib/log';
 import { spawn } from 'child_process';
 
-export type PHPStanVersion = '1.*' | '2.*';
+export type PHPStanVersion = {
+	minor: number;
+	major: 1 | 2;
+};
 
 export async function getVersion(
 	classConfig: ClassConfig
@@ -78,23 +81,22 @@ export async function getVersion(
 				// Assume 1.* if we can't find the version (bugged in v1.12.2)
 				resolve({
 					success: true,
-					version: '1.*',
+					version: {
+						minor: 0,
+						major: 1,
+					},
 				});
 				return;
 			}
 
-			const [, major] = versionMatch;
-			if (major === '2') {
-				resolve({
-					success: true,
-					version: '2.*',
-				});
-			} else if (major === '1') {
-				resolve({
-					success: true,
-					version: '1.*',
-				});
-			}
+			const [, major, minor] = versionMatch;
+			resolve({
+				success: true,
+				version: {
+					major: parseInt(major) as 1 | 2,
+					minor: parseInt(minor),
+				},
+			});
 		});
 	});
 }

@@ -12,3 +12,12 @@ parameters:
 	# Use a custom cacheDir so that the transformed-args and
 	# default args don't clear each others' caches.
 	tmpDir: ../test/cacheDir
+
+services:
+	-
+		class: PHPStanVSCodeDiagnoser
+		tags:
+			- phpstan.diagnoseExtension
+		arguments:
+			analysedPaths: %analysedPaths%
+			currentWorkingDirectory: %currentWorkingDirectory%

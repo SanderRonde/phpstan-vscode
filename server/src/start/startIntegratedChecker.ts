@@ -12,6 +12,7 @@ import { DocumentManager } from '../lib/documentManager';
 import { ResolvedPromisedValue } from '../lib/types';
 import type { StartResult } from '../server';
 import { wait } from '../../../shared/util';
+import { Watcher } from '../lib/watcher';
 
 export function startIntegratedChecker(
 	classConfig: ClassConfig,
@@ -28,6 +29,7 @@ export function startIntegratedChecker(
 	const documentManager = new DocumentManager(classConfig, {
 		phpstan: checkManager,
 		onConnectionInitialized,
+		watcher: new Watcher(classConfig, checkManager),
 	});
 	disposables.push(checkManager, documentManager);
 

@@ -15,6 +15,7 @@ export interface CheckConfig {
 	args: string[];
 	memoryLimit: string;
 	tmpDir: string | undefined;
+	operation: 'analyse' | 'diagnose';
 }
 
 export class ConfigurationManager {
@@ -210,6 +211,7 @@ export class ConfigurationManager {
 
 	public static async collectConfiguration(
 		classConfig: ClassConfig,
+		operation: 'analyse' | 'diagnose',
 		onError: null | ((error: string) => void)
 	): Promise<CheckConfig | null> {
 		// Settings
@@ -254,6 +256,7 @@ export class ConfigurationManager {
 			memoryLimit: extensionConfig.memoryLimit,
 			tmpDir: tmpDir,
 			getBinCommand: result.getBinCommand,
+			operation,
 		};
 	}
 
@@ -262,7 +265,7 @@ export class ConfigurationManager {
 		checkConfig: CheckConfig,
 		progress: boolean
 	): Promise<string[]> {
-		const args = ['analyse'];
+		const args: string[] = [checkConfig.operation];
 		if (checkConfig.remoteConfigFile) {
 			args.push(
 				...[
@@ -276,17 +279,23 @@ export class ConfigurationManager {
 			args.push('-c', checkConfig.configFile);
 		}
 
-		args.push(
-			'--error-format=json',
-			'--no-interaction',
-			`--memory-limit=${checkConfig.memoryLimit}`
-		);
-		if (!progress) {
-			args.push('--no-progress');
+		if (checkConfig.operation === 'analyse') {
+			args.push(
+				'--error-format=json',
+				'--no-interaction',
+				`--memory-limit=${checkConfig.memoryLimit}`
+			);
+			if (!progress) {
+				args.push('--no-progress');
+			}
+			args.push(...checkConfig.args);
 		}
-		args.push(...checkConfig.args);
 		return checkConfig.getBinCommand(
-			await classConfig.hooks.provider.transformArgs(checkConfig, args)
+			await classConfig.hooks.provider.transformArgs(
+				checkConfig,
+				args,
+				checkConfig.operation
+			)
 		);
 	}
 }

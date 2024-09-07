@@ -4,7 +4,7 @@ import type { PHPStanCheck } from './phpstan/check';
 
 export async function log(
 	connection: _Connection,
-	prefix: Prefix,
+	prefix: LogPrefix,
 	...data: (string | number)[]
 ): Promise<void> {
 	data = [prefix, ...data];
@@ -14,17 +14,18 @@ export async function log(
 	});
 }
 
-type Prefix = string & {
+export type LogPrefix = string & {
 	__isPrefix: true;
 };
 
-export function checkPrefix(check: PHPStanCheck): Prefix {
-	return `[check:${check.id}]` as Prefix;
+export function checkPrefix(check: PHPStanCheck): LogPrefix {
+	return `[check:${check.id}]` as LogPrefix;
 }
 
-export const MANAGER_PREFIX = '[fixer-manager]' as Prefix;
-export const WATCHER_PREFIX = '[file-watcher]' as Prefix;
-export const ERROR_PREFIX = '[error]' as Prefix;
-export const HOVER_PROVIDER_PREFIX = '[hover-provider]' as Prefix;
-export const SERVER_PREFIX = '[server]' as Prefix;
-export const PRO_PREFIX = '[pro]' as Prefix;
+export const MANAGER_PREFIX = '[fixer-manager]' as LogPrefix;
+export const WATCHER_PREFIX = '[file-watcher]' as LogPrefix;
+export const ERROR_PREFIX = '[error]' as LogPrefix;
+export const HOVER_PROVIDER_PREFIX = '[hover-provider]' as LogPrefix;
+export const SERVER_PREFIX = '[server]' as LogPrefix;
+export const PRO_PREFIX = '[pro]' as LogPrefix;
+export const DIAGNOSE_GET_FILES = '[diagnose-get-files]' as LogPrefix;

@@ -112,7 +112,6 @@ async function main(): Promise<void> {
 		workspaceFolders,
 		extensionPath
 	);
-
 	const statusBar = new StatusBar(connection);
 	const classConfig: ClassConfig = {
 		statusBar,

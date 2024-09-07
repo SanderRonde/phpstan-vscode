@@ -29,7 +29,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	private readonly _queuedCalls: Map<
 		string,
 		{
-			promiseResolvers: (() => void)[];
+			promiseResolvers: ((value: unknown) => void)[];
 			timeout: NodeJS.Timeout;
 		}
 	> = new Map();
@@ -40,27 +40,27 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		private readonly _getDocumentManager: () => DocumentManager
 	) {}
 
-	private _debounceWithKey(
+	public debounceWithKey<V>(
 		identifier: string,
-		callback: () => void | Promise<void>
-	): Promise<void> {
+		callback: () => V | Promise<V>
+	): Promise<V> {
 		const existing = this._queuedCalls.get(identifier);
 		if (existing) {
 			clearTimeout(existing.timeout);
 		}
-		return new Promise<void>((resolve) => {
+		return new Promise<V>((resolve) => {
 			this._queuedCalls.set(identifier, {
 				promiseResolvers: [
 					...(existing?.promiseResolvers ?? []),
 					resolve,
-				],
+				] as ((value: unknown) => void)[],
 				// eslint-disable-next-line @typescript-eslint/no-misused-promises
 				timeout: setTimeout(async () => {
 					const promiseResolvers =
 						this._queuedCalls.get(identifier)!.promiseResolvers;
 					this._queuedCalls.delete(identifier);
-					await callback();
-					promiseResolvers.forEach((resolve) => resolve());
+					const result = await callback();
+					promiseResolvers.forEach((resolve) => resolve(result));
 				}, CHECK_DEBOUNCE),
 			});
 		});
@@ -410,7 +410,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const shouldCheckProject = !editorConfig.singleFileMode || !file;
-		return this._debounceWithKey(
+		return this.debounceWithKey(
 			shouldCheckProject ? PROJECT_CHECK_STR : file.uri,
 			async () => {
 				await this.check(file, cause, onError);
@@ -423,7 +423,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		cause: string
 	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
-		return this._debounceWithKey(
+		return this.debounceWithKey(
 			editorConfig.singleFileMode ? file.uri : PROJECT_CHECK_STR,
 			async () => {
 				await log(

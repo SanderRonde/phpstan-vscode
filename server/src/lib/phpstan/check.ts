@@ -12,6 +12,7 @@ import { getEditorConfiguration } from '../editorConfig';
 import { getPathMapper } from '../../../../shared/util';
 import { PHPStanRunner } from './processRunner';
 import { ReturnResult } from '../result';
+import { checkPrefix } from '../log';
 import { URI } from 'vscode-uri';
 import * as os from 'os';
 
@@ -97,12 +98,13 @@ export class PHPStanCheck implements AsyncDisposable {
 			URI.parse(file.uri).fsPath
 		);
 
-		const result = await runner.runProcess(
+		const result = await runner.runProcess<PHPStanCheckResult>(
 			{
 				...checkConfig,
 				args: [...checkConfig.args, this._escapeFilePath(filePath)],
 			},
-			check,
+			checkPrefix(check),
+			true,
 			{
 				onError: onError,
 			}
@@ -136,10 +138,15 @@ export class PHPStanCheck implements AsyncDisposable {
 		onProgress: ProgressListener,
 		onError: null | ((error: string) => void)
 	): Promise<ReturnResult<ReportedErrors>> {
-		const result = await runner.runProcess(checkConfig, check, {
-			onProgress,
-			onError,
-		});
+		const result = await runner.runProcess<PHPStanCheckResult>(
+			checkConfig,
+			checkPrefix(check),
+			true,
+			{
+				onProgress,
+				onError,
+			}
+		);
 
 		return result.chain((output) => {
 			const parsed = this._parseOutput(output);
@@ -166,6 +173,7 @@ export class PHPStanCheck implements AsyncDisposable {
 		// Get config
 		const checkConfig = await ConfigurationManager.collectConfiguration(
 			this._classConfig,
+			'analyse',
 			onError
 		);
 		if (!checkConfig) {

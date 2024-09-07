@@ -6,6 +6,7 @@ import { assertUnreachable } from '../../../shared/util';
 import type { Disposable } from 'vscode-languageserver';
 import { getEditorConfiguration } from './editorConfig';
 import type { ClassConfig } from './types';
+import type { Watcher } from './watcher';
 import * as phpParser from 'php-parser';
 import { URI } from 'vscode-uri';
 
@@ -52,6 +53,7 @@ export class DocumentManager implements Disposable {
 	private readonly _documents: Map<string, DocumentManagerFileData> =
 		new Map();
 	private readonly _onConnectionInitialized: Promise<void>;
+	public watcher: Watcher | null;
 
 	private async _hasEnabledValidityCheck(): Promise<boolean> {
 		return (await getEditorConfiguration(this._classConfig)).checkValidity;
@@ -76,11 +78,17 @@ export class DocumentManager implements Disposable {
 		{
 			phpstan: checkManager,
 			onConnectionInitialized,
+			watcher,
 		}: {
 			phpstan?: PHPStanCheckManager;
 			onConnectionInitialized: Promise<void>;
+			watcher: Watcher | null;
 		}
 	) {
+		this.watcher = watcher;
+		if (watcher) {
+			watcher.documentManager = this;
+		}
 		this._onConnectionInitialized = onConnectionInitialized;
 
 		if (checkManager) {
@@ -101,14 +109,7 @@ export class DocumentManager implements Disposable {
 								return this._onScanProject(checkManager);
 							case 'onConfigChange': {
 								checkManager.clearCheckIfChangedCache();
-								const editorConfig =
-									await getEditorConfiguration(
-										this._classConfig
-									);
-								if (!editorConfig.singleFileMode) {
-									return this._onScanProject(checkManager);
-								}
-								return;
+								return this._onConfigChange(checkManager);
 							}
 						}
 
@@ -121,7 +122,7 @@ export class DocumentManager implements Disposable {
 						);
 						switch (data.operation) {
 							case 'change':
-								return this._onDocumentChange(
+								return this.onDocumentChange(
 									checkManager,
 									data.file
 								);
@@ -168,7 +169,7 @@ export class DocumentManager implements Disposable {
 		};
 	}
 
-	private async _onDocumentChange(
+	public async onDocumentChange(
 		checkManager: PHPStanCheckManager,
 		e: WatcherNotificationFileData
 	): Promise<void> {
@@ -238,6 +239,20 @@ export class DocumentManager implements Disposable {
 			return;
 		}
 		await checkManager.checkWithDebounce(e, 'Force trigger', null);
+	}
+
+	private async _onConfigChange(
+		checkManager: PHPStanCheckManager
+	): Promise<void> {
+		const editorConfig = await getEditorConfiguration(this._classConfig);
+		if (!editorConfig.singleFileMode) {
+			await checkManager.checkWithDebounce(
+				undefined,
+				'Config change',
+				null
+			);
+		}
+		void this.watcher?.onConfigChange();
 	}
 
 	private async _onScanProject(
