@@ -2,6 +2,12 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.2.0
+
+-   Improve killing of running PHPStan checks by using the process tree to kill any zombie processes too.
+-   Add a setup wizard that guides you through setting up the extension.
+    -   Also supports docker setup
+
 ### 3.1.14
 
 -   Remove some unneeded files from the extension
