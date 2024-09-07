@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+### 3.2.1
+
+-   Fall back to v1 when `--version` does not output a valid PHPStan version
+
 ### 3.2.0
 
 -   Improve killing of running PHPStan checks by using the process tree to kill any zombie processes too.
