@@ -20,11 +20,11 @@ export type ProgressListener = (progress: StatusBarProgress) => void;
 const IN_CONTEXT_OF_PREFIX = ' (in context of';
 export class PHPStanCheck implements AsyncDisposable {
 	private static _lastCheckId: number = 1;
-	private _disposables: AsyncDisposable[] = [];
 	private _done: boolean = false;
 	private _disposed: boolean = false;
 	private _progressListeners: ProgressListener[] = [];
 	private _id: number = PHPStanCheck._lastCheckId++;
+	public disposables: AsyncDisposable[] = [];
 
 	public get id(): number {
 		return this._id;
@@ -178,7 +178,7 @@ export class PHPStanCheck implements AsyncDisposable {
 			(await this._classConfig.workspaceFolders.get())?.default.fsPath
 		);
 		const runner = new PHPStanRunner(this._classConfig);
-		this._disposables.push(runner);
+		this.disposables.push(runner);
 
 		if (this._disposed) {
 			return ReturnResult.canceled();
@@ -220,9 +220,9 @@ export class PHPStanCheck implements AsyncDisposable {
 	}
 
 	public async dispose(): Promise<void> {
-		await Promise.all(this._disposables.map((d) => d.dispose()));
+		await Promise.all(this.disposables.map((d) => d.dispose()));
 		this._progressListeners = [];
-		this._disposables = [];
+		this.disposables = [];
 		this._disposed = true;
 	}
 }

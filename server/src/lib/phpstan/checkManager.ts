@@ -72,7 +72,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	): Promise<void> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		if (!editorConfig.suppressTimeoutMessage) {
-			let error = `PHPStan check timed out after ${editorConfig.projectTimeout}ms`;
+			let error = `PHPStan check timed out after ${editorConfig.projectTimeout / 1000}s`;
 			if (!editorConfig.singleFileMode) {
 				error +=
 					". Consider bumping the timeout or switching to single-file check mode if your device can't handle full-project checks.";
@@ -226,6 +226,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 				return ReturnResult.killed();
 			},
 		});
+		check.disposables.push(runningCheck);
 		this._disposables.push(runningCheck);
 		const result = await runningCheck.promise;
 
@@ -281,6 +282,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 				return ReturnResult.killed();
 			},
 		});
+		check.disposables.push(runningCheck);
 		this._disposables.push(runningCheck);
 		const result = await runningCheck.promise;
 
