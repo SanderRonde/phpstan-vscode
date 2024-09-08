@@ -2,7 +2,7 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
-## 3.2.3
+## 3.2.4, 3.2.3
 
 -   Catch case in which the `ps` command is not available
 
