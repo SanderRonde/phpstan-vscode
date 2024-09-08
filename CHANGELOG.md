@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.3
+
+-   Catch case in which the `ps` command is not available
+
 ## 3.2.2
 
 -   Watch files that are not open in the workspace for changes too (requires PHPStan 1.12 or higher)
