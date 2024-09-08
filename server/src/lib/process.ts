@@ -205,6 +205,9 @@ export class Process implements AsyncDisposable {
 					'/PID',
 					pid.toString(),
 				]);
+				killProc.on('error', () => {
+					resolve();
+				});
 				killProc.on('exit', () => {
 					resolve();
 				});
@@ -213,6 +216,9 @@ export class Process implements AsyncDisposable {
 		return new Promise<void>((resolve) => {
 			const killProc = spawn('kill', ['-9', pid.toString()]);
 			killProc.on('exit', () => {
+				resolve();
+			});
+			killProc.on('error', () => {
 				resolve();
 			});
 		});

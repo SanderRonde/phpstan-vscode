@@ -174,3 +174,6 @@ export interface StartResult {
 }
 
 void main();
+process.on('uncaughtException', () => {
+	// Bug in ps-tree where it doesn't catch errors of the processes it spawns
+});
