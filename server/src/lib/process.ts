@@ -57,13 +57,17 @@ export class Process implements AsyncDisposable {
 
 	private static _getChildPids(pid: number): Promise<number[]> {
 		return new Promise<number[]>((resolve) => {
-			psTree(pid, (err, children) => {
-				if (err) {
-					resolve([]);
-					return;
-				}
-				resolve([pid, ...children.map((c) => Number(c.PID))]);
-			});
+			try {
+				psTree(pid, (err, children) => {
+					if (err) {
+						resolve([]);
+						return;
+					}
+					resolve([pid, ...children.map((c) => Number(c.PID))]);
+				});
+			} catch (e) {
+				resolve([]);
+			}
 		});
 	}
 
