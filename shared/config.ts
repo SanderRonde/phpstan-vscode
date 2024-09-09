@@ -8,9 +8,11 @@ export type ConfigSettingsWithoutPrefix = {
 };
 export type ConfigSettings = Omit<
 	GetConfigurationType<typeof config>,
-	'phpstan.ignoreErrors'
+	'phpstan.ignoreErrors' | 'phpstan.enableLanguageServer'
 > & {
 	'phpstan.ignoreErrors': (string | RegExp)[];
 	// Legacy setting
 	'phpstan.proTmpDir'?: string;
+	/** @deprecated */
+	'phpstan.enableLanguageServer'?: boolean;
 };

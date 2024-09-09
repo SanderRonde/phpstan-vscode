@@ -9,7 +9,7 @@ export async function getEditorConfiguration(
 		ClassConfig,
 		'connection' | 'workspaceFolders' | 'editorConfigOverride'
 	>
-): Promise<ConfigSettingsWithoutPrefix> {
+): Promise<Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
 	const scope = workspaceFolders?.default.toString();
 
@@ -57,18 +57,24 @@ export async function getEditorConfiguration(
 			}
 			return replaceVariables(error, workspaceFolders);
 		}),
+		showTypeOnHover:
+			editorConfig.enableLanguageServer ||
+			editorConfig.showTypeOnHover ||
+			false,
 	};
 }
 
 export function onChangeEditorConfiguration<
-	K extends keyof ConfigSettingsWithoutPrefix,
+	K extends keyof Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>,
 >(
 	classConfig: Pick<
 		ClassConfig,
 		'connection' | 'workspaceFolders' | 'editorConfigOverride'
 	>,
 	key: K,
-	handler: (value: ConfigSettingsWithoutPrefix[K]) => void
+	handler: (
+		value: Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>[K]
+	) => void
 ): Disposable {
 	void getEditorConfiguration(classConfig).then((editorConfig) => {
 		handler(editorConfig[key]);

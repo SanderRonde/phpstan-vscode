@@ -4,7 +4,7 @@
 
 -   Automatically runs PHPStan of your code and highlights errors as you type.
 -   Performs project-wide analysis and displays all errors in the `Diagnostics` tab.
--   Shows the values of variables according to PHPStan at the point of hovering when using `phpstan.enableLanguageServer` setting.
+-   Shows the values of variables according to PHPStan at the point of hovering when using `phpstan.showTypeOnHover` setting.
 
 https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9ed7-eb892da1fe0f.mp4
 
@@ -34,7 +34,7 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 
 -   `phpstan.enabled` - whether to enable the on-save checker (defaults to `true`)
 -   `phpstan.enableStatusBar` - whether to show a statusbar entry while performing the check (defaults to `true`)
--   `phpstan.enableLanguageServer` - Whether to enable the language server that provides on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `false`)
+-   `phpstan.showTypeOnHover` - Whether to enable on-hover information. Disable this if you're using a custom PHPStan binary that runs on another filesystem (such as Docker) and you're running into issues (defaults to `false`)
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 -   `phpstan.checkValidity` - Whether to check the validity of PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.'. (defaults to `false`)
 

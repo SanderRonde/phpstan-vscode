@@ -45,7 +45,8 @@ export function registerEditorConfigurationListener(
 			const editorConfig = getEditorConfiguration();
 			const paths = editorConfig.get('phpstan.paths');
 			if (
-				editorConfig.get('phpstan.enableLanguageServer') &&
+				(editorConfig.get('phpstan.showTypeOnHover') ||
+					editorConfig.get('phpstan.enableLanguageServer')) &&
 				Object.keys(paths).length > 0
 			) {
 				await window.showWarningMessage(

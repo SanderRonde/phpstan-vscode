@@ -129,7 +129,7 @@ export class ProviderCheckHooks {
 					workspaceFolders: this._workspaceFolders,
 					editorConfigOverride: new ResolvedPromisedValue({}),
 				})
-			).enableLanguageServer;
+			).showTypeOnHover;
 		})();
 	}
 
@@ -318,7 +318,7 @@ export async function providerEnabled(
 		editorConfigOverride: new ResolvedPromisedValue({}),
 	});
 	return (
-		configuration.enableLanguageServer &&
+		configuration.showTypeOnHover &&
 		configuration.enabled &&
 		Object.keys(configuration.paths).length <= 0
 	);
