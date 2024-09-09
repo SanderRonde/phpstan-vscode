@@ -2,10 +2,10 @@ import type { WatcherNotificationFileData } from '../../../shared/notificationCh
 import type { PHPStanCheckManager } from './phpstan/checkManager';
 import type { PartialDocument } from './phpstan/processRunner';
 import { watcherNotification } from './notificationChannels';
+import type { AsyncDisposable, ClassConfig } from './types';
 import { assertUnreachable } from '../../../shared/util';
 import type { Disposable } from 'vscode-languageserver';
 import { getEditorConfiguration } from './editorConfig';
-import type { ClassConfig } from './types';
 import type { Watcher } from './watcher';
 import * as phpParser from 'php-parser';
 import { URI } from 'vscode-uri';
@@ -47,7 +47,7 @@ class DocumentManagerFileData implements WatcherNotificationFileData {
 	}
 }
 
-export class DocumentManager implements Disposable {
+export class DocumentManager implements AsyncDisposable {
 	private _disposables: Disposable[] = [];
 	private _lastActiveDocument: PartialDocument | null = null;
 	private readonly _documents: Map<string, DocumentManagerFileData> =
@@ -214,7 +214,7 @@ export class DocumentManager implements Disposable {
 		}
 
 		this._lastActiveDocument = this._toPartialDocument(e);
-		await checkManager.checkIfChanged(e, 'New document active active');
+		await checkManager.checkIfChanged(e, 'New document active');
 	}
 
 	private async _onDocumentOpen(
@@ -291,8 +291,9 @@ export class DocumentManager implements Disposable {
 		return null;
 	}
 
-	public dispose(): void {
+	public async dispose(): Promise<void> {
 		this._disposables.forEach((d) => void d.dispose());
+		await this.watcher?.dispose();
 		this._disposables = [];
 	}
 }
