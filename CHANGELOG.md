@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.7
+
+-   Reduce frequency that `ps-tree` is used in order to reduce CPU usage
+
 ## 3.2.6
 
 -   Only perform initial check when no other checks have been done
