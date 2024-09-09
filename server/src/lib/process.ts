@@ -22,7 +22,8 @@ export class Process implements AsyncDisposable {
 		timeout: number
 	) {
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
-		const interval = setInterval(async () => {
+
+		const updateChildPids = async (): Promise<void> => {
 			if (!_process.pid) {
 				return;
 			}
@@ -39,10 +40,18 @@ export class Process implements AsyncDisposable {
 					children: [...children.values()],
 				}
 			);
-		}, 100);
+		};
+		const intervals = [
+			// eslint-disable-next-line @typescript-eslint/no-misused-promises
+			setInterval(updateChildPids, 0),
+			// eslint-disable-next-line @typescript-eslint/no-misused-promises
+			setInterval(updateChildPids, 1000 * 10),
+		];
 		this._disposables.push({
 			dispose: () => {
-				clearInterval(interval);
+				intervals.forEach((interval) => {
+					clearInterval(interval);
+				});
 			},
 		});
 	}
