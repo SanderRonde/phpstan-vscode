@@ -34,11 +34,16 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		}
 	> = new Map();
 	private readonly _disposables: Disposable[] = [];
+	private _operationCount = 0;
 
 	public constructor(
 		private readonly _classConfig: ClassConfig,
 		private readonly _getDocumentManager: () => DocumentManager
 	) {}
+
+	public get operationCount(): number {
+		return this._operationCount;
+	}
 
 	public debounceWithKey<V>(
 		identifier: string,
@@ -194,6 +199,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			const content = allContents[uri];
 			hashes[uri] = basicHash(content);
 		}
+		this._operationCount++;
 		this._operations.set(PROJECT_CHECK_STR, {
 			check,
 			hashes,
@@ -255,6 +261,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			`Check started for file: ${file.uri}`
 		);
 
+		this._operationCount++;
 		this._operations.set(file.uri, {
 			check,
 			hashes: {

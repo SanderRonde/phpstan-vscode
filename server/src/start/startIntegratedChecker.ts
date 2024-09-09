@@ -52,7 +52,11 @@ export function startIntegratedChecker(
 			workspaceFolders,
 			editorConfigOverride: new ResolvedPromisedValue({}),
 		});
-		if (configuration.enabled && !configuration.singleFileMode) {
+		if (
+			configuration.enabled &&
+			!configuration.singleFileMode &&
+			checkManager.operationCount === 0
+		) {
 			void checkManager.checkWithDebounce(
 				undefined,
 				'Initial check',
