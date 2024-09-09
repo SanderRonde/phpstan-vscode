@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.6
+
+-   Only perform initial check when no other checks have been done
+
 ## 3.2.5
 
 -   Disable file watching
