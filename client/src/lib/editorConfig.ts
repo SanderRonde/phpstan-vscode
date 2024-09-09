@@ -33,6 +33,10 @@ export function registerEditorConfigurationListener(
 	);
 
 	workspace.onDidChangeConfiguration(async (e) => {
+		if (!e.affectsConfiguration('phpstan')) {
+			return;
+		}
+
 		await client.sendNotification(watcherNotification, {
 			operation: 'onConfigChange',
 		});
