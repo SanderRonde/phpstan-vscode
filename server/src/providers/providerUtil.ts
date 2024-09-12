@@ -5,7 +5,6 @@ import {
 	NO_CANCEL_OPERATIONS,
 	TREE_FETCHER_FILE,
 	PHPSTAN_2_NEON_FILE,
-	DIAGNOSER_FILE,
 } from '../../../shared/constants';
 import {
 	basicHash,
@@ -225,7 +224,7 @@ export class ProviderCheckHooks {
 			autoloadFileContent += `require_once '${userAutoloadFile}';\n`;
 		}
 		autoloadFileContent += `require_once '${treeFetcherFilePath}';`;
-		autoloadFileContent += `require_once '${DIAGNOSER_FILE}';`;
+		// autoloadFileContent += `require_once '${DIAGNOSER_FILE}';`;
 		await fs.writeFile(autoloadFilePath, autoloadFileContent, {
 			encoding: 'utf-8',
 		});
