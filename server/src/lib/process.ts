@@ -43,9 +43,9 @@ export class Process implements AsyncDisposable {
 		};
 		const intervals = [
 			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			setInterval(updateChildPids, 0),
+			setTimeout(updateChildPids, 0),
 			// eslint-disable-next-line @typescript-eslint/no-misused-promises
-			setInterval(updateChildPids, 1000 * 10),
+			setTimeout(updateChildPids, 1000 * 10),
 		];
 		this._disposables.push({
 			dispose: () => {
