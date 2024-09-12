@@ -2,7 +2,7 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
-## 3.2.9
+## 3.2.9, 3.2.10
 
 -   Comment out some unused code that was causing issues.
 
