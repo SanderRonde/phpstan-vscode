@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.8
+
+-   Fix issue where too many PID-lookup operations would be spawned.
+
 ## 3.2.7
 
 -   Reduce frequency that `ps-tree` is used in order to reduce CPU usage
