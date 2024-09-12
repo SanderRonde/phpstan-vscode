@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.9
+
+-   Comment out some unused code that was causing issues.
+
 ## 3.2.8
 
 -   Fix issue where too many PID-lookup operations would be spawned.
