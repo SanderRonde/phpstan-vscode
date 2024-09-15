@@ -20,6 +20,7 @@ import type {
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { DocumentManager } from './notificationSenders/documentManager';
 import { ErrorManager } from './notificationReceivers/errorManager';
+import { ZombieKiller } from './notificationReceivers/zombieKiller';
 import { PHPStanProManager } from './notificationReceivers/pro';
 import { StatusBar } from './notificationReceivers/statusBar';
 import { initRequest } from './lib/requestChannels';
@@ -87,11 +88,18 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const watcher = new DocumentManager(client);
 	const errorManager = new ErrorManager(client);
 	const proManager = new PHPStanProManager(client);
+	const zombieKiller = new ZombieKiller(client, context);
 
 	registerListeners(context, client, errorManager, proManager);
 	registerEditorConfigurationListener(client);
 	registerLogMessager(context, client);
-	context.subscriptions.push(statusBar, watcher, errorManager, proManager);
+	context.subscriptions.push(
+		statusBar,
+		watcher,
+		errorManager,
+		proManager,
+		zombieKiller
+	);
 
 	let wasReady = false;
 	const startedAt = Date.now();

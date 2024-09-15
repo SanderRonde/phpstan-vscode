@@ -2,25 +2,28 @@ import { processNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { Disposable, ExtensionContext } from 'vscode';
 import { PROCESS_SPAWNER_PREFIX, log } from '../lib/log';
+import type { Program } from 'ps-node';
 import { lookup, kill } from 'ps-node';
 
 interface ProcessDescriptor {
+	pid: number;
+	binStr: string | undefined;
+}
+
+interface RootProcessDescriptor extends ProcessDescriptor {
 	timeout: number;
-	binStr: string;
-	children?: {
-		binStr: string | undefined;
-	}[];
+	children?: ProcessDescriptor[];
 }
 
 export class ZombieKiller implements Disposable {
-	private static STORAGE_KEY = 'phpstan.processes';
+	private static STORAGE_KEY = 'phpstan.processes.v1';
 	private _disposables: Disposable[] = [];
 
 	public constructor(
 		client: LanguageClient,
 		private readonly _context: ExtensionContext
 	) {
-		this._kill(true);
+		void this._kill(true);
 		this._disposables.push(
 			client.onNotification(
 				processNotification,
@@ -32,41 +35,17 @@ export class ZombieKiller implements Disposable {
 						'with timeout',
 						String(timeout)
 					);
-					lookup({ pid }, (err, list) => {
-						if (err || !list.length) {
-							void this._pushPid(pid, children ?? [], timeout);
-							return;
-						}
-
-						void this._pushPid(
-							pid,
-							children ?? [],
-							timeout,
-							list[0].command
-						);
-					});
+					void this._pushPid(pid, children ?? [], timeout);
 				}
 			)
 		);
-		const interval = setInterval(() => this._kill(), 1000 * 60 * 30);
+		const interval = setInterval(() => void this._kill(), 1000 * 60 * 30);
 		this._disposables.push({
 			dispose: () => clearInterval(interval),
 		});
 	}
 
-	private _procExists(pid: number): boolean {
-		try {
-			process.kill(pid, 0);
-			return true;
-		} catch (e) {
-			return false;
-		}
-	}
-
 	private _killProc(pid: number, binStr?: string): void {
-		if (!this._procExists(pid)) {
-			return;
-		}
 		lookup({ pid }, (err, list) => {
 			if (err || list.length === 0) {
 				// No longer exists or something went wrong
@@ -87,43 +66,69 @@ export class ZombieKiller implements Disposable {
 		});
 	}
 
-	private _kill(killTimeoutless: boolean = false): void {
+	private async _kill(killTimeoutless: boolean = false): Promise<void> {
 		const processes = this._context.workspaceState.get(
 			ZombieKiller.STORAGE_KEY,
 			{}
-		) as Record<number, number | ProcessDescriptor>;
+		) as Record<number, RootProcessDescriptor>;
 		if (Object.keys(processes).length === 0) {
 			return;
 		}
 
-		const killed: number[] = [];
-		Object.entries(processes).forEach(([pid, data]) => {
-			const descriptor =
-				typeof data === 'number'
-					? {
-							timeout: data,
-							binStr: undefined,
-							children: [],
-						}
-					: data;
+		const toKill: { descriptor: ProcessDescriptor; pid: string }[] = [];
+		Object.entries(processes).forEach(([pid, descriptor]) => {
 			if (
-				Date.now() > descriptor.timeout &&
-				(descriptor.timeout !== 0 || killTimeoutless)
+				killTimeoutless ||
+				(Date.now() > descriptor.timeout && descriptor.timeout !== 0)
 			) {
-				const pidNum = parseInt(pid, 10);
-				killed.push(pidNum);
-				void this._killProc(pidNum, descriptor.binStr);
+				toKill.push({
+					descriptor,
+					pid,
+				});
 				if (descriptor.children) {
 					descriptor.children.forEach((child) => {
-						void this._killProc(0, child.binStr);
+						toKill.push({
+							descriptor: child,
+							pid,
+						});
 					});
 				}
 			}
 		});
 
-		const newProcesses: Record<number, number | ProcessDescriptor> = {};
+		const programs =
+			toKill.length > 0
+				? await new Promise<Program[]>((resolve) => {
+						lookup(
+							{
+								pid: toKill.map(({ pid }) => pid),
+							},
+							(err, list) => {
+								if (err) {
+									resolve([]);
+								} else {
+									resolve(list);
+								}
+							}
+						);
+					})
+				: [];
+
+		for (const { descriptor, pid } of toKill) {
+			const program = programs.find(
+				(p) =>
+					p.pid === parseInt(pid, 10) &&
+					(descriptor.binStr === undefined ||
+						p.command === descriptor.binStr)
+			);
+			if (program) {
+				void this._killProc(parseInt(pid, 10), program.command);
+			}
+		}
+
+		const newProcesses: Record<number, number | RootProcessDescriptor> = {};
 		for (const pid in processes) {
-			if (killed.includes(parseInt(pid, 10))) {
+			if (toKill.some(({ pid: pid2 }) => pid2 === pid)) {
 				continue;
 			}
 			newProcesses[pid] = processes[pid];
@@ -137,35 +142,42 @@ export class ZombieKiller implements Disposable {
 	private async _pushPid(
 		pid: number,
 		children: number[],
-		timeout: number,
-		binStr?: string
+		timeout: number
 	): Promise<void> {
-		const childBinStrs = await Promise.all(
-			children.map((pid) => {
-				return new Promise<string | undefined>((resolve) => {
-					lookup({ pid }, (err, list) => {
-						if (err || list.length === 0) {
-							resolve(undefined);
-							return;
-						}
+		const programs = await new Promise<Program[]>((resolve) => {
+			lookup(
+				{
+					pid: [String(pid), ...children.map(String)],
+				},
+				(err, list) => {
+					if (err) {
+						resolve([]);
+					} else {
+						resolve(list);
+					}
+				}
+			);
+		});
 
-						resolve(list[0].command);
-					});
-				});
-			})
-		);
+		const binStr = programs.find((p) => p.pid === pid)?.command;
+		const childBinStrs = children.map((child) => {
+			const program = programs.find((p) => p.pid === child);
+			return program?.command;
+		});
 
 		const targetTime = timeout === 0 ? 0 : Date.now() + timeout;
 		await this._context.workspaceState.update(ZombieKiller.STORAGE_KEY, {
 			...this._context.workspaceState.get(ZombieKiller.STORAGE_KEY, {}),
 			[pid]: binStr
-				? {
+				? ({
 						timeout: targetTime,
 						binStr,
-						children: children.map((_, i) => ({
+						pid,
+						children: children.map((pid, i) => ({
+							pid: pid,
 							binStr: childBinStrs[i],
 						})),
-					}
+					} satisfies RootProcessDescriptor)
 				: targetTime,
 		});
 	}
