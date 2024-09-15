@@ -244,6 +244,10 @@ export class DocumentManager implements AsyncDisposable {
 	private async _onConfigChange(
 		checkManager: PHPStanCheckManager
 	): Promise<void> {
+		if (!(await this._enabled)) {
+			return;
+		}
+
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		if (!editorConfig.singleFileMode) {
 			await checkManager.checkWithDebounce(
