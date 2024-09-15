@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.11
+
+-   Re-enable zombie-process killer
+-   Only queue checks on config change if file watching is enabled
+
 ## 3.2.9, 3.2.10
 
 -   Comment out some unused code that was causing issues.
