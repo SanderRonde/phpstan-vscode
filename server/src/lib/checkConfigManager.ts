@@ -140,7 +140,7 @@ export class ConfigurationManager {
 		const extensionConfig = await getEditorConfiguration(classConfig);
 		const cwd =
 			this._getAbsolutePath(
-				extensionConfig.rootDir,
+				extensionConfig.cwd,
 				workspaceRoot?.fsPath ?? undefined
 			) || workspaceRoot?.fsPath;
 
@@ -157,7 +157,7 @@ export class ConfigurationManager {
 		if (!(await this._localFileIfExists(cwd))) {
 			await showErrorOnce(
 				classConfig.connection,
-				`PHPStan: rootDir "${cwd}" does not exist`
+				`PHPStan: cwd "${cwd}" does not exist`
 			);
 			return null;
 		}

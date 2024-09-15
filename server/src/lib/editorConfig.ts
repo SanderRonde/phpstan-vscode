@@ -51,8 +51,11 @@ export async function getEditorConfiguration(
 			])
 		),
 		tmpDir: replaceHomeDir(replaceVariables(tmpDir, workspaceFolders)),
-		rootDir: replaceHomeDir(
-			replaceVariables(editorConfig.rootDir, workspaceFolders)
+		cwd: replaceHomeDir(
+			replaceVariables(
+				editorConfig.cwd ?? editorConfig.rootDir,
+				workspaceFolders
+			)
 		),
 		options: editorConfig.options.map((option) =>
 			replaceVariables(option, workspaceFolders)

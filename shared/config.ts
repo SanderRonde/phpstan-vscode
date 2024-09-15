@@ -17,4 +17,5 @@ export type DeprecatedConfigSettings = {
 	'phpstan.proTmpDir'?: string;
 	'phpstan.enableLanguageServer'?: boolean;
 	'phpstan.configFile'?: string;
+	'phpstan.rootDir'?: string;
 };

@@ -120,7 +120,7 @@ export const config = {
 			examples: ['docker-phpstan-php-1'],
 		},
 	},
-	'phpstan.rootDir': {
+	'phpstan.cwd': {
 		jsonDefinition: {
 			type: 'string',
 			description: 'Path to the root directory',

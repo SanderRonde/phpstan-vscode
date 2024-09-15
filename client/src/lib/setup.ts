@@ -212,26 +212,26 @@ abstract class SetupSteps {
 	): Promise<InputStep | undefined> {
 		const choice = await input.showInputBoxWithButton({
 			title: TITLE,
-			prompt: 'Enter the path to the root directory',
+			prompt: 'Enter the cwd (current working directory) to use when running PHPStan',
 			validate: async (value) => {
-				const rootDir = makeAbsolute(
+				const cwd = makeAbsolute(
 					replaceHomeDir(
 						replaceVariables(value, this._workspaceFolders)
 					),
 					this._getCwd()
 				);
-				if (await pathExists(rootDir)) {
+				if (await pathExists(cwd)) {
 					return undefined;
 				}
-				return `Directory does not exist at \`${rootDir}\``;
+				return `Directory does not exist at \`${cwd}\``;
 			},
-			value: this._state.rootDir,
+			value: this._state.cwd,
 			ignoreFocusOut: true,
 			buttons: [SHOW_FILE_PICKER_BUTTON],
 			shouldValidateInitially,
 		});
 		if (typeof choice === 'string') {
-			this._state.rootDir = choice;
+			this._state.cwd = choice;
 			return next;
 		}
 
@@ -243,14 +243,14 @@ abstract class SetupSteps {
 		});
 		if (folder) {
 			if (this._workspaceFolders?.default.fsPath === folder[0].fsPath) {
-				this._state.rootDir = './';
+				this._state.cwd = './';
 			} else if (this._workspaceFolders) {
-				this._state.rootDir = path.relative(
+				this._state.cwd = path.relative(
 					this._workspaceFolders.default.fsPath,
 					folder[0].fsPath
 				);
 			} else {
-				this._state.rootDir = folder[0].fsPath;
+				this._state.cwd = folder[0].fsPath;
 			}
 		}
 		return (input) => this._rootDirStep(input, next, true);
@@ -270,7 +270,7 @@ abstract class SetupSteps {
 				);
 				const configFile = await getConfigFile(
 					filePath,
-					makeAbsolute(this._state.rootDir, this._getCwd()),
+					makeAbsolute(this._state.cwd, this._getCwd()),
 					pathExists
 				);
 				if (configFile) {
@@ -322,7 +322,7 @@ abstract class SetupSteps {
 			validate: async (value) => {
 				const filePath = makeAbsolute(
 					path.join(
-						this._state.rootDir,
+						this._state.cwd,
 						replaceHomeDir(
 							replaceVariables(value, this._workspaceFolders)
 						)
@@ -339,7 +339,7 @@ abstract class SetupSteps {
 			value:
 				this._state.binPath ??
 				path.join(
-					makeAbsolute(this._state.rootDir, this._getCwd()),
+					makeAbsolute(this._state.cwd, this._getCwd()),
 					'vendor/bin/phpstan'
 				),
 			ignoreFocusOut: true,
@@ -454,7 +454,7 @@ abstract class SetupSteps {
 					options.map((uri) => ({
 						label: path.relative(
 							makeAbsolute(
-								this._state.rootDir,
+								this._state.cwd,
 								this._workspaceFolders?.default.fsPath
 							),
 							uri.fsPath
@@ -643,7 +643,7 @@ class DockerSetupSteps extends SetupSteps {
 			validate: async (value) => {
 				const filePath = makeAbsolute(
 					path.join(
-						this._state.rootDir,
+						this._state.cwd,
 						replaceHomeDir(
 							replaceVariables(value, this._workspaceFolders)
 						)
@@ -663,7 +663,7 @@ class DockerSetupSteps extends SetupSteps {
 			value:
 				this._state.binPath ??
 				path.join(
-					makeAbsolute(this._state.rootDir, this._getCwd()),
+					makeAbsolute(this._state.cwd, this._getCwd()),
 					'vendor/bin/phpstan'
 				),
 			ignoreFocusOut: true,
