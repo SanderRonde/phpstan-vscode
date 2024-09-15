@@ -1,7 +1,9 @@
 import { execute, getConfigFile, getPathMapper } from '../../../shared/util';
 import { getEditorConfiguration } from './editorConfig';
-import { showErrorOnce } from './errorUtil';
+import { showError, showErrorOnce } from './errorUtil';
+import { isInPaths } from '../../../shared/neon';
 import type { ClassConfig } from './types';
+import type { URI } from 'vscode-uri';
 import * as fs from 'fs/promises';
 import { constants } from 'fs';
 import * as path from 'path';
@@ -15,7 +17,7 @@ export interface CheckConfig {
 	args: string[];
 	memoryLimit: string;
 	tmpDir: string | undefined;
-	operation: 'analyse' | 'diagnose';
+	operation: 'analyse';
 }
 
 export class ConfigurationManager {
@@ -91,24 +93,43 @@ export class ConfigurationManager {
 
 	private static async _getConfigFile(
 		classConfig: ClassConfig,
-		cwd: string
+		cwd: string,
+		currentFile: URI | null
 	): Promise<string | null> {
 		const extensionConfig = await getEditorConfiguration(classConfig);
-		const absoluteConfigPath = await getConfigFile(
-			extensionConfig.configFile,
-			cwd
-		);
-		if (!absoluteConfigPath) {
-			// Config file was set but not found
-			if (extensionConfig.configFile) {
+
+		for (const configFile of extensionConfig.configFiles) {
+			const absoluteConfigPath = await getConfigFile(configFile, cwd);
+			if (!absoluteConfigPath) {
+				// Config file was set but not found
 				await showErrorOnce(
 					classConfig.connection,
-					`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
+					`PHPStan: failed to find config file in "${configFile}"`
 				);
+				return null;
+			}
+
+			if (extensionConfig.configFiles.length > 1) {
+				if (!currentFile) {
+					showError(
+						classConfig.connection,
+						'PHPStan: multiple config files provided but no file is open'
+					);
+					return null;
+				}
+
+				if (
+					currentFile.fsPath === absoluteConfigPath ||
+					(await isInPaths(currentFile.fsPath, absoluteConfigPath))
+				) {
+					return absoluteConfigPath;
+				}
+			} else {
+				return absoluteConfigPath;
 			}
 		}
 
-		return absoluteConfigPath;
+		return null;
 	}
 
 	public static async getCwd(
@@ -211,7 +232,8 @@ export class ConfigurationManager {
 
 	public static async collectConfiguration(
 		classConfig: ClassConfig,
-		operation: 'analyse' | 'diagnose',
+		operation: 'analyse',
+		currentFile: URI | null,
 		onError: null | ((error: string) => void)
 	): Promise<CheckConfig | null> {
 		// Settings
@@ -233,7 +255,11 @@ export class ConfigurationManager {
 			}
 			return null;
 		}
-		const configFile = await this._getConfigFile(classConfig, cwd);
+		const configFile = await this._getConfigFile(
+			classConfig,
+			cwd,
+			currentFile
+		);
 		if (!configFile) {
 			if (onError) {
 				onError('Failed to find config file');

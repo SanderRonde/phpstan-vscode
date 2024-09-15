@@ -168,12 +168,14 @@ export class PHPStanCheck implements AsyncDisposable {
 	public async check(
 		applyErrors: boolean,
 		onError: null | ((error: string) => void),
+		currentFile: URI | null,
 		file?: WatcherNotificationFileData
 	): Promise<ReturnResult<ReportedErrors>> {
 		// Get config
 		const checkConfig = await ConfigurationManager.collectConfiguration(
 			this._classConfig,
 			'analyse',
+			currentFile,
 			onError
 		);
 		if (!checkConfig) {

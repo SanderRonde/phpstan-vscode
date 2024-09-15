@@ -11,9 +11,10 @@ export type ConfigSettings = Omit<
 	'phpstan.ignoreErrors': (string | RegExp)[];
 };
 
+/** @deprecated */
 export type DeprecatedConfigSettings = {
 	// Legacy setting
 	'phpstan.proTmpDir'?: string;
-	/** @deprecated */
 	'phpstan.enableLanguageServer'?: boolean;
+	'phpstan.configFile'?: string;
 };

@@ -30,6 +30,7 @@ export function listenTest(
 					let error: string | undefined = undefined;
 					const status = await checkManager.check(
 						params.file,
+						null,
 						'test',
 						(_error) => {
 							error = _error;

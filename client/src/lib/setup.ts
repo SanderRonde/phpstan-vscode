@@ -70,6 +70,13 @@ export async function launchSetup(client: LanguageClient): Promise<void> {
 				state[key],
 				ConfigurationTarget.Workspace
 			);
+			if (key === 'configFiles') {
+				await writableConfig.update(
+					'phpstan.configFile',
+					undefined,
+					ConfigurationTarget.Workspace
+				);
+			}
 		}
 	};
 
@@ -274,14 +281,14 @@ abstract class SetupSteps {
 				}
 				return `File does not exist container at \`${filePath}\``;
 			},
-			value: this._state.configFile,
+			value: this._state.configFiles[0],
 			ignoreFocusOut: true,
 			buttons: [SHOW_FILE_PICKER_BUTTON],
 			shouldValidateInitially,
 		});
 
 		if (typeof choice === 'string') {
-			this._state.configFile = choice;
+			this._state.configFiles = [choice];
 			return next;
 		}
 
@@ -292,12 +299,14 @@ abstract class SetupSteps {
 			title: 'Select config file',
 		});
 		if (file) {
-			this._state.configFile = this._workspaceFolders
-				? path.relative(
-						this._workspaceFolders.default.fsPath,
-						file[0].fsPath
-					)
-				: file[0].fsPath;
+			this._state.configFiles = [
+				this._workspaceFolders
+					? path.relative(
+							this._workspaceFolders.default.fsPath,
+							file[0].fsPath
+						)
+					: file[0].fsPath,
+			];
 		}
 		return (input) => this._configFileStep(input, next, true);
 	}
@@ -706,7 +715,7 @@ class DockerSetupSteps extends SetupSteps {
 				this._localState.lastFoundDockerConfigFile = configFile;
 				return undefined;
 			},
-			value: this._state.configFile,
+			value: this._state.configFiles[0],
 			ignoreFocusOut: true,
 		});
 

@@ -20,6 +20,9 @@ export function getReadonlyEditorConfiguration(): ConfigWithoutPrefix<ConfigSett
 		ConfigWithoutPrefix<DeprecatedConfigSettings>;
 	return {
 		...configuration,
+		configFiles: configuration.configFile
+			? [configuration.configFile]
+			: configuration.configFiles,
 	};
 }
 
@@ -52,6 +55,7 @@ export function registerEditorConfigurationListener(
 
 		await client.sendNotification(watcherNotification, {
 			operation: 'onConfigChange',
+			file: null,
 		});
 
 		if (e.affectsConfiguration('phpstan.paths')) {

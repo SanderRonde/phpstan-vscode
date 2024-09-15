@@ -9,6 +9,9 @@ php/vendor
 test/demo/vendor
 test/demo/cache
 test/demo/reported.json
+test/multi-config-demo/vendor
+test/multi-config-demo/cache
+test/multi-config-demo/reported.json
 test/scratchpad
 **/reported.json
 user_config.json

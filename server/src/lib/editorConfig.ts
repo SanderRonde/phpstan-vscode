@@ -30,6 +30,9 @@ export async function getEditorConfiguration(
 	if (!tmpDir) {
 		tmpDir = editorConfig.proTmpDir || editorConfig.tmpDir;
 	}
+	const configFiles = editorConfig.configFile
+		? [editorConfig.configFile]
+		: editorConfig.configFiles;
 	return {
 		...editorConfig,
 		binPath: replaceHomeDir(
@@ -38,8 +41,8 @@ export async function getEditorConfiguration(
 		binCommand: editorConfig.binCommand.map((part) =>
 			replaceHomeDir(replaceVariables(part, workspaceFolders))
 		),
-		configFile: replaceHomeDir(
-			replaceVariables(editorConfig.configFile, workspaceFolders)
+		configFiles: configFiles.map((configFile) =>
+			replaceHomeDir(replaceVariables(configFile, workspaceFolders))
 		),
 		paths: fromEntries(
 			Object.entries(editorConfig.paths).map(([key, value]) => [

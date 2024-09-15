@@ -7,6 +7,7 @@ import type {
 export enum Commands {
 	SCAN_FILE_FOR_ERRORS = 'phpstan.scanFileForErrors',
 	SCAN_PROJECT = 'phpstan.scanProjectForErrors',
+	SCAN_CURRENT_PROJECT = 'phpstan.scanCurrentProjectForErrors',
 	RELOAD = 'phpstan.reload',
 	NEXT_ERROR = 'phpstan.nextError',
 	PREVIOUS_ERROR = 'phpstan.previousError',
@@ -21,6 +22,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.SCAN_PROJECT]: {
 		title: 'Scan project for errors',
+		inCommandPalette: true,
+	},
+	[Commands.SCAN_CURRENT_PROJECT]: {
+		title: 'Scan current project for errors',
 		inCommandPalette: true,
 	},
 	[Commands.RELOAD]: {
@@ -72,17 +77,26 @@ export const config = {
 				'PHPStan command. Use this instead of "binPath" if, for example, the phpstan binary is in your path',
 		},
 	},
-	'phpstan.configFile': {
+	'phpstan.configFiles': {
 		jsonDefinition: {
-			type: 'string',
-			default: 'phpstan.neon,phpstan.neon.dist,phpstan.dist.neon',
-			examples: [
-				'phpstan.neon',
-				'backend/phpstan.neon',
-				'phpstan.neon,phpstan.neon.dist',
-			],
+			type: 'array',
+			items: {
+				type: 'string',
+				examples: [
+					'phpstan.neon',
+					'backend/phpstan.neon',
+					'phpstan.neon,phpstan.neon.dist',
+				],
+			},
+			default: ['phpstan.neon,phpstan.neon.dist,phpstan.dist.neon'],
 			description:
-				'Path to the config file (use a comma-separated list to resolve in order)',
+				"Paths to all projects' config files (use a comma-separated list to resolve in order)",
+			examples: [
+				['phpstan.neon'],
+				['src/phpstan.neon', 'test/phpstan.neon'],
+				['backend/phpstan.neon'],
+				['phpstan.neon,phpstan.neon.dist'],
+			],
 		},
 	},
 	'phpstan.paths': {

@@ -59,6 +59,7 @@ export function startIntegratedChecker(
 		) {
 			void checkManager.checkWithDebounce(
 				undefined,
+				null,
 				'Initial check',
 				null
 			);

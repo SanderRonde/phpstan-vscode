@@ -26,12 +26,15 @@ export class DocumentManager implements Disposable {
 		if (e.isDirty) {
 			return false;
 		}
-		const configFiles = getReadonlyEditorConfiguration()
-			.configFile.split(',')
-			.map((e) => e.trim());
-		for (const configFile of configFiles) {
-			if (e.uri.fsPath.includes(configFile)) {
-				return true;
+		for (const configFileString of getReadonlyEditorConfiguration()
+			.configFiles) {
+			const configFiles = configFileString
+				.split(',')
+				.map((e) => e.trim());
+			for (const configFile of configFiles) {
+				if (e.uri.fsPath.includes(configFile)) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -49,6 +52,7 @@ export class DocumentManager implements Disposable {
 		if (this._isConfigFile(e)) {
 			await this._client.sendNotification(watcherNotification, {
 				operation: 'onConfigChange',
+				file: this._toSendData(e),
 			});
 		}
 		if (this._shouldSyncDocument(e)) {

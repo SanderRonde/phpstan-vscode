@@ -2,6 +2,7 @@ import type { WatcherNotificationFileData } from '../../../shared/notificationCh
 import type { PHPStanCheckManager } from './phpstan/checkManager';
 import type { PartialDocument } from './phpstan/processRunner';
 import { watcherNotification } from './notificationChannels';
+import { OperationStatus } from '../../../shared/statusBar';
 import type { AsyncDisposable, ClassConfig } from './types';
 import { assertUnreachable } from '../../../shared/util';
 import type { Disposable } from 'vscode-languageserver';
@@ -106,10 +107,18 @@ export class DocumentManager implements AsyncDisposable {
 								void this._clearData(checkManager);
 								return;
 							case 'checkProject':
-								return this._onScanProject(checkManager);
+								return this._onScanCurrentProject(
+									checkManager,
+									data.file
+								);
+							case 'checkAllProjects':
+								return this._onScanAllProjects(checkManager);
 							case 'onConfigChange': {
 								checkManager.clearCheckIfChangedCache();
-								return this._onConfigChange(checkManager);
+								return this._onConfigChange(
+									checkManager,
+									data.file
+								);
 							}
 						}
 
@@ -180,7 +189,12 @@ export class DocumentManager implements AsyncDisposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.checkWithDebounce(e, 'Document changed', null);
+		await checkManager.checkWithDebounce(
+			e,
+			URI.parse(e.uri),
+			'Document changed',
+			null
+		);
 	}
 
 	private async _onDocumentSave(
@@ -194,7 +208,12 @@ export class DocumentManager implements AsyncDisposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.checkWithDebounce(e, 'Document saved', null);
+		await checkManager.checkWithDebounce(
+			e,
+			URI.parse(e.uri),
+			'Document saved',
+			null
+		);
 	}
 
 	private async _onDocumentActive(
@@ -228,7 +247,12 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		await checkManager.checkWithDebounce(e, 'Document opened', null);
+		await checkManager.checkWithDebounce(
+			e,
+			URI.parse(e.uri),
+			'Document opened',
+			null
+		);
 	}
 
 	private async _onDocumentCheck(
@@ -238,11 +262,17 @@ export class DocumentManager implements AsyncDisposable {
 		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
 			return;
 		}
-		await checkManager.checkWithDebounce(e, 'Force trigger', null);
+		await checkManager.checkWithDebounce(
+			e,
+			URI.parse(e.uri),
+			'Force trigger',
+			null
+		);
 	}
 
 	private async _onConfigChange(
-		checkManager: PHPStanCheckManager
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData | null
 	): Promise<void> {
 		if (!(await this._enabled)) {
 			return;
@@ -252,6 +282,7 @@ export class DocumentManager implements AsyncDisposable {
 		if (!editorConfig.singleFileMode) {
 			await checkManager.checkWithDebounce(
 				undefined,
+				e ? URI.parse(e.uri) : null,
 				'Config change',
 				null
 			);
@@ -259,14 +290,35 @@ export class DocumentManager implements AsyncDisposable {
 		void this.watcher?.onConfigChange();
 	}
 
-	private async _onScanProject(
-		checkManager: PHPStanCheckManager
+	private async _onScanCurrentProject(
+		checkManager: PHPStanCheckManager,
+		e: WatcherNotificationFileData | null
 	): Promise<void> {
 		await checkManager.checkWithDebounce(
 			undefined,
+			e ? URI.parse(e.uri) : null,
 			'Manual project scan',
 			null
 		);
+	}
+
+	private async _onScanAllProjects(
+		checkManager: PHPStanCheckManager
+	): Promise<void> {
+		const configFiles = (await getEditorConfiguration(this._classConfig))
+			.configFiles;
+
+		for (const configFile of configFiles) {
+			const status = await checkManager.check(
+				undefined,
+				URI.file(configFile),
+				'Manual all-projects scan',
+				null
+			);
+			if (status !== OperationStatus.SUCCESS) {
+				return;
+			}
+		}
 	}
 
 	private async _clearData(checkManager: PHPStanCheckManager): Promise<void> {
