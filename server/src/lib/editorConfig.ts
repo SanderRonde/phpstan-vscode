@@ -1,5 +1,9 @@
+import type {
+	ConfigSettings,
+	ConfigWithoutPrefix,
+	DeprecatedConfigSettings,
+} from '../../../shared/config';
 import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
-import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
 import type { Disposable } from 'vscode-languageserver';
 import { fromEntries } from '../../../shared/util';
 import type { ClassConfig } from './types';
@@ -9,7 +13,7 @@ export async function getEditorConfiguration(
 		ClassConfig,
 		'connection' | 'workspaceFolders' | 'editorConfigOverride'
 	>
-): Promise<Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>> {
+): Promise<Omit<ConfigWithoutPrefix<ConfigSettings>, 'enableLanguageServer'>> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
 	const scope = workspaceFolders?.default.toString();
 
@@ -17,7 +21,8 @@ export async function getEditorConfiguration(
 		...((await classConfig.connection.workspace.getConfiguration({
 			scopeUri: scope,
 			section: 'phpstan',
-		})) as ConfigSettingsWithoutPrefix),
+		})) as ConfigWithoutPrefix<ConfigSettings> &
+			ConfigWithoutPrefix<DeprecatedConfigSettings>),
 		...(await classConfig.editorConfigOverride.get()),
 	};
 
@@ -65,16 +70,14 @@ export async function getEditorConfiguration(
 }
 
 export function onChangeEditorConfiguration<
-	K extends keyof Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>,
+	K extends keyof ConfigWithoutPrefix<ConfigSettings>,
 >(
 	classConfig: Pick<
 		ClassConfig,
 		'connection' | 'workspaceFolders' | 'editorConfigOverride'
 	>,
 	key: K,
-	handler: (
-		value: Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>[K]
-	) => void
+	handler: (value: ConfigWithoutPrefix<ConfigSettings>[K]) => void
 ): Disposable {
 	void getEditorConfiguration(classConfig).then((editorConfig) => {
 		handler(editorConfig[key]);

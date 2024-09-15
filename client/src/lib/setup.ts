@@ -10,6 +10,10 @@ import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
 import type { InputStep, QuickPickParameters } from './multiStepInput';
 
 import {
+	getReadonlyEditorConfiguration,
+	getWritableEditorConfiguration,
+} from './editorConfig';
+import {
 	commands,
 	ConfigurationTarget,
 	ThemeIcon,
@@ -19,13 +23,11 @@ import {
 } from 'vscode';
 import type {
 	ConfigSettings,
-	ConfigSettingsWithoutPrefix,
+	ConfigWithoutPrefix,
 } from '../../../shared/config';
 import type { QuickInputButton, QuickPickItem, WorkspaceFolder } from 'vscode';
 import type { WorkspaceFolders } from '../../../server/src/lib/types';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { getEditorConfiguration } from './editorConfig';
-import { config } from '../../../shared/commands/defs';
 import { testRunRequest } from './requestChannels';
 import { MultiStepInput } from './multiStepInput';
 import * as path from 'path';
@@ -43,26 +45,27 @@ interface SetupChoice extends QuickPickItem {
 }
 
 type State = {
-	-readonly [K in keyof ConfigSettingsWithoutPrefix]: ConfigSettingsWithoutPrefix[K];
+	-readonly [K in keyof ConfigWithoutPrefix<ConfigSettings>]: ConfigWithoutPrefix<ConfigSettings>[K];
 };
 
 const TITLE = 'PHPStan setup';
 export async function launchSetup(client: LanguageClient): Promise<void> {
-	const editorConfig = getEditorConfiguration();
+	const editorConfig = getReadonlyEditorConfiguration();
+	const writableConfig = getWritableEditorConfiguration();
 	const state = {} as State;
-	for (const key in config) {
-		let value = editorConfig.get(key as keyof ConfigSettings);
+	for (const key in editorConfig) {
+		let value = editorConfig[key as keyof typeof editorConfig];
 		if (typeof value === 'object' && value && !Array.isArray(value)) {
 			// Objects are proxies so we need to clone them
 			value = { ...value };
 		}
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
-		(state as any)[key.slice('phpstan.'.length) as any] = value;
+		(state as any)[key] = value;
 	}
 	const applyStateStep = async (): Promise<void> => {
 		for (const _key in state) {
 			const key = _key as keyof State;
-			await editorConfig.update(
+			await writableConfig.update(
 				`phpstan.${key}`,
 				state[key],
 				ConfigurationTarget.Workspace

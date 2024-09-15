@@ -8,7 +8,7 @@ import { commands, Commands } from '../../../shared/commands/defs';
 // eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { getEditorConfiguration } from './editorConfig';
+import { getReadonlyEditorConfiguration } from './editorConfig';
 import { showError } from './errorUtil';
 import { launchSetup } from './setup';
 import * as vscode from 'vscode';
@@ -23,8 +23,8 @@ export function registerListeners(
 		autoRegisterCommand(
 			Commands.SCAN_FILE_FOR_ERRORS,
 			async () => {
-				const editorConfig = getEditorConfiguration();
-				if (!editorConfig.get('phpstan.singleFileMode')) {
+				const editorConfig = getReadonlyEditorConfiguration();
+				if (!editorConfig.singleFileMode) {
 					showError(
 						'Please enable single-file mode in the settings to scan a single file. Instead use "Scan project for errors" to scan the whole project.'
 					);

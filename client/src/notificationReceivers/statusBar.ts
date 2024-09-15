@@ -1,8 +1,8 @@
 import type { StatusBarProgress } from '../../../shared/notificationChannels';
+import { getReadonlyEditorConfiguration } from '../lib/editorConfig';
 import { statusBarNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { Commands } from '../../../shared/commands/defs';
-import { getEditorConfiguration } from '../lib/editorConfig';
 import { OperationStatus } from '../../../shared/statusBar';
 import { assertUnreachable } from '../../../shared/util';
 import { log, STATUS_BAR_PREFIX } from '../lib/log';
@@ -36,7 +36,7 @@ export class StatusBar implements Disposable {
 					JSON.stringify(params)
 				);
 
-				if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
+				if (!getReadonlyEditorConfiguration().enableStatusBar) {
 					return;
 				}
 
@@ -83,7 +83,7 @@ export class StatusBar implements Disposable {
 
 	private _showStatusBar(): void {
 		log(STATUS_BAR_PREFIX, 'Showing status bar');
-		if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
+		if (!getReadonlyEditorConfiguration().enableStatusBar) {
 			return;
 		}
 

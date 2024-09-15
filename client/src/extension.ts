@@ -1,14 +1,15 @@
 import {
+	getReadonlyEditorConfiguration,
+	getWritableEditorConfiguration,
+	registerEditorConfigurationListener,
+} from './lib/editorConfig';
+import {
 	createOutputChannel,
 	SERVER_PREFIX,
 	log,
 	registerLogMessager,
 	CLIENT_PREFIX,
 } from './lib/log';
-import {
-	getEditorConfiguration,
-	registerEditorConfigurationListener,
-} from './lib/editorConfig';
 import {
 	getInstallationConfig,
 	writeInstallationConfig,
@@ -132,7 +133,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		if (
 			workspace.workspaceFolders &&
 			workspace.workspaceFolders?.length > 1 &&
-			!getEditorConfiguration().get('phpstan.suppressWorkspaceMessage')
+			!getReadonlyEditorConfiguration().suppressWorkspaceMessage
 		) {
 			const SUPPRESS_OPTION = "Don't show again";
 			const choice = await window.showWarningMessage(
@@ -140,7 +141,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 				SUPPRESS_OPTION
 			);
 			if (choice === SUPPRESS_OPTION) {
-				await getEditorConfiguration().update(
+				await getWritableEditorConfiguration().update(
 					'phpstan.suppressWorkspaceMessage',
 					true
 				);

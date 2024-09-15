@@ -1,7 +1,7 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
+import { getReadonlyEditorConfiguration } from '../lib/editorConfig';
 import { watcherNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import { getEditorConfiguration } from '../lib/editorConfig';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
 
@@ -26,9 +26,8 @@ export class DocumentManager implements Disposable {
 		if (e.isDirty) {
 			return false;
 		}
-		const configFiles = getEditorConfiguration()
-			.get('phpstan.configFile')
-			.split(',')
+		const configFiles = getReadonlyEditorConfiguration()
+			.configFile.split(',')
 			.map((e) => e.trim());
 		for (const configFile of configFiles) {
 			if (e.uri.fsPath.includes(configFile)) {

@@ -1,14 +1,32 @@
 // eslint-disable-next-line node/no-extraneous-import
 import type { TypedWorkspaceConfiguration } from 'vscode-generate-package-json/dist/types/src/configuration';
 
+import type {
+	ConfigSettings,
+	ConfigWithoutPrefix,
+	DeprecatedConfigSettings,
+} from '../../../shared/config';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import type { ConfigSettings } from '../../../shared/config';
 import { watcherNotification } from './notificationChannels';
-import { config } from '../../../shared/commands/defs';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
-export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> {
+export function getReadonlyEditorConfiguration(): ConfigWithoutPrefix<ConfigSettings> {
+	const document = window.activeTextEditor?.document;
+
+	const configuration = workspace
+		.getConfiguration(undefined, document?.uri)
+		.get('phpstan') as ConfigWithoutPrefix<ConfigSettings> &
+		ConfigWithoutPrefix<DeprecatedConfigSettings>;
+	return {
+		...configuration,
+	};
+}
+
+export function getWritableEditorConfiguration(): Omit<
+	TypedWorkspaceConfiguration<ConfigSettings>,
+	'get'
+> {
 	const document = window.activeTextEditor?.document;
 
 	if (document) {
@@ -21,15 +39,10 @@ export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSett
 export function registerEditorConfigurationListener(
 	client: LanguageClient
 ): void {
-	const editorConfig = getEditorConfiguration();
-	const configValues: Record<string, unknown> = {};
-	for (const key in config) {
-		configValues[key] = editorConfig.get(key as keyof ConfigSettings);
-	}
 	log(
 		CLIENT_PREFIX,
 		'Starting extension with configuration:',
-		JSON.stringify(configValues, null, '\t')
+		JSON.stringify(getReadonlyEditorConfiguration(), null, '\t')
 	);
 
 	workspace.onDidChangeConfiguration(async (e) => {
@@ -42,13 +55,9 @@ export function registerEditorConfigurationListener(
 		});
 
 		if (e.affectsConfiguration('phpstan.paths')) {
-			const editorConfig = getEditorConfiguration();
-			const paths = editorConfig.get('phpstan.paths');
-			if (
-				(editorConfig.get('phpstan.showTypeOnHover') ||
-					editorConfig.get('phpstan.enableLanguageServer')) &&
-				Object.keys(paths).length > 0
-			) {
+			const editorConfig = getReadonlyEditorConfiguration();
+			const paths = editorConfig.paths;
+			if (editorConfig.showTypeOnHover && Object.keys(paths).length > 0) {
 				await window.showWarningMessage(
 					'On-hover type information is disabled when the paths setting is being used'
 				);
@@ -57,7 +66,7 @@ export function registerEditorConfigurationListener(
 			e.affectsConfiguration('phpstan.pro') ||
 			e.affectsConfiguration('phpstan.proTmpDir') ||
 			(e.affectsConfiguration('phpstan.enabled') &&
-				getEditorConfiguration().get('phpstan.pro'))
+				getReadonlyEditorConfiguration().pro)
 		) {
 			await window.showInformationMessage(
 				'Please reload your editor for changes to the PHPStan Pro configuration to take effect'

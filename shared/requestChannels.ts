@@ -1,5 +1,5 @@
 import type { WatcherNotificationFileData } from './notificationChannels';
-import type { ConfigSettingsWithoutPrefix } from './config';
+import type { ConfigSettings, ConfigWithoutPrefix } from './config';
 
 export enum RequestChannel {
 	INIT = 'phpstan.init',
@@ -18,7 +18,7 @@ export interface InitRequestType {
 }
 
 export interface TestRunRequestType {
-	request: Partial<ConfigSettingsWithoutPrefix> & {
+	request: Partial<ConfigWithoutPrefix<ConfigSettings>> & {
 		dryRun: boolean;
 		file?: WatcherNotificationFileData;
 	};

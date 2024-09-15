@@ -1,4 +1,7 @@
-import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
+import type {
+	ConfigSettings,
+	ConfigWithoutPrefix,
+} from '../../../shared/config';
 import type { ProviderCheckHooks } from '../providers/providerUtil';
 import type { PHPStanVersion } from '../start/getVersion';
 import type { _Connection } from 'vscode-languageserver';
@@ -14,7 +17,7 @@ export interface ClassConfig {
 	};
 	version: PromisedValue<PHPStanVersion | null>;
 	editorConfigOverride: ResolvedPromisedValue<
-		Partial<ConfigSettingsWithoutPrefix>
+		Partial<ConfigWithoutPrefix<ConfigSettings>>
 	>;
 }
 
