@@ -8,14 +8,14 @@ import { window, QuickInputButtons } from 'vscode';
 
 export type InputStep = (input: MultiStepInput) => Thenable<InputStep | void>;
 
-export class InputFlowAction {
+class InputFlowAction {
 	private constructor() {}
 	public static Back = new InputFlowAction();
 	public static Cancel = new InputFlowAction();
 	public static Resume = new InputFlowAction();
 }
 
-export interface MultiStepInputParameters {
+interface MultiStepInputParameters {
 	title: string;
 	step?: number;
 	totalSteps?: number;
@@ -25,7 +25,7 @@ export interface MultiStepInputParameters {
 	placeholder?: string;
 }
 
-export interface InputBoxParameters extends MultiStepInputParameters {
+interface InputBoxParameters extends MultiStepInputParameters {
 	value: string;
 	prompt: string;
 	password?: boolean;

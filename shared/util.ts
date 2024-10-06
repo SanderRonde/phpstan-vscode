@@ -11,33 +11,6 @@ import { constants } from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-export function deepObjectJoin<A, B>(objA: A, objB: B): A & B {
-	const result: Partial<A & B> = {};
-	for (const key in objA) {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		result[key] = objA[key] as any;
-	}
-	for (const key in objB) {
-		if (key in result) {
-			// Already set
-			if (typeof objB[key] === 'object' && objB[key]) {
-				result[key] = deepObjectJoin(
-					objA[key as unknown as keyof A],
-					objB[key]
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				) as any;
-			} else {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				result[key] = objB[key] as any;
-			}
-		} else {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			result[key] = objB[key] as any;
-		}
-	}
-	return result as A & B;
-}
-
 /**
  * Assert that forces TS to check whether a route is reachable
  */
@@ -131,13 +104,6 @@ export function toCheckablePromise<R>(promise: Promise<R>): {
 	};
 }
 
-export function normalizePath(filePath: string): string {
-	if (process.platform !== 'win32') {
-		return filePath;
-	}
-	return filePath.replace(/\\/g, '/');
-}
-
 export async function pathExists(filePath: string): Promise<boolean> {
 	try {
 		await fs.access(filePath, constants.R_OK);
@@ -147,7 +113,7 @@ export async function pathExists(filePath: string): Promise<boolean> {
 	}
 }
 
-export async function tryReadFile(filePath: string): Promise<string | null> {
+async function tryReadFile(filePath: string): Promise<string | null> {
 	try {
 		const contents = await fs.readFile(filePath, 'utf-8');
 		return contents;
@@ -195,10 +161,7 @@ export async function getConfigFile(
 	return null;
 }
 
-export function getAbsolutePath(
-	filePath: string | null,
-	cwd?: string
-): string | null {
+function getAbsolutePath(filePath: string | null, cwd?: string): string | null {
 	if (!filePath) {
 		return null;
 	}

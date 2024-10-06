@@ -1,6 +1,5 @@
 import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
 import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
-import type { Disposable } from 'vscode-languageserver';
 import { fromEntries } from '../../../shared/util';
 import type { ClassConfig } from './types';
 
@@ -62,26 +61,4 @@ export async function getEditorConfiguration(
 			editorConfig.showTypeOnHover ||
 			false,
 	};
-}
-
-export function onChangeEditorConfiguration<
-	K extends keyof Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>,
->(
-	classConfig: Pick<
-		ClassConfig,
-		'connection' | 'workspaceFolders' | 'editorConfigOverride'
-	>,
-	key: K,
-	handler: (
-		value: Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>[K]
-	) => void
-): Disposable {
-	void getEditorConfiguration(classConfig).then((editorConfig) => {
-		handler(editorConfig[key]);
-	});
-	return classConfig.connection.onDidChangeConfiguration(() => {
-		void getEditorConfiguration(classConfig).then((editorConfig) => {
-			handler(editorConfig[key]);
-		});
-	});
 }

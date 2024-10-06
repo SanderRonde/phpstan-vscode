@@ -3,7 +3,7 @@ import type { Disposable, InputBox } from 'vscode';
 
 type GettableValue = string | ((stepper: MultiStepper) => string);
 
-export class MultiStepEntry {
+class MultiStepEntry {
 	public constructor(
 		public settings: {
 			placeHolder?: GettableValue;
@@ -79,7 +79,7 @@ export class MultiStepEntry {
 	}
 }
 
-export class MultiStepper {
+class MultiStepper {
 	private _currentStepIndex = 0;
 	private _disposables: Disposable[] = [];
 	private _values: (string | undefined)[] = [];
