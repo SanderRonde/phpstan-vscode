@@ -14,6 +14,8 @@ export const PHPSTAN_2_NEON_FILE = path.join(ROOT_FOLDER, 'php/config.2.neon');
 // Hard limit, process should never take longer than this
 export const PROCESS_TIMEOUT = 1000 * 60 * 15;
 export const CHECK_DEBOUNCE = 100;
+export const TELEMETRY_CONNECTION_STRING =
+	'InstrumentationKey=aea7172d-4723-4bae-badb-52110a1d1519;IngestionEndpoint=https://eastus-8.in.applicationinsights.azure.com/;LiveEndpoint=https://eastus.livediagnostics.monitor.azure.com/;ApplicationId=194d83e0-cb10-4bf0-ac18-60ed830a19d8';
 
 export const SPAWN_ARGS = {
 	shell: process.platform === 'win32',
