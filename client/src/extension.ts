@@ -81,8 +81,9 @@ async function startLanguageServer(
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
-	log(CLIENT_PREFIX, 'Initializing PHPStan extension');
+	log(context, CLIENT_PREFIX, 'Initializing PHPStan extension');
 	createOutputChannel();
+
 	const client = await startLanguageServer(context);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
@@ -91,14 +92,14 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const zombieKiller = new ZombieKiller(client, context);
 
 	registerListeners(context, client, errorManager, proManager);
-	registerEditorConfigurationListener(client);
+	registerEditorConfigurationListener(context, client);
 	registerLogMessager(context, client);
 	context.subscriptions.push(
 		statusBar,
 		watcher,
 		errorManager,
 		proManager,
-		zombieKiller
+		zombieKiller,
 	);
 
 	let wasReady = false;
@@ -108,13 +109,13 @@ export async function activate(context: ExtensionContext): Promise<void> {
 			if (ready) {
 				if (!wasReady) {
 					// First time it's ready, start watching
-					log(SERVER_PREFIX, 'Language server started');
+					log(context, SERVER_PREFIX, 'Language server started');
 					void watcher.watch();
 				} else {
 					// Language server was already alive but then died
 					// and restarted. Clear local state that depends
 					// on language server.
-					log(SERVER_PREFIX, 'Language server restarted...');
+					log(context, SERVER_PREFIX, 'Language server restarted...');
 					statusBar.clearAllRunning();
 				}
 				wasReady = true;
@@ -126,7 +127,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 			});
 		})
 	);
-	log(CLIENT_PREFIX, 'Initializing done');
+	log(context, CLIENT_PREFIX, 'Initializing done');
 
 	void (async () => {
 		if (
@@ -148,7 +149,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		}
 	})();
 
-	log(CLIENT_PREFIX, 'Showing one-time messages (if needed)');
+	log(context, CLIENT_PREFIX, 'Showing one-time messages (if needed)');
 	const installationConfig = await getInstallationConfig(context);
 	const version = (context.extension.packageJSON as { version: string })
 		.version;

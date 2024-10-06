@@ -29,6 +29,7 @@ export class ZombieKiller implements Disposable {
 				processNotification,
 				({ pid, children, timeout }) => {
 					log(
+						this._context,
 						PROCESS_SPAWNER_PREFIX,
 						'Spawning process',
 						String(pid),

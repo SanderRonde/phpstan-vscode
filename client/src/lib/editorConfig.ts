@@ -5,6 +5,7 @@ import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ConfigSettings } from '../../../shared/config';
 import { watcherNotification } from './notificationChannels';
 import { config } from '../../../shared/commands/defs';
+import type { ExtensionContext } from 'vscode';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
@@ -19,6 +20,7 @@ export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSett
 }
 
 export function registerEditorConfigurationListener(
+	context: ExtensionContext,
 	client: LanguageClient
 ): void {
 	const editorConfig = getEditorConfiguration();
@@ -27,6 +29,7 @@ export function registerEditorConfigurationListener(
 		configValues[key] = editorConfig.get(key as keyof ConfigSettings);
 	}
 	log(
+		context,
 		CLIENT_PREFIX,
 		'Starting extension with configuration:',
 		JSON.stringify(configValues, null, '\t')

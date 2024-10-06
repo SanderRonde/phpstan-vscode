@@ -1,8 +1,7 @@
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ExtensionContext, OutputChannel } from 'vscode';
 import { logNotification } from './notificationChannels';
-import { window } from 'vscode';
-import { DEBUG } from './dev';
+import { ExtensionMode, window } from 'vscode';
 
 let channel: OutputChannel | null;
 
@@ -16,7 +15,7 @@ export function registerLogMessager(
 ): void {
 	context.subscriptions.push(
 		client.onNotification(logNotification, ({ data }) => {
-			log(...(data as [Prefix, ...string[]]));
+			log(context, ...(data as [Prefix, ...string[]]));
 		})
 	);
 }
@@ -25,9 +24,13 @@ type Prefix = string & {
 	__isPrefix: true;
 };
 
-export function log(prefix: Prefix, ...data: string[]): void {
+export function log(
+	context: ExtensionContext,
+	prefix: Prefix,
+	...data: string[]
+): void {
 	data = [`[${new Date().toLocaleString()}]`, prefix, ...data];
-	if (DEBUG) {
+	if (context.extensionMode === ExtensionMode.Development) {
 		console.log(data.join(' '));
 	}
 	if (channel) {

@@ -1,10 +1,14 @@
+import { window, type ExtensionContext } from 'vscode';
 import { ERROR_PREFIX, log } from './log';
-import * as vscode from 'vscode';
 
 const shownWarnings: Set<string> = new Set();
 
-export function showErrorOnce(message: string, ...extra: string[]): void {
-	log(ERROR_PREFIX, message, ...extra);
+export function showErrorOnce(
+	context: ExtensionContext,
+	message: string,
+	...extra: string[]
+): void {
+	log(context, ERROR_PREFIX, message, ...extra);
 	if (shownWarnings.has(message)) {
 		return;
 	}
@@ -18,7 +22,7 @@ interface ErrorOption {
 }
 
 export function showError(message: string, options?: ErrorOption[]): void {
-	void vscode.window
+	void window
 		.showErrorMessage(message, ...(options || []).map((o) => o.title))
 		.then((choice) => {
 			if (!options || !choice) {

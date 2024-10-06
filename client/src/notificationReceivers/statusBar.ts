@@ -25,12 +25,13 @@ export class StatusBar implements Disposable {
 	private _hideTimeout: NodeJS.Timer | undefined;
 
 	public constructor(
-		context: vscode.ExtensionContext,
+		private readonly _context: vscode.ExtensionContext,
 		client: LanguageClient
 	) {
-		context.subscriptions.push(
+		this._context.subscriptions.push(
 			client.onNotification(statusBarNotification, (params) => {
 				log(
+					this._context,
 					STATUS_BAR_PREFIX,
 					"notification:'",
 					JSON.stringify(params)
@@ -82,7 +83,7 @@ export class StatusBar implements Disposable {
 	}
 
 	private _showStatusBar(): void {
-		log(STATUS_BAR_PREFIX, 'Showing status bar');
+		log(this._context, STATUS_BAR_PREFIX, 'Showing status bar');
 		if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
 			return;
 		}
@@ -111,6 +112,7 @@ export class StatusBar implements Disposable {
 		result: OperationStatus
 	): void {
 		log(
+			this._context,
 			STATUS_BAR_PREFIX,
 			'Hiding status bar, last operation result =',
 			result
