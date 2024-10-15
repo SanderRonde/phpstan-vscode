@@ -180,7 +180,7 @@ export function fromEntries<T>(
 
 export async function getConfigFile(
 	configFile: string,
-	cwd: string,
+	cwd: string | undefined,
 	pathExistsFn: (filePath: string) => Promise<boolean> = pathExists
 ): Promise<string | null> {
 	const absoluteConfigPaths = configFile
@@ -263,7 +263,7 @@ export async function execute(
 
 export function getPathMapper(
 	pathMapping: Record<string, string>,
-	cwd?: string
+	workspaceRoot?: string
 ): (filePath: string, inverse?: boolean) => string {
 	return (filePath: string, inverse: boolean = false) => {
 		if (Object.keys(pathMapping).length === 0) {
@@ -272,8 +272,8 @@ export function getPathMapper(
 		const expandedFilePath = filePath.replace(/^~/, os.homedir());
 		// eslint-disable-next-line prefer-const
 		for (let [fromPath, toPath] of Object.entries(pathMapping)) {
-			if (!path.isAbsolute(fromPath) && cwd) {
-				fromPath = path.join(cwd, fromPath);
+			if (!path.isAbsolute(fromPath) && workspaceRoot) {
+				fromPath = path.join(workspaceRoot, fromPath);
 			}
 
 			const [from, to] = inverse

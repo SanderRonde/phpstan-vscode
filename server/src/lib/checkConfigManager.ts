@@ -12,6 +12,7 @@ import * as os from 'os';
 export interface CheckConfig {
 	cwd: string;
 	configFile: string | null;
+	workspaceRoot: string | undefined;
 	remoteConfigFile: string | null;
 	getBinCommand: (args: string[]) => string[];
 	args: string[];
@@ -33,11 +34,11 @@ export class ConfigurationManager {
 
 	public static async applyPathMapping(
 		classConfig: ClassConfig,
-		filePath: string
+		filePath: string,
+		workspaceRoot: string | undefined
 	): Promise<string> {
 		const paths = (await getEditorConfiguration(classConfig)).paths;
-		const cwd = (await classConfig.workspaceFolders.get())?.default.fsPath;
-		return getPathMapper(paths, cwd)(filePath);
+		return getPathMapper(paths, workspaceRoot)(filePath);
 	}
 
 	private static async _fileIfExists(
@@ -93,7 +94,7 @@ export class ConfigurationManager {
 
 	private static async _getConfigFile(
 		classConfig: ClassConfig,
-		cwd: string,
+		cwd: string | undefined,
 		currentFile: URI | null
 	): Promise<string | null> {
 		const extensionConfig = await getEditorConfiguration(classConfig);
@@ -167,7 +168,8 @@ export class ConfigurationManager {
 
 	public static async getBinComand(
 		classConfig: ClassConfig,
-		cwd: string
+		cwd: string,
+		workspaceRoot: string | undefined
 	): Promise<
 		| {
 				success: true;
@@ -187,7 +189,11 @@ export class ConfigurationManager {
 		if (binPath.startsWith('~')) {
 			binPath = `${process.env.HOME ?? '~'}${binPath.slice(1)}`;
 		}
-		binPath = await this.applyPathMapping(classConfig, binPath);
+		binPath = await this.applyPathMapping(
+			classConfig,
+			binPath,
+			workspaceRoot
+		);
 
 		const binCommand = extensionConfig.binCommand;
 		if (
@@ -239,22 +245,18 @@ export class ConfigurationManager {
 		// Settings
 		const extensionConfig = await getEditorConfiguration(classConfig);
 
-		const cwd = await this.getCwd(classConfig);
-		if (!cwd) {
-			return null;
-		}
-		const result = await this.getBinComand(classConfig, cwd);
-		if (!result.success) {
-			if (onError) {
-				onError(result.error);
-			} else {
-				await showErrorOnce(
-					classConfig.connection,
-					`PHPStan: ${result.error}`
-				);
+		const workspaceFolders = await classConfig.workspaceFolders.get();
+		let cwd: string | undefined;
+		if (workspaceFolders?.default) {
+			cwd = (await this.getCwd(classConfig)) ?? undefined;
+			if (!cwd) {
+				return null;
 			}
-			return null;
+		} else {
+			// Multiple workspaces. This means config files need to be absolute and we can
+			// use that to infer cwd.
 		}
+
 		const configFile = await this._getConfigFile(
 			classConfig,
 			cwd,
@@ -266,16 +268,48 @@ export class ConfigurationManager {
 			}
 			return null;
 		}
+		const workspaceRoot =
+			workspaceFolders?.getForPath(configFile)?.fsPath ??
+			workspaceFolders?.default?.fsPath;
+
+		if (!cwd) {
+			cwd =
+				this._getAbsolutePath(extensionConfig.rootDir, workspaceRoot) ||
+				workspaceRoot;
+		}
+
+		if (!cwd) {
+			await showErrorOnce(
+				classConfig.connection,
+				'PHPStan: failed to get CWD'
+			);
+			return null;
+		}
+
+		const result = await this.getBinComand(classConfig, cwd, workspaceRoot);
+		if (!result.success) {
+			if (onError) {
+				onError(result.error);
+			} else {
+				await showErrorOnce(
+					classConfig.connection,
+					`PHPStan: ${result.error}`
+				);
+			}
+			return null;
+		}
 
 		const tmpDir: string | undefined = extensionConfig.tmpDir;
 
 		return {
 			cwd,
 			configFile,
+			workspaceRoot,
 			remoteConfigFile: configFile
 				? await ConfigurationManager.applyPathMapping(
 						classConfig,
-						configFile
+						configFile,
+						cwd
 					)
 				: null,
 			args: extensionConfig.options ?? [],

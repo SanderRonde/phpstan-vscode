@@ -1,0 +1,19 @@
+{
+	"folders": [
+		{
+			"path": "primary",
+			"name": "Primary",
+		},
+		{
+			"path": "secondary",
+			"name": "Secondary",
+		},
+	],
+	"settings": {
+		"phpstan.configFiles": [
+			"${workspaceFolder:Primary}/phpstan.neon",
+			"${workspaceFolder:Secondary}/phpstan.neon",
+		],
+		"phpstan.rootDir": "./s",
+	},
+}

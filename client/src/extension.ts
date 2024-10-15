@@ -1,9 +1,4 @@
 import {
-	getReadonlyEditorConfiguration,
-	getWritableEditorConfiguration,
-	registerEditorConfigurationListener,
-} from './lib/editorConfig';
-import {
 	createOutputChannel,
 	SERVER_PREFIX,
 	log,
@@ -19,6 +14,7 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { registerEditorConfigurationListener } from './lib/editorConfig';
 import { DocumentManager } from './notificationSenders/documentManager';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';
@@ -128,27 +124,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		})
 	);
 	log(CLIENT_PREFIX, 'Initializing done');
-
-	void (async () => {
-		if (
-			workspace.workspaceFolders &&
-			workspace.workspaceFolders?.length > 1 &&
-			!getReadonlyEditorConfiguration().suppressWorkspaceMessage
-		) {
-			const SUPPRESS_OPTION = "Don't show again";
-			const choice = await window.showWarningMessage(
-				`PHPStan extension only supports single-workspace projects, it'll only use the first workspace folder (${workspace.workspaceFolders[0].name}`,
-				SUPPRESS_OPTION
-			);
-			if (choice === SUPPRESS_OPTION) {
-				await getWritableEditorConfiguration().update(
-					'phpstan.suppressWorkspaceMessage',
-					true
-				);
-			}
-		}
-	})();
-
 	log(CLIENT_PREFIX, 'Showing one-time messages (if needed)');
 	const installationConfig = await getInstallationConfig(context);
 	const version = (context.extension.packageJSON as { version: string })

@@ -22,8 +22,11 @@ export interface ClassConfig {
 }
 
 export type WorkspaceFolders = {
-	[name: string]: URI | undefined;
-	default: URI;
+	byName: {
+		[name: string]: URI | undefined;
+	};
+	getForPath: (path: string) => URI | undefined;
+	default?: URI;
 };
 
 export class PromisedValue<V> {

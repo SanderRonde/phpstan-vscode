@@ -165,10 +165,16 @@ function toKeyedWorkspaceFolders(
 	const uri = workspaceFolders?.[0].uri;
 	if (uri) {
 		const initializedFolders: WorkspaceFolders = {
-			default: uri,
+			byName: {},
+			getForPath: (filePath: string) => {
+				return workspace.getWorkspaceFolder(Uri.file(filePath))?.uri;
+			},
 		};
+		if (workspaceFolders?.length === 1) {
+			initializedFolders.default = uri;
+		}
 		for (const folder of workspaceFolders ?? []) {
-			initializedFolders[folder.name] = folder.uri;
+			initializedFolders.byName[folder.name] = folder.uri;
 		}
 		return initializedFolders;
 	}
@@ -202,7 +208,7 @@ abstract class SetupSteps {
 	) {}
 
 	protected _getCwd(): string | undefined {
-		return this._workspaceFolders?.default.fsPath;
+		return this._workspaceFolders?.default?.fsPath;
 	}
 
 	protected async _rootDirStep(
@@ -242,9 +248,9 @@ abstract class SetupSteps {
 			title: 'Select root directory',
 		});
 		if (folder) {
-			if (this._workspaceFolders?.default.fsPath === folder[0].fsPath) {
+			if (this._workspaceFolders?.default?.fsPath === folder[0].fsPath) {
 				this._state.rootDir = './';
-			} else if (this._workspaceFolders) {
+			} else if (this._workspaceFolders?.default) {
 				this._state.rootDir = path.relative(
 					this._workspaceFolders.default.fsPath,
 					folder[0].fsPath
@@ -300,7 +306,7 @@ abstract class SetupSteps {
 		});
 		if (file) {
 			this._state.configFiles = [
-				this._workspaceFolders
+				this._workspaceFolders?.default
 					? path.relative(
 							this._workspaceFolders.default.fsPath,
 							file[0].fsPath
@@ -358,7 +364,7 @@ abstract class SetupSteps {
 			title: 'Select PHPStan binary',
 		});
 		if (file) {
-			this._state.binPath = this._workspaceFolders
+			this._state.binPath = this._workspaceFolders?.default
 				? path.relative(
 						this._workspaceFolders.default.fsPath,
 						file[0].fsPath
@@ -455,7 +461,7 @@ abstract class SetupSteps {
 						label: path.relative(
 							makeAbsolute(
 								this._state.rootDir,
-								this._workspaceFolders?.default.fsPath
+								this._workspaceFolders?.default?.fsPath
 							),
 							uri.fsPath
 						),
@@ -682,7 +688,7 @@ class DockerSetupSteps extends SetupSteps {
 			title: 'Select PHPStan binary',
 		});
 		if (file) {
-			this._state.binPath = this._workspaceFolders
+			this._state.binPath = this._workspaceFolders?.default
 				? path.relative(
 						this._workspaceFolders.default.fsPath,
 						file[0].fsPath

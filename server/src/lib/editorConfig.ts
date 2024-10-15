@@ -15,11 +15,9 @@ export async function getEditorConfiguration(
 	>
 ): Promise<Omit<ConfigWithoutPrefix<ConfigSettings>, 'enableLanguageServer'>> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
-	const scope = workspaceFolders?.default.toString();
 
 	const editorConfig = {
 		...((await classConfig.connection.workspace.getConfiguration({
-			scopeUri: scope,
 			section: 'phpstan',
 		})) as ConfigWithoutPrefix<ConfigSettings> &
 			ConfigWithoutPrefix<DeprecatedConfigSettings>),

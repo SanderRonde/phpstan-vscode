@@ -280,12 +280,11 @@ export class DocumentManager implements AsyncDisposable {
 
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		if (!editorConfig.singleFileMode) {
-			await checkManager.checkWithDebounce(
-				undefined,
-				e ? URI.parse(e.uri) : null,
-				'Config change',
-				null
-			);
+			if ((await this._classConfig.workspaceFolders.get())?.default) {
+				await this._onScanCurrentProject(checkManager, e);
+			} else {
+				await this._onScanAllProjects(checkManager);
+			}
 		}
 		void this.watcher?.onConfigChange();
 	}

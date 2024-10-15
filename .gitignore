@@ -12,6 +12,10 @@ test/demo/reported.json
 test/multi-config-demo/vendor
 test/multi-config-demo/cache
 test/multi-config-demo/reported.json
+test/multi-workspace-demo/primary/vendor
+test/multi-workspace-demo/primary/cache
+test/multi-workspace-demo/secondary/vendor
+test/multi-workspace-demo/secondary/cache
 test/scratchpad
 **/reported.json
 user_config.json

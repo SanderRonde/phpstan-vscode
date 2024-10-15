@@ -209,7 +209,7 @@ export class PHPStanProErrorManager implements Disposable {
 
 		this._pathMapper ??= getPathMapper(
 			(await getEditorConfiguration(this._classConfig)).paths,
-			(await this._classConfig.workspaceFolders.get())?.default.fsPath
+			(await this._classConfig.workspaceFolders.get())?.default?.fsPath
 		);
 		const fileSpecificErrors: ReportedErrors['fileSpecificErrors'] = {};
 		for (const fileError of errors.fileSpecificErrors) {

@@ -34,6 +34,7 @@ import { startPro } from './start/startPro';
 import { StatusBar } from './lib/statusBar';
 import { listenTest } from './lib/test';
 import { URI } from 'vscode-uri';
+import * as path from 'path';
 
 async function main(): Promise<void> {
 	// Creates the LSP connection
@@ -57,10 +58,25 @@ async function main(): Promise<void> {
 		const uri = params.workspaceFolders?.[0].uri;
 		if (uri) {
 			const initializedFolders: WorkspaceFolders = {
-				default: URI.parse(uri),
+				byName: {},
+				getForPath: (filePath: string) => {
+					if (!path.isAbsolute(filePath)) {
+						return undefined;
+					}
+					for (const folder of params.workspaceFolders ?? []) {
+						const folderUri = URI.parse(folder.uri);
+						if (filePath.startsWith(folderUri.fsPath)) {
+							return folderUri;
+						}
+					}
+					return undefined;
+				},
 			};
+			if (params.workspaceFolders?.length === 1) {
+				initializedFolders.default = URI.parse(uri);
+			}
 			for (const folder of params.workspaceFolders ?? []) {
-				initializedFolders[folder.name] = URI.parse(folder.uri);
+				initializedFolders.byName[folder.name] = URI.parse(folder.uri);
 			}
 			workspaceFolders.set(initializedFolders);
 		}

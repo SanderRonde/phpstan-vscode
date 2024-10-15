@@ -24,9 +24,11 @@ export async function getVersion(
 		};
 	}
 
+	const workspaceRoot = (await classConfig.workspaceFolders.get())?.default;
 	const binConfigResult = await ConfigurationManager.getBinComand(
 		classConfig,
-		cwd
+		cwd,
+		workspaceRoot?.fsPath
 	);
 	if (!binConfigResult.success) {
 		return {
