@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.13
+
+-   Fix status bar text not being updated immediately
+
 ## 3.2.12
 
 -   Add anonymous usage telemetry. Only enabled if VSCode telemetry is enabled. See [code](https://github.com/SanderRonde/phpstan-vscode/blob/master/client/src/lib/telemetry.ts) for exactly what is reported.
