@@ -202,7 +202,11 @@ class TextManager implements Disposable {
 	private _statusBarInterval: NodeJS.Timeout | null = null;
 	private _isShown: boolean = false;
 
-	public constructor() {}
+	public constructor() {
+		this._statusBarInterval = setInterval(() => {
+			this._pushStatusBarText();
+		}, 1000);
+	}
 
 	private _pushStatusBarText(): void {
 		if (this._pendingStatusBarText) {
@@ -222,30 +226,24 @@ class TextManager implements Disposable {
 			this._statusBar.command = undefined;
 		}
 
+		// Queue this new text
+		this._pendingStatusBarText = text;
 		if (this._statusBar.text === text) {
 			// Bug-like thing where we need to set the text explicitly even though
 			// it was already set to this
-			this._statusBar.text = text;
+			this._pushStatusBarText();
 			return;
 		}
 		if (!text.includes(TextManager.LOADING_SPIN)) {
-			this._statusBar.text = text;
+			// Without a spinner the text can be set immediately
+			this._pushStatusBarText();
 			return;
 		}
 		if (!this._statusBar.text.includes(TextManager.LOADING_SPIN)) {
-			// This just now started the animation, set an interval
-			if (this._statusBarInterval) {
-				clearInterval(this._statusBarInterval);
-			}
-			this._statusBarInterval = setInterval(() => {
-				this._pushStatusBarText();
-			}, 1000);
-			this._statusBar.text = text;
+			// Just went from no spinner to a spinner, push immediately
+			this._pushStatusBarText();
 			return;
 		}
-
-		// Queue this new text
-		this._pendingStatusBarText = text;
 	}
 
 	public setTooltips(tooltip: string | undefined): void {
@@ -255,10 +253,6 @@ class TextManager implements Disposable {
 	public hide(): void {
 		this._isShown = false;
 		this._statusBar.hide();
-		if (this._statusBarInterval) {
-			clearInterval(this._statusBarInterval);
-			this._statusBarInterval = null;
-		}
 		this._pendingStatusBarText = null;
 	}
 
@@ -270,5 +264,8 @@ class TextManager implements Disposable {
 	public dispose(): void {
 		this.hide();
 		this._statusBar.dispose();
+		if (this._statusBarInterval) {
+			clearInterval(this._statusBarInterval);
+		}
 	}
 }
