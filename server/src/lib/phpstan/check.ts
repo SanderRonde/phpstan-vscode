@@ -217,7 +217,11 @@ export class PHPStanCheck implements AsyncDisposable {
 			}
 		})();
 		if (applyErrors) {
-			await errorManager.handleResult(result, !!file);
+			await errorManager.handleResult(
+				result,
+				checkConfig.configFile,
+				!!file
+			);
 		}
 
 		await this.dispose();
@@ -239,10 +243,7 @@ export class PHPStanCheck implements AsyncDisposable {
 }
 
 class PHPStanCheckErrorManager {
-	private static _lastErrors: ReportedErrors = {
-		fileSpecificErrors: {},
-		notFileSpecificErrors: [],
-	};
+	private static _lastErrors: Map<string, ReportedErrors> = new Map();
 
 	public constructor(
 		private readonly _config: Pick<ClassConfig, 'connection'>
@@ -254,39 +255,71 @@ class PHPStanCheckErrorManager {
 		});
 	}
 
-	private _applyPartialErrors(result: ReportedErrors): ReportedErrors {
-		return {
-			fileSpecificErrors: {
-				...PHPStanCheckErrorManager._lastErrors.fileSpecificErrors,
-				...result.fileSpecificErrors,
-			},
-			notFileSpecificErrors: result.notFileSpecificErrors,
+	private _getErrors(
+		result: ReturnResult<ReportedErrors>,
+		configFile: string,
+		isPartial: boolean
+	): ReportedErrors | null {
+		if (result.status === OperationStatus.ERROR) {
+			return {
+				fileSpecificErrors: {},
+				notFileSpecificErrors: [],
+			};
+		} else if (!result.success()) {
+			return null;
+		}
+
+		const reportedErrors = result.value;
+
+		const errors: ReportedErrors = {
+			fileSpecificErrors: {},
+			notFileSpecificErrors: [],
 		};
+
+		/**
+		 * Merge errors from different config files.
+		 * Replace the current config file's scan with the currently reported errors.
+		 * When the current scan is partial, merge the errors with the last scan.
+		 */
+		for (const [
+			lastErrorConfigFile,
+			lastErrors,
+		] of PHPStanCheckErrorManager._lastErrors) {
+			if (lastErrorConfigFile === configFile) {
+				errors.notFileSpecificErrors.push(
+					...reportedErrors.notFileSpecificErrors
+				);
+				errors.fileSpecificErrors = {
+					...errors.fileSpecificErrors,
+					...(isPartial ? lastErrors.fileSpecificErrors : {}),
+					...reportedErrors.fileSpecificErrors,
+				};
+			} else {
+				errors.notFileSpecificErrors.push(
+					...lastErrors.notFileSpecificErrors
+				);
+				errors.fileSpecificErrors = {
+					...errors.fileSpecificErrors,
+					...lastErrors.fileSpecificErrors,
+				};
+			}
+		}
+
+		return errors;
 	}
 
 	public async handleResult(
 		result: ReturnResult<ReportedErrors>,
+		configFile: string,
 		isPartial: boolean
 	): Promise<void> {
-		const errors = (() => {
-			if (result.status === OperationStatus.ERROR) {
-				return {
-					fileSpecificErrors: {},
-					notFileSpecificErrors: [],
-				};
-			} else if (result.success()) {
-				return isPartial
-					? this._applyPartialErrors(result.value)
-					: result.value;
-			}
-			return null;
-		})();
+		const errors = this._getErrors(result, configFile, isPartial);
 
 		if (errors === null) {
 			return;
 		}
 
-		PHPStanCheckErrorManager._lastErrors = errors;
+		PHPStanCheckErrorManager._lastErrors.set(configFile, errors);
 		await this._showErrors(errors);
 	}
 }

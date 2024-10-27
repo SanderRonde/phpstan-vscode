@@ -11,7 +11,7 @@ import * as os from 'os';
 
 export interface CheckConfig {
 	cwd: string;
-	configFile: string | null;
+	configFile: string;
 	workspaceRoot: string | undefined;
 	remoteConfigFile: string | null;
 	getBinCommand: (args: string[]) => string[];
