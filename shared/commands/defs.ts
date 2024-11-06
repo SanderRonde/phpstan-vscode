@@ -197,7 +197,7 @@ export const config = {
 			type: 'array',
 			description:
 				"An array of regular expressions to ignore in PHPStan's error output. If PHPStan outputs some warnings/errors in stderr that can be ignored, put them in here and they'll no longer cause the process to exit with an error.",
-			default: [],
+			default: ['Xdebug: .*'],
 			items: {
 				type: 'string',
 			},
