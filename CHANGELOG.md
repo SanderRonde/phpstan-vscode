@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.14
+
+-   Ignore Xdebug errors by default
+
 ## 3.2.13
 
 -   Fix status bar text not being updated immediately
