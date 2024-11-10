@@ -4,6 +4,8 @@ import type { ConfigSettingsWithoutPrefix } from './config';
 export enum RequestChannel {
 	INIT = 'phpstan.init',
 	TEST_RUN = 'phpstan.testRun',
+	CONFIG_RESOLVE = 'phpstan.configResolve',
+	FIND_FILES = 'phpstan.findFiles',
 }
 
 export interface InitRequestType {
@@ -30,5 +32,25 @@ export interface TestRunRequestType {
 				success: false;
 				error: string;
 		  };
+	error: never;
+}
+
+export interface ConfigResolveRequestType {
+	request: {
+		uri: string;
+	};
+	response: {
+		uri: string | null;
+	};
+	error: never;
+}
+
+export interface FindFilesRequestType {
+	request: {
+		pattern: string;
+	};
+	response: {
+		files: string[];
+	};
 	error: never;
 }

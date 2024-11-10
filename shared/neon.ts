@@ -37,13 +37,58 @@ export async function readNeonFile(filePath: string): Promise<Neon[]> {
 	return output;
 }
 
-export async function getAnalyzePaths(filePath: string): Promise<{
-	paths: string[];
-	excludePaths: string[];
-}> {
-	const neonFiles = await readNeonFile(filePath);
+export class ParsedConfigFile {
+	public contents!: Neon[];
+	public paths: string[] = [];
+	public excludePaths: string[] = [];
 
-	const parsePaths = (pathsMap: Neon): string[] => {
+	private constructor(public filePath: string) {}
+
+	public static async from(filePath: string): Promise<ParsedConfigFile> {
+		const parsedFile = new ParsedConfigFile(filePath);
+		parsedFile.contents = await readNeonFile(filePath);
+
+		const { paths, excludePaths } = this._getIncludedPaths(
+			parsedFile.contents
+		);
+		parsedFile.paths = paths;
+		parsedFile.excludePaths = excludePaths;
+		return parsedFile;
+	}
+
+	private static _getIncludedPaths(neonFiles: Neon[]): {
+		paths: string[];
+		excludePaths: string[];
+	} {
+		const paths: string[] = [];
+		const excludePaths: string[] = [];
+		for (const neonFile of neonFiles) {
+			if (!(neonFile instanceof NeonMap)) {
+				continue;
+			}
+
+			const parameters = neonFile.get('parameters');
+			if (!(parameters instanceof NeonMap)) {
+				continue;
+			}
+
+			if (parameters.has('paths')) {
+				paths.push(...this._parsePaths(parameters.get('paths')));
+			}
+			if (parameters.has('excludePaths')) {
+				excludePaths.push(
+					...this._parsePaths(parameters.get('excludePaths'))
+				);
+			}
+		}
+
+		return {
+			paths,
+			excludePaths,
+		};
+	}
+
+	private static _parsePaths(pathsMap: Neon): string[] {
 		if (!(pathsMap instanceof NeonMap)) {
 			return [];
 		}
@@ -61,74 +106,50 @@ export async function getAnalyzePaths(filePath: string): Promise<{
 		}
 
 		if (pathsMap.has('analyse')) {
-			paths.push(...parsePaths(pathsMap.get('analyse')));
+			paths.push(...this._parsePaths(pathsMap.get('analyse')));
 		}
 		if (pathsMap.has('analyseAndScan')) {
-			paths.push(...parsePaths(pathsMap.get('analyseAndScan')));
+			paths.push(...this._parsePaths(pathsMap.get('analyseAndScan')));
 		}
 
 		return paths;
-	};
-
-	const paths: string[] = [];
-	const excludePaths: string[] = [];
-	for (const neonFile of neonFiles) {
-		if (!(neonFile instanceof NeonMap)) {
-			continue;
-		}
-
-		const parameters = neonFile.get('parameters');
-		if (!(parameters instanceof NeonMap)) {
-			continue;
-		}
-
-		if (parameters.has('paths')) {
-			paths.push(...parsePaths(parameters.get('paths')));
-		}
-		if (parameters.has('excludePaths')) {
-			excludePaths.push(...parsePaths(parameters.get('excludePaths')));
-		}
 	}
 
-	return {
-		paths,
-		excludePaths,
-	};
-}
-
-export async function isInPaths(
-	filePath: string,
-	configFilePath: string
-): Promise<boolean> {
-	const { paths, excludePaths } = await getAnalyzePaths(configFilePath);
-
-	function fnmatch(pattern: string, string: string): boolean {
-		// Escape special regex characters
-		let regexPattern = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-
-		// Convert shell wildcard characters to regex equivalents
-		regexPattern = regexPattern.replace(/\*/g, '.*').replace(/\?/g, '.');
-
-		// Add start and end anchors
-		regexPattern = '^' + regexPattern;
-
-		// Create and test the regular expression
-		const regex = new RegExp(regexPattern);
-		return regex.test(string);
-	}
-
-	const configFileDir = path.dirname(configFilePath);
-	for (const excludePath of excludePaths) {
-		if (fnmatch(path.join(configFileDir, excludePath), filePath)) {
-			return false;
-		}
-	}
-
-	for (const includePath of paths) {
-		if (fnmatch(path.join(configFileDir, includePath), filePath)) {
+	public isInPaths(filePath: string): boolean {
+		if (filePath === this.filePath) {
 			return true;
 		}
-	}
 
-	return false;
+		function fnmatch(pattern: string, string: string): boolean {
+			// Escape special regex characters
+			let regexPattern = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+
+			// Convert shell wildcard characters to regex equivalents
+			regexPattern = regexPattern
+				.replace(/\*/g, '.*')
+				.replace(/\?/g, '.');
+
+			// Add start and end anchors
+			regexPattern = '^' + regexPattern;
+
+			// Create and test the regular expression
+			const regex = new RegExp(regexPattern);
+			return regex.test(string);
+		}
+
+		const configFileDir = path.dirname(this.filePath);
+		for (const excludePath of this.excludePaths) {
+			if (fnmatch(path.join(configFileDir, excludePath), filePath)) {
+				return false;
+			}
+		}
+
+		for (const includePath of this.paths) {
+			if (fnmatch(path.join(configFileDir, includePath), filePath)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

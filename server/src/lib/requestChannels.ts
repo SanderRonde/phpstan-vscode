@@ -1,4 +1,6 @@
 import type {
+	ConfigResolveRequestType,
+	FindFilesRequestType,
 	InitRequestType,
 	TestRunRequestType,
 } from '../../../shared/requestChannels';
@@ -16,3 +18,15 @@ export const testRunRequest = new RequestType<
 	TestRunRequestType['response'],
 	TestRunRequestType['error']
 >(RequestChannel.TEST_RUN);
+
+export const configResolveRequest = new RequestType<
+	ConfigResolveRequestType['request'],
+	ConfigResolveRequestType['response'],
+	ConfigResolveRequestType['error']
+>(RequestChannel.CONFIG_RESOLVE);
+
+export const findFilesRequest = new RequestType<
+	FindFilesRequestType['request'],
+	FindFilesRequestType['response'],
+	FindFilesRequestType['error']
+>(RequestChannel.FIND_FILES);

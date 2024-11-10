@@ -9,6 +9,7 @@ import {
 	getEditorConfiguration,
 	registerEditorConfigurationListener,
 } from './lib/editorConfig';
+import { ConfigResolveLanguageStatus } from './notificationReceivers/configResolveLanguageStatus';
 import {
 	getInstallationConfig,
 	writeInstallationConfig,
@@ -83,7 +84,7 @@ async function startLanguageServer(
 
 export async function activate(context: ExtensionContext): Promise<void> {
 	log(context, CLIENT_PREFIX, 'Initializing PHPStan extension');
-	createOutputChannel();
+	const outputChannel = createOutputChannel();
 
 	const telemetry = new Telemetry();
 	telemetry.report(context);
@@ -93,8 +94,9 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const errorManager = new ErrorManager(client);
 	const proManager = new PHPStanProManager(client);
 	const zombieKiller = new ZombieKiller(client, context);
+	const configResolveLanguageStatus = new ConfigResolveLanguageStatus(client);
 
-	registerListeners(context, client, errorManager, proManager);
+	registerListeners(context, client, errorManager, proManager, outputChannel);
 	registerEditorConfigurationListener(context, client);
 	registerLogMessager(context, client);
 	context.subscriptions.push(
@@ -103,7 +105,9 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		errorManager,
 		proManager,
 		zombieKiller,
-		telemetry
+		telemetry,
+		configResolveLanguageStatus,
+		outputChannel
 	);
 
 	let wasReady = false;
