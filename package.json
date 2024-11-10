@@ -65,7 +65,7 @@
 						"backend/phpstan.neon",
 						"phpstan.neon,phpstan.neon.dist"
 					],
-					"description": "Path to the config file (use a comma-separated list to resolve in order)"
+					"description": "Filename or path to the config file (use a comma-separated list to resolve in order)"
 				},
 				"phpstan.paths": {
 					"type": "object",
@@ -208,6 +208,10 @@
 				"title": "Launch setup"
 			},
 			{
+				"command": "phpstan.showOutputChannel",
+				"title": "Show output channel"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
 			},
@@ -264,6 +268,10 @@
 				},
 				{
 					"command": "phpstan.launchSetup",
+					"when": "false"
+				},
+				{
+					"command": "phpstan.showOutputChannel",
 					"when": "false"
 				},
 				{
