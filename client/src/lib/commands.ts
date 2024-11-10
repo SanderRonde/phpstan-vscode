@@ -19,7 +19,8 @@ export function registerListeners(
 	context: vscode.ExtensionContext,
 	client: LanguageClient,
 	errorManager: ErrorManager,
-	phpstanProManager: PHPStanProManager
+	phpstanProManager: PHPStanProManager,
+	outputChannel: vscode.OutputChannel
 ): void {
 	context.subscriptions.push(
 		autoRegisterCommand(
@@ -138,6 +139,14 @@ export function registerListeners(
 		autoRegisterCommand(
 			Commands.LAUNCH_SETUP,
 			() => launchSetup(client),
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.SHOW_OUTPUT_CHANNEL,
+			() => outputChannel.show(),
 			commands
 		)
 	);
