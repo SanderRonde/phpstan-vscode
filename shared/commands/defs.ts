@@ -7,6 +7,7 @@ import type {
 export enum Commands {
 	SCAN_FILE_FOR_ERRORS = 'phpstan.scanFileForErrors',
 	SCAN_PROJECT = 'phpstan.scanProjectForErrors',
+	SCAN_CURRENT_PROJECT = 'phpstan.scanCurrentProjectForErrors',
 	RELOAD = 'phpstan.reload',
 	NEXT_ERROR = 'phpstan.nextError',
 	PREVIOUS_ERROR = 'phpstan.previousError',
@@ -28,6 +29,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.SCAN_PROJECT]: {
 		title: 'Scan project for errors',
+		inCommandPalette: true,
+	},
+	[Commands.SCAN_CURRENT_PROJECT]: {
+		title: 'Scan current project for errors',
 		inCommandPalette: true,
 	},
 	[Commands.RELOAD]: {

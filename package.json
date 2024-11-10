@@ -198,6 +198,10 @@
 				"title": "Scan project for errors"
 			},
 			{
+				"command": "phpstan.scanCurrentProjectForErrors",
+				"title": "Scan current project for errors"
+			},
+			{
 				"command": "phpstan.reload",
 				"title": "Reload language server"
 			},
@@ -236,6 +240,10 @@
 			{
 				"command": "cmd.phpstan.scanProjectForErrors",
 				"title": "PHPStan: Scan project for errors"
+			},
+			{
+				"command": "cmd.phpstan.scanCurrentProjectForErrors",
+				"title": "PHPStan: Scan current project for errors"
 			},
 			{
 				"command": "cmd.phpstan.reload",
@@ -277,6 +285,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.scanCurrentProjectForErrors",
+					"when": "false"
+				},
+				{
 					"command": "phpstan.reload",
 					"when": "false"
 				},
@@ -314,6 +326,10 @@
 				},
 				{
 					"command": "cmd.phpstan.scanProjectForErrors",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.scanCurrentProjectForErrors",
 					"when": "true"
 				},
 				{

@@ -14,7 +14,7 @@ export function replaceVariables(
 						'workspaceFolder:name is not set but is used in a variable'
 					);
 				}
-				const folder = workspaceFolders[workspaceName];
+				const folder = workspaceFolders.byName[workspaceName];
 				if (!folder) {
 					throw new Error(
 						`workspaceFolder:${workspaceName} is not set but is used in a variable`
@@ -23,13 +23,12 @@ export function replaceVariables(
 				return folder.fsPath;
 			}
 
-			const workspaceFolder = workspaceFolders?.default;
-			if (!workspaceFolder) {
+			if (!workspaceFolders?.default) {
 				throw new Error(
 					'workspaceFolder is not set but is used in a variable'
 				);
 			}
-			return workspaceFolder.fsPath;
+			return workspaceFolders.default.fsPath;
 		}
 	);
 }
