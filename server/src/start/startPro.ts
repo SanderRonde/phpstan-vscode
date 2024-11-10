@@ -10,6 +10,7 @@ import type {
 import type { _Connection, Disposable } from 'vscode-languageserver';
 import { createHoverProvider } from '../providers/hoverProvider';
 import type { ProviderArgs } from '../providers/providerUtil';
+import type { ConfigResolver } from '../lib/configResolver';
 import { Commands } from '../../../shared/commands/defs';
 import { DocumentManager } from '../lib/documentManager';
 import { launchPro } from '../lib/phpstan/pro/pro';
@@ -17,6 +18,7 @@ import type { StartResult } from '../server';
 
 export async function startPro(
 	classConfig: ClassConfig,
+	configResolver: ConfigResolver,
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
@@ -27,7 +29,7 @@ export async function startPro(
 		type: 'fallback',
 		text: 'PHPStan Pro starting...',
 	});
-	const pro = await launchPro(classConfig, (progress) => {
+	const pro = await launchPro(classConfig, configResolver, (progress) => {
 		void connection.sendNotification(statusBarNotification, {
 			type: 'fallback',
 			text: `PHPStan Pro starting ${progress.done}/${progress.total} (${progress.percentage}%)`,
@@ -77,6 +79,7 @@ export async function startPro(
 		{
 			onConnectionInitialized,
 			watcher: null,
+			configResolver,
 		}
 	);
 	disposables.push(documentManager);

@@ -50,6 +50,7 @@ export class DocumentManager implements Disposable {
 		if (this._isConfigFile(e)) {
 			await this._client.sendNotification(watcherNotification, {
 				operation: 'onConfigChange',
+				file: this._toSendData(e),
 			});
 		}
 		if (this._shouldSyncDocument(e)) {

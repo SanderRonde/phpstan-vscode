@@ -42,6 +42,7 @@ export function registerEditorConfigurationListener(
 
 		await client.sendNotification(watcherNotification, {
 			operation: 'onConfigChange',
+			file: null,
 		});
 
 		if (e.affectsConfiguration('phpstan.paths')) {

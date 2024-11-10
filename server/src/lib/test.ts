@@ -3,6 +3,7 @@ import { PHPStanCheckManager } from './phpstan/checkManager';
 import { OperationStatus } from '../../../shared/statusBar';
 import { assertUnreachable } from '../../../shared/util';
 import type { DocumentManager } from './documentManager';
+import type { ConfigResolver } from './configResolver';
 import { testRunRequest } from './requestChannels';
 import { getVersion } from '../start/getVersion';
 import type { ClassConfig } from './types';
@@ -11,6 +12,7 @@ export function listenTest(
 	connection: _Connection,
 	classConfig: ClassConfig,
 	documentManager: DocumentManager,
+	configResolver: ConfigResolver,
 	checkManager: PHPStanCheckManager | undefined
 ): Disposable {
 	return connection.onRequest(
@@ -25,11 +27,13 @@ export function listenTest(
 				} else {
 					checkManager ??= new PHPStanCheckManager(
 						classConfig,
+						configResolver,
 						() => documentManager
 					);
 					let error: string | undefined = undefined;
 					const status = await checkManager.check(
 						params.file,
+						null,
 						'test',
 						(_error) => {
 							error = _error;

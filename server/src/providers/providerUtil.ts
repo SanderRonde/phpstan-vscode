@@ -58,15 +58,6 @@ export async function getFileReport(
 		return null;
 	}
 
-	const workspaceFolder = (await providerArgs.workspaceFolders.get())
-		?.default;
-	if (
-		!workspaceFolder ||
-		(!NO_CANCEL_OPERATIONS && cancelToken.isCancellationRequested)
-	) {
-		return null;
-	}
-
 	// Ensure the file has been checked
 	if (!providerArgs.phpstan) {
 		return (
@@ -145,10 +136,13 @@ export class ProviderCheckHooks {
 			return null;
 		}
 
+		const roots = Object.values(workspaceFolder.byName).map((root) =>
+			root?.toString()
+		);
 		return path.join(
 			(await this._extensionPath.get()).fsPath,
 			'_config',
-			basicHash(workspaceFolder.default.fsPath)
+			basicHash(JSON.stringify(roots))
 		);
 	}
 

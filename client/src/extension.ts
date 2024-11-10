@@ -5,10 +5,6 @@ import {
 	registerLogMessager,
 	CLIENT_PREFIX,
 } from './lib/log';
-import {
-	getEditorConfiguration,
-	registerEditorConfigurationListener,
-} from './lib/editorConfig';
 import { ConfigResolveLanguageStatus } from './notificationReceivers/configResolveLanguageStatus';
 import {
 	getInstallationConfig,
@@ -19,6 +15,7 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { registerEditorConfigurationListener } from './lib/editorConfig';
 import { DocumentManager } from './notificationSenders/documentManager';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';
@@ -136,27 +133,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		})
 	);
 	log(context, CLIENT_PREFIX, 'Initializing done');
-
-	void (async () => {
-		if (
-			workspace.workspaceFolders &&
-			workspace.workspaceFolders?.length > 1 &&
-			!getEditorConfiguration().get('phpstan.suppressWorkspaceMessage')
-		) {
-			const SUPPRESS_OPTION = "Don't show again";
-			const choice = await window.showWarningMessage(
-				`PHPStan extension only supports single-workspace projects, it'll only use the first workspace folder (${workspace.workspaceFolders[0].name}`,
-				SUPPRESS_OPTION
-			);
-			if (choice === SUPPRESS_OPTION) {
-				await getEditorConfiguration().update(
-					'phpstan.suppressWorkspaceMessage',
-					true
-				);
-			}
-		}
-	})();
-
 	log(context, CLIENT_PREFIX, 'Showing one-time messages (if needed)');
 	const installationConfig = await getInstallationConfig(context);
 	const version = (context.extension.packageJSON as { version: string })

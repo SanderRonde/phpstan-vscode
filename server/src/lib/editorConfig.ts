@@ -10,7 +10,7 @@ export async function getEditorConfiguration(
 	>
 ): Promise<Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
-	const scope = workspaceFolders?.default.toString();
+	const scope = workspaceFolders?.default?.toString();
 
 	const editorConfig = {
 		...((await classConfig.connection.workspace.getConfiguration({

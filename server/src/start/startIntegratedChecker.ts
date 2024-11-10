@@ -8,6 +8,7 @@ import { PHPStanCheckManager } from '../lib/phpstan/checkManager';
 import { createHoverProvider } from '../providers/hoverProvider';
 import type { ProviderArgs } from '../providers/providerUtil';
 import { getEditorConfiguration } from '../lib/editorConfig';
+import type { ConfigResolver } from '../lib/configResolver';
 import { DocumentManager } from '../lib/documentManager';
 import { ResolvedPromisedValue } from '../lib/types';
 import type { StartResult } from '../server';
@@ -16,6 +17,7 @@ import { Watcher } from '../lib/watcher';
 
 export function startIntegratedChecker(
 	classConfig: ClassConfig,
+	configResolver: ConfigResolver,
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
@@ -24,12 +26,14 @@ export function startIntegratedChecker(
 ): StartResult {
 	const checkManager: PHPStanCheckManager = new PHPStanCheckManager(
 		classConfig,
+		configResolver,
 		() => documentManager
 	);
 	const documentManager = new DocumentManager(classConfig, {
 		phpstan: checkManager,
 		onConnectionInitialized,
 		watcher: new Watcher(classConfig, checkManager),
+		configResolver,
 	});
 	disposables.push(checkManager, documentManager);
 
@@ -59,6 +63,7 @@ export function startIntegratedChecker(
 		) {
 			void checkManager.checkWithDebounce(
 				undefined,
+				null,
 				'Initial check',
 				null
 			);
