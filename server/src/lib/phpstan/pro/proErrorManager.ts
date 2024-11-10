@@ -125,11 +125,7 @@ export class PHPStanProErrorManager implements Disposable {
 			const msg = JSON.parse(data.toString()) as WSMessage;
 			// ProgressUpdate requests are very spammy, let's not log every time
 			if (msg.action !== 'progressUpdate') {
-				void log(
-					this._classConfig.connection,
-					PRO_PREFIX,
-					`Received message of type: ${msg.action}`
-				);
+				log(PRO_PREFIX, `Received message of type: ${msg.action}`);
 			}
 
 			const onAnalysisDone = async (): Promise<void> => {
@@ -197,11 +193,7 @@ export class PHPStanProErrorManager implements Disposable {
 
 	private async _applyErrors(): Promise<void> {
 		const errors = await this._collectErrors();
-		await log(
-			this._classConfig.connection,
-			PRO_PREFIX,
-			`Found errors: ${JSON.stringify(errors)}`
-		);
+		log(PRO_PREFIX, `Found errors: ${JSON.stringify(errors)}`);
 		if (!errors) {
 			// Already cleared, don't apply anything
 			return;

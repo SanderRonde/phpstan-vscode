@@ -101,7 +101,7 @@ export class ConfigurationManager {
 		if (!absoluteConfigPath) {
 			// Config file was set but not found
 			if (extensionConfig.configFile) {
-				await showErrorOnce(
+				showErrorOnce(
 					classConfig.connection,
 					`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
 				);
@@ -124,7 +124,7 @@ export class ConfigurationManager {
 			) || workspaceRoot?.fsPath;
 
 		if (!cwd) {
-			await showErrorOnce(
+			showErrorOnce(
 				classConfig.connection,
 				'PHPStan: failed to get CWD',
 				'workspaceRoot=',
@@ -134,7 +134,7 @@ export class ConfigurationManager {
 		}
 
 		if (!(await this._localFileIfExists(cwd))) {
-			await showErrorOnce(
+			showErrorOnce(
 				classConfig.connection,
 				`PHPStan: rootDir "${cwd}" does not exist`
 			);
@@ -226,7 +226,7 @@ export class ConfigurationManager {
 			if (onError) {
 				onError(result.error);
 			} else {
-				await showErrorOnce(
+				showErrorOnce(
 					classConfig.connection,
 					`PHPStan: ${result.error}`
 				);

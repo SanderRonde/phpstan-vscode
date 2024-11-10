@@ -23,9 +23,9 @@ import { ErrorManager } from './notificationReceivers/errorManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';
 import { PHPStanProManager } from './notificationReceivers/pro';
 import { StatusBar } from './notificationReceivers/statusBar';
+import type { ExtensionContext, OutputChannel } from 'vscode';
 import { initRequest } from './lib/requestChannels';
 import { registerListeners } from './lib/commands';
-import type { ExtensionContext } from 'vscode';
 import { Telemetry } from './lib/telemetry';
 import { window, workspace } from 'vscode';
 import { INSPECT_BRK } from './lib/dev';
@@ -33,7 +33,8 @@ import * as path from 'path';
 
 let client: LanguageClient | null = null;
 async function startLanguageServer(
-	context: ExtensionContext
+	context: ExtensionContext,
+	outputChannel: OutputChannel
 ): Promise<LanguageClient> {
 	const serverModule = context.asAbsolutePath(path.join('out', 'server.js'));
 	const argv = ['--nolazy', '--inspect=6009'];
@@ -54,6 +55,7 @@ async function startLanguageServer(
 		},
 	};
 	const clientOptions: LanguageClientOptions = {
+		outputChannel,
 		documentSelector: [
 			{
 				scheme: 'file',
@@ -83,11 +85,11 @@ async function startLanguageServer(
 
 export async function activate(context: ExtensionContext): Promise<void> {
 	log(context, CLIENT_PREFIX, 'Initializing PHPStan extension');
-	createOutputChannel();
+	const outputChannel = createOutputChannel();
 
 	const telemetry = new Telemetry();
 	telemetry.report(context);
-	const client = await startLanguageServer(context);
+	const client = await startLanguageServer(context, outputChannel);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
 	const errorManager = new ErrorManager(client);

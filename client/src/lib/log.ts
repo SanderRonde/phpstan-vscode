@@ -5,8 +5,9 @@ import { ExtensionMode, window } from 'vscode';
 
 let channel: OutputChannel | null;
 
-export function createOutputChannel(): void {
-	channel = window.createOutputChannel('PHPStan Client');
+export function createOutputChannel(): OutputChannel {
+	channel = window.createOutputChannel('PHPStan');
+	return channel;
 }
 
 export function registerLogMessager(

@@ -44,8 +44,7 @@ export async function launchPro(
 		env.TMPDIR = tmpPath;
 		configuration['tmpDir'] = tmpPath;
 	}
-	await log(
-		classConfig.connection,
+	log(
 		PRO_PREFIX,
 		'Spawning PHPStan Pro with the following configuration: ',
 		JSON.stringify(configuration)
@@ -70,11 +69,7 @@ export async function launchPro(
 			const progressMatch = [
 				...line.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g),
 			];
-			void log(
-				classConfig.connection,
-				PRO_PREFIX,
-				'PHPStan Pro: ' + line
-			);
+			log(PRO_PREFIX, 'PHPStan Pro: ' + line);
 			if (onProgress && progressMatch.length) {
 				const [, done, total, percentage] =
 					progressMatch[progressMatch.length - 1];

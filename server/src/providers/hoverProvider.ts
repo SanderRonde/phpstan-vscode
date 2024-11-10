@@ -36,22 +36,14 @@ export function createHoverProvider(
 				type.pos.start.char < hoverParams.position.character &&
 				type.pos.end.char > hoverParams.position.character
 			) {
-				void log(
-					providerArgs.connection,
-					HOVER_PROVIDER_PREFIX,
-					'Found hover type'
-				);
+				log(HOVER_PROVIDER_PREFIX, 'Found hover type');
 				return {
 					contents: [`PHPStan: \`${type.typeDescr} $${type.name}\``],
 				};
 			}
 		}
 
-		void log(
-			providerArgs.connection,
-			HOVER_PROVIDER_PREFIX,
-			'Hovering, no type found'
-		);
+		log(HOVER_PROVIDER_PREFIX, 'Hovering, no type found');
 
 		return null;
 	};

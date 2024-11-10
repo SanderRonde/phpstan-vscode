@@ -120,8 +120,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			]);
 		}
 
-		void log(
-			this._classConfig.connection,
+		log(
 			checkPrefix(check),
 			`PHPStan check timed out after ${editorConfig.projectTimeout}ms`
 		);
@@ -186,11 +185,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	): Promise<OperationStatus> {
 		// Prep check
 		const check = new PHPStanCheck(this._classConfig);
-		void log(
-			this._classConfig.connection,
-			checkPrefix(check),
-			'Check started for project'
-		);
+		log(checkPrefix(check), 'Check started for project');
 
 		const hashes: Record<string, string> = {};
 		const allContents = this._getDocumentManager().getAll();
@@ -239,8 +234,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		// Show result of operation in statusbar
 		await operation.finish(result.status);
 
-		void log(
-			this._classConfig.connection,
+		log(
 			checkPrefix(check),
 			'Check completed for project, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
@@ -255,11 +249,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	): Promise<OperationStatus> {
 		// Prep check
 		const check = new PHPStanCheck(this._classConfig);
-		void log(
-			this._classConfig.connection,
-			checkPrefix(check),
-			`Check started for file: ${file.uri}`
-		);
+		log(checkPrefix(check), `Check started for file: ${file.uri}`);
 
 		this._operationCount++;
 		this._operations.set(file.uri, {
@@ -296,8 +286,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		// Show result of operation in statusbar
 		await operation.finish(result.status);
 
-		void log(
-			this._classConfig.connection,
+		log(
 			checkPrefix(check),
 			'Check completed for file, errors=',
 			JSON.stringify(this._toErrorMessageMap(result))
@@ -321,8 +310,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 
 		const invalidFile = this._getDocumentManager().getInvalidFile();
 		if (invalidFile) {
-			void log(
-				this._classConfig.connection,
+			log(
 				MANAGER_PREFIX,
 				`Not checking project because of invalid PHP file: ${invalidFile}`
 			);
@@ -382,11 +370,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			!projectCheck.hashes[file.uri] ||
 			projectCheck.hashes[file.uri] === basicHash(file.content)
 		) {
-			await log(
-				this._classConfig.connection,
-				MANAGER_PREFIX,
-				'No file changes, not checking'
-			);
+			log(MANAGER_PREFIX, 'No file changes, not checking');
 			return OperationStatus.CANCELLED;
 		}
 		return this._checkProject(onError);
@@ -399,11 +383,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	): Promise<OperationStatus> {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const shouldCheckProject = !editorConfig.singleFileMode || !file;
-		await log(
-			this._classConfig.connection,
-			WATCHER_PREFIX,
-			`Checking: ${cause}`
-		);
+		log(WATCHER_PREFIX, `Checking: ${cause}`);
 		if (shouldCheckProject) {
 			return this._checkProject(onError);
 		}
@@ -433,11 +413,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		return this.debounceWithKey(
 			editorConfig.singleFileMode ? file.uri : PROJECT_CHECK_STR,
 			async () => {
-				await log(
-					this._classConfig.connection,
-					WATCHER_PREFIX,
-					`Checking: ${cause}`
-				);
+				log(WATCHER_PREFIX, `Checking: ${cause}`);
 				if (!editorConfig.singleFileMode) {
 					await this._checkProjectIfFileChanged(file, null);
 				} else {

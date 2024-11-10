@@ -51,8 +51,7 @@ export async function getVersion(
 		});
 
 		proc.on('error', (err) => {
-			void log(
-				classConfig.connection,
+			log(
 				SERVER_PREFIX,
 				`Failed to get PHPStan version, is the path to your PHPStan binary correct? Error: ${err.message}`
 			);
@@ -70,11 +69,7 @@ export async function getVersion(
 				return;
 			}
 
-			void log(
-				classConfig.connection,
-				SERVER_PREFIX,
-				`PHPStan version: ${data}`
-			);
+			log(SERVER_PREFIX, `PHPStan version: ${data}`);
 
 			const versionMatch = /(\d+)\.(\d+)/.exec(data);
 			if (!versionMatch) {

@@ -89,7 +89,7 @@ async function main(): Promise<void> {
 	connection.listen();
 
 	await onConnectionInitialized;
-	void log(connection, SERVER_PREFIX, 'Language server ready');
+	log(SERVER_PREFIX, 'Language server ready');
 	const extensionStartedAt = new PromisedValue<Date>();
 	void connection
 		.sendRequest(initRequest, { ready: true })

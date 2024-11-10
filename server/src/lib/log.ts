@@ -1,17 +1,8 @@
-import { logNotification } from './notificationChannels';
-import type { _Connection } from 'vscode-languageserver';
 import type { PHPStanCheck } from './phpstan/check';
 
-export async function log(
-	connection: _Connection,
-	prefix: LogPrefix,
-	...data: (string | number)[]
-): Promise<void> {
+export function log(prefix: LogPrefix, ...data: (string | number)[]): void {
 	data = [prefix, ...data];
 	console.log([`[${new Date().toLocaleString()}]`, ...data].join(' '));
-	await connection.sendNotification(logNotification, {
-		data: data.map((d) => String(d)),
-	});
 }
 
 export type LogPrefix = string & {

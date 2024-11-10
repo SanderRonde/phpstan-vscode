@@ -72,11 +72,7 @@ export class PHPStanRunner implements AsyncDisposable {
 			const pidMatch = /docker-pid:(\d+)/.exec(str);
 			if (pidMatch) {
 				const pid = parseInt(pidMatch[1], 10);
-				void log(
-					this._classConfig.connection,
-					prefix,
-					`PHPStan docker PID: ${pid}`
-				);
+				log(prefix, `PHPStan docker PID: ${pid}`);
 				proc.dockerPid = pid;
 				return;
 			}
@@ -180,8 +176,7 @@ export class PHPStanRunner implements AsyncDisposable {
 			configuration['tmpDir'] = checkConfig.tmpDir;
 		}
 
-		await log(
-			this._classConfig.connection,
+		log(
 			prefix,
 			'Spawning PHPStan with the following configuration: ',
 			JSON.stringify(configuration)
@@ -286,8 +281,7 @@ export class PHPStanRunner implements AsyncDisposable {
 
 		const onError = async (extraData: string[] = []): Promise<void> => {
 			// On error
-			void log(
-				this._classConfig.connection,
+			log(
 				prefix,
 				'PHPStan process exited with error',
 				...(await getLogData()),
@@ -352,11 +346,7 @@ export class PHPStanRunner implements AsyncDisposable {
 						this._classConfig
 					);
 					if (editorConfig.singleFileMode) {
-						void log(
-							this._classConfig.connection,
-							prefix,
-							'PHPStan found no files to analyse'
-						);
+						log(prefix, 'PHPStan found no files to analyse');
 
 						await this._classConfig.hooks.provider.onCheckDone();
 
@@ -421,11 +411,7 @@ export class PHPStanRunner implements AsyncDisposable {
 					return;
 				}
 
-				void log(
-					this._classConfig.connection,
-					prefix,
-					'PHPStan process exited succesfully'
-				);
+				log(prefix, 'PHPStan process exited succesfully');
 
 				await this._classConfig.hooks.provider.onCheckDone();
 
@@ -437,11 +423,7 @@ export class PHPStanRunner implements AsyncDisposable {
 						resolve(ReturnResult.success(stdout));
 					}
 				} catch (e) {
-					void log(
-						this._classConfig.connection,
-						prefix,
-						`Failed to parse PHPStan output: ${stdout}`
-					);
+					log(prefix, `Failed to parse PHPStan output: ${stdout}`);
 					resolve(ReturnResult.error());
 				}
 			});

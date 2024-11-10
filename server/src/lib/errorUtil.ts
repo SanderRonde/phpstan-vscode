@@ -5,12 +5,12 @@ import { ERROR_PREFIX, log } from './log';
 
 const shownWarnings: Set<string> = new Set();
 
-export async function showErrorOnce(
+export function showErrorOnce(
 	connection: _Connection,
 	message: string,
 	...extra: string[]
-): Promise<void> {
-	await log(connection, ERROR_PREFIX, message, ...extra);
+): void {
+	log(ERROR_PREFIX, message, ...extra);
 	if (shownWarnings.has(message)) {
 		return;
 	}
