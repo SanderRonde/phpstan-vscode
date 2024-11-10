@@ -8,7 +8,7 @@ class DemoClass {
 	/**
 	 * @param 'a'|'b'|'c'|'d'|'e'|'f' $initialStr
 	 */
-	public function strUnion(string $initialStr): mixed {
+	public function strUnion(string $initialStr) {
 		if ($initialStr === 'a') {
 			return 0;
 		}
