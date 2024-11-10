@@ -26,6 +26,7 @@ import { ProviderCheckHooks } from './providers/providerUtil';
 import type { DocumentManager } from './lib/documentManager';
 import { getEditorConfiguration } from './lib/editorConfig';
 import type { PHPStanVersion } from './start/getVersion';
+import { ConfigResolver } from './lib/configResolve';
 import { initRequest } from './lib/requestChannels';
 import { getVersion } from './start/getVersion';
 import type { ClassConfig } from './lib/types';
@@ -123,6 +124,7 @@ async function main(): Promise<void> {
 		version,
 		editorConfigOverride: editorConfigOverride,
 	};
+	disposables.push(new ConfigResolver(classConfig));
 
 	// Check version
 	void getVersion(classConfig).then((result) => {

@@ -2,6 +2,7 @@ import {
 	getEditorConfiguration,
 	registerEditorConfigurationListener,
 } from './lib/editorConfig';
+import { ConfigResolveLanguageStatus } from './notificationReceivers/configResolveLanguageStatus';
 import {
 	getInstallationConfig,
 	writeInstallationConfig,
@@ -94,15 +95,18 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const errorManager = new ErrorManager(client);
 	const proManager = new PHPStanProManager(client);
 	const zombieKiller = new ZombieKiller(client, context);
+	const configResolveLanguageStatus = new ConfigResolveLanguageStatus(client);
 
-	registerListeners(context, client, errorManager, proManager);
+	registerListeners(context, client, errorManager, proManager, outputChannel);
 	registerEditorConfigurationListener(context, client);
 	context.subscriptions.push(
 		statusBar,
 		watcher,
 		errorManager,
 		proManager,
-		zombieKiller
+		zombieKiller,
+		configResolveLanguageStatus,
+		outputChannel
 	);
 
 	let wasReady = false;

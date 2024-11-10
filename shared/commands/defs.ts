@@ -14,6 +14,7 @@ export enum Commands {
 	LAUNCH_SETUP = 'phpstan.launchSetup',
 	DOWNLOAD_DEBUG_DATA = 'phpstan.downloadDebugData',
 	CLEAR_ERRORS = 'phpstan.clearErrors',
+	SHOW_OUTPUT_CHANNEL = 'phpstan.showOutputChannel',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -52,6 +53,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	[Commands.DOWNLOAD_DEBUG_DATA]: {
 		title: 'Download debug data',
 		inCommandPalette: true,
+	},
+	[Commands.SHOW_OUTPUT_CHANNEL]: {
+		title: 'Show output channel',
+		inCommandPalette: false,
 	},
 };
 
@@ -92,7 +97,7 @@ export const config = {
 				'phpstan.neon,phpstan.neon.dist',
 			],
 			description:
-				'Path to the config file (use a comma-separated list to resolve in order)',
+				'Filename or path to the config file (use a comma-separated list to resolve in order)',
 		},
 	},
 	'phpstan.paths': {
