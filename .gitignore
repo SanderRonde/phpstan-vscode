@@ -9,6 +9,13 @@ php/vendor
 test/demo/vendor
 test/demo/cache
 test/demo/reported.json
+test/multi-config-demo/vendor
+test/multi-config-demo/cache
+test/multi-config-demo/reported.json
+test/multi-workspace-demo/primary/vendor
+test/multi-workspace-demo/primary/cache
+test/multi-workspace-demo/secondary/vendor
+test/multi-workspace-demo/secondary/cache
 test/demo.2/vendor
 test/demo.2/cache
 test/demo.2/reported.json
