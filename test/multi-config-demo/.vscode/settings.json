@@ -1,0 +1,4 @@
+{
+	"phpstan.rootDir": "./",
+	"phpstan.configFiles": ["src/phpstan.neon", "test/phpstan.neon"]
+}

@@ -1,0 +1,7 @@
+parameters:
+	level: 9
+	scanDirectories:
+		- php
+	paths:
+		- php
+	tmpDir: %currentWorkingDirectory%/cache/phpstan
