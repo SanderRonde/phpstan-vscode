@@ -8,12 +8,14 @@ import type { AsyncDisposable, ClassConfig } from '../types';
 import type { DocumentManager } from '../documentManager';
 import { getEditorConfiguration } from '../editorConfig';
 import type { Disposable } from 'vscode-languageserver';
+import type { ConfigResolver } from '../configResolver';
 import { debug, sanitizeFilePath } from '../debug';
 import type { ReportedErrors } from './check';
 import { executeCommand } from '../commands';
 import { showError } from '../errorUtil';
 import { ReturnResult } from '../result';
 import { PHPStanCheck } from './check';
+import { URI } from 'vscode-uri';
 
 interface CheckOperation {
 	check: PHPStanCheck;
@@ -39,6 +41,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 
 	public constructor(
 		private readonly _classConfig: ClassConfig,
+		private readonly _configResolver: ConfigResolver,
 		private readonly _getDocumentManager: () => DocumentManager
 	) {}
 
@@ -182,10 +185,11 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	}
 
 	private async _performProjectCheck(
+		currentFile: URI | null,
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
 		// Prep check
-		const check = new PHPStanCheck(this._classConfig);
+		const check = new PHPStanCheck(this._classConfig, this._configResolver);
 		log(checkPrefix(check), 'Check started for project');
 
 		const hashes: Record<string, string> = {};
@@ -218,7 +222,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors>>
 		>({
-			promise: check.check(true, onError),
+			promise: check.check(true, onError, currentFile),
 			timeout: editorConfig.projectTimeout,
 			onTimeout: async () => {
 				await check.dispose();
@@ -249,7 +253,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
 		// Prep check
-		const check = new PHPStanCheck(this._classConfig);
+		const check = new PHPStanCheck(this._classConfig, this._configResolver);
 		log(checkPrefix(check), `Check started for file: ${file.uri}`);
 		debug(this._classConfig.connection, 'performFileCheck', {
 			fileURI: sanitizeFilePath(file.uri),
@@ -273,7 +277,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors>>
 		>({
-			promise: check.check(true, onError, file),
+			promise: check.check(true, onError, URI.parse(file.uri), file),
 			timeout: editorConfig.timeout,
 			onTimeout: async () => {
 				await check.dispose();
@@ -306,6 +310,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	}
 
 	private async _checkProject(
+		currentFile: URI | null,
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
 		debug(this._classConfig.connection, 'checkProject', {});
@@ -333,7 +338,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 
 		await this._withRecursivePromise(
 			PROJECT_CHECK_STR,
-			this._performProjectCheck(onError)
+			this._performProjectCheck(currentFile, onError)
 		);
 		return this._getFilePromise(PROJECT_CHECK_STR);
 	}
@@ -382,11 +387,12 @@ export class PHPStanCheckManager implements AsyncDisposable {
 
 	private async _checkProjectIfFileChanged(
 		file: WatcherNotificationFileData,
+		currentFile: URI | null,
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
 		const projectCheck = this._operations.get(PROJECT_CHECK_STR);
 		if (!projectCheck) {
-			return this._checkProject(onError);
+			return this._checkProject(currentFile, onError);
 		}
 		if (!file.content) {
 			// Already checked if part of any operation
@@ -399,11 +405,12 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			log(MANAGER_PREFIX, 'No file changes, not checking');
 			return OperationStatus.CANCELLED;
 		}
-		return this._checkProject(onError);
+		return this._checkProject(currentFile, onError);
 	}
 
 	public async check(
 		file: WatcherNotificationFileData | undefined,
+		currentFile: URI | null,
 		cause: string,
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
@@ -411,13 +418,14 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		const shouldCheckProject = !editorConfig.singleFileMode || !file;
 		log(WATCHER_PREFIX, `Checking: ${cause}`);
 		if (shouldCheckProject) {
-			return this._checkProject(onError);
+			return this._checkProject(currentFile, onError);
 		}
 		return this._checkFile(file, onError);
 	}
 
 	public async checkWithDebounce(
 		file: WatcherNotificationFileData | undefined,
+		currentFile: URI | null,
 		cause: string,
 		onError: null | ((error: string) => void)
 	): Promise<void> {
@@ -426,7 +434,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		return this.debounceWithKey(
 			shouldCheckProject ? PROJECT_CHECK_STR : file.uri,
 			async () => {
-				await this.check(file, cause, onError);
+				await this.check(file, currentFile, cause, onError);
 			}
 		);
 	}
@@ -441,7 +449,11 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			async () => {
 				log(WATCHER_PREFIX, `Checking: ${cause}`);
 				if (!editorConfig.singleFileMode) {
-					await this._checkProjectIfFileChanged(file, null);
+					await this._checkProjectIfFileChanged(
+						file,
+						URI.parse(file.uri),
+						null
+					);
 				} else {
 					await this._checkFile(file, null);
 				}

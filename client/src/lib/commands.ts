@@ -60,7 +60,28 @@ export function registerListeners(
 			Commands.SCAN_PROJECT,
 			async () => {
 				await client.sendNotification(watcherNotification, {
+					operation: 'checkAllProjects',
+				});
+			},
+			commands
+		)
+	);
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.SCAN_CURRENT_PROJECT,
+			async () => {
+				await client.sendNotification(watcherNotification, {
 					operation: 'checkProject',
+					file: vscode.window.activeTextEditor
+						? {
+								content:
+									vscode.window.activeTextEditor.document.getText(),
+								uri: vscode.window.activeTextEditor.document.uri.toString(),
+								languageId:
+									vscode.window.activeTextEditor.document
+										.languageId,
+							}
+						: null,
 				});
 			},
 			commands

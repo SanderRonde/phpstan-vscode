@@ -31,6 +31,7 @@ import { MultiStepInput } from './multiStepInput';
 import * as path from 'path';
 
 enum SetupMethod {
+	Automatic = 'automatic',
 	Commandline = 'commandline',
 	Docker = 'docker',
 	// TODO: maybe do this at some point
@@ -79,6 +80,11 @@ export async function launchSetup(client: LanguageClient): Promise<void> {
 		>({
 			title: TITLE,
 			items: [
+				{
+					label: 'Automatically',
+					description: 'Resolve config file(s) automatically',
+					method: SetupMethod.Automatic,
+				},
 				{
 					label: 'Directly through commandline',
 					description: 'e.g. `./vendor/bin/phpstan analyse`',
@@ -142,6 +148,18 @@ export async function launchSetup(client: LanguageClient): Promise<void> {
 				keyedWorkspaceFolders
 			);
 			return setup.run(applyStateStep);
+		} else if (choice.method === SetupMethod.Automatic) {
+			const setup = new AutomaticSetupSteps(
+				client,
+				state,
+				keyedWorkspaceFolders
+			);
+			return setup.run(async () => {
+				await applyStateStep();
+				await window.showInformationMessage(
+					'Resolving of config files happens automatically, check the language status in the status bar (the {} icon) for progress.'
+				);
+			});
 		}
 		return;
 	};
@@ -155,10 +173,16 @@ function toKeyedWorkspaceFolders(
 	const uri = workspaceFolders?.[0].uri;
 	if (uri) {
 		const initializedFolders: WorkspaceFolders = {
-			default: uri,
+			byName: {},
+			getForPath: (filePath: string) => {
+				return workspace.getWorkspaceFolder(Uri.file(filePath))?.uri;
+			},
 		};
+		if (workspaceFolders?.length === 1) {
+			initializedFolders.default = uri;
+		}
 		for (const folder of workspaceFolders ?? []) {
-			initializedFolders[folder.name] = folder.uri;
+			initializedFolders.byName[folder.name] = folder.uri;
 		}
 		return initializedFolders;
 	}
@@ -192,7 +216,7 @@ abstract class SetupSteps {
 	) {}
 
 	protected _getCwd(): string | undefined {
-		return this._workspaceFolders?.default.fsPath;
+		return this._workspaceFolders?.default?.fsPath;
 	}
 
 	protected async _rootDirStep(
@@ -232,9 +256,9 @@ abstract class SetupSteps {
 			title: 'Select root directory',
 		});
 		if (folder) {
-			if (this._workspaceFolders?.default.fsPath === folder[0].fsPath) {
+			if (this._workspaceFolders?.default?.fsPath === folder[0].fsPath) {
 				this._state.rootDir = './';
-			} else if (this._workspaceFolders) {
+			} else if (this._workspaceFolders?.default) {
 				this._state.rootDir = path.relative(
 					this._workspaceFolders.default.fsPath,
 					folder[0].fsPath
@@ -289,7 +313,7 @@ abstract class SetupSteps {
 			title: 'Select config file',
 		});
 		if (file) {
-			this._state.configFile = this._workspaceFolders
+			this._state.configFile = this._workspaceFolders?.default
 				? path.relative(
 						this._workspaceFolders.default.fsPath,
 						file[0].fsPath
@@ -306,7 +330,7 @@ abstract class SetupSteps {
 	): Promise<InputStep | undefined> {
 		const choice = await input.showInputBoxWithButton({
 			title: TITLE,
-			prompt: 'Enter the path to the PHPStan binary (relative to root dir or absolute)',
+			prompt: 'Enter the path to the PHPStan binary (relative to root dir, absolute or relative to workspace i.e. "${workspaceFolder:Primary}/vendor/bin/phpstan)"',
 			validate: async (value) => {
 				const filePath = makeAbsolute(
 					path.join(
@@ -346,7 +370,7 @@ abstract class SetupSteps {
 			title: 'Select PHPStan binary',
 		});
 		if (file) {
-			this._state.binPath = this._workspaceFolders
+			this._state.binPath = this._workspaceFolders?.default
 				? path.relative(
 						this._workspaceFolders.default.fsPath,
 						file[0].fsPath
@@ -443,7 +467,7 @@ abstract class SetupSteps {
 						label: path.relative(
 							makeAbsolute(
 								this._state.rootDir,
-								this._workspaceFolders?.default.fsPath
+								this._workspaceFolders?.default?.fsPath
 							),
 							uri.fsPath
 						),
@@ -512,6 +536,41 @@ abstract class SetupSteps {
 		return next;
 	}
 }
+
+class AutomaticSetupSteps extends SetupSteps {
+	protected _localState = undefined;
+
+	private async _configFilePatternStep(
+		input: MultiStepInput,
+		next: InputStep
+	): Promise<InputStep | undefined> {
+		const choice = await input.showInputBoxWithButton({
+			title: TITLE,
+			prompt: 'Enter the file name(s) of config files. Can be a comma-separated list. Example: `phpstan.neon,phpstan.neon.dist` finds `**/{phpstan.neon,phpstan.neon.dist}`',
+			validate: () => Promise.resolve(undefined),
+			value: this._state.configFile,
+			ignoreFocusOut: true,
+		});
+
+		if (typeof choice === 'string') {
+			this._state.configFile = choice;
+			return next;
+		}
+		return (input) => this._configFilePatternStep(input, next);
+	}
+
+	public run(next: () => Promise<void>): Promise<InputStep> {
+		// Unset this as it's not relevant for commandline mode
+		this._state.dockerContainerName = '';
+
+		return Promise.resolve((input: MultiStepInput) =>
+			this._configFilePatternStep(input, (input) =>
+				this._binPathStep(input, (input) => this._testStep(input, next))
+			)
+		);
+	}
+}
+
 class CommandlineSetupSteps extends SetupSteps {
 	protected _localState = undefined;
 
@@ -668,7 +727,7 @@ class DockerSetupSteps extends SetupSteps {
 			title: 'Select PHPStan binary',
 		});
 		if (file) {
-			this._state.binPath = this._workspaceFolders
+			this._state.binPath = this._workspaceFolders?.default
 				? path.relative(
 						this._workspaceFolders.default.fsPath,
 						file[0].fsPath

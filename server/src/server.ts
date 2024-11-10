@@ -26,7 +26,7 @@ import { ProviderCheckHooks } from './providers/providerUtil';
 import type { DocumentManager } from './lib/documentManager';
 import { getEditorConfiguration } from './lib/editorConfig';
 import type { PHPStanVersion } from './start/getVersion';
-import { ConfigResolver } from './lib/configResolve';
+import { ConfigResolver } from './lib/configResolver';
 import { initRequest } from './lib/requestChannels';
 import { getVersion } from './start/getVersion';
 import type { ClassConfig } from './lib/types';
@@ -35,6 +35,7 @@ import { startPro } from './start/startPro';
 import { StatusBar } from './lib/statusBar';
 import { listenTest } from './lib/test';
 import { URI } from 'vscode-uri';
+import * as path from 'path';
 
 async function main(): Promise<void> {
 	// Creates the LSP connection
@@ -58,10 +59,25 @@ async function main(): Promise<void> {
 		const uri = params.workspaceFolders?.[0].uri;
 		if (uri) {
 			const initializedFolders: WorkspaceFolders = {
-				default: URI.parse(uri),
+				byName: {},
+				getForPath: (filePath: string) => {
+					if (!path.isAbsolute(filePath)) {
+						return undefined;
+					}
+					for (const folder of params.workspaceFolders ?? []) {
+						const folderUri = URI.parse(folder.uri);
+						if (filePath.startsWith(folderUri.fsPath)) {
+							return folderUri;
+						}
+					}
+					return undefined;
+				},
 			};
+			if (params.workspaceFolders?.length === 1) {
+				initializedFolders.default = URI.parse(uri);
+			}
 			for (const folder of params.workspaceFolders ?? []) {
-				initializedFolders[folder.name] = URI.parse(folder.uri);
+				initializedFolders.byName[folder.name] = URI.parse(folder.uri);
 			}
 			workspaceFolders.set(initializedFolders);
 		}
@@ -124,7 +140,8 @@ async function main(): Promise<void> {
 		version,
 		editorConfigOverride: editorConfigOverride,
 	};
-	disposables.push(new ConfigResolver(classConfig));
+	const configResolver = new ConfigResolver(classConfig);
+	disposables.push(configResolver);
 
 	// Check version
 	void getVersion(classConfig).then((result) => {
@@ -137,6 +154,7 @@ async function main(): Promise<void> {
 	if (editorConfiguration.pro) {
 		result = await startPro(
 			classConfig,
+			configResolver,
 			connection,
 			disposables,
 			onConnectionInitialized,
@@ -146,6 +164,7 @@ async function main(): Promise<void> {
 	} else {
 		result = startIntegratedChecker(
 			classConfig,
+			configResolver,
 			connection,
 			disposables,
 			onConnectionInitialized,
@@ -159,6 +178,7 @@ async function main(): Promise<void> {
 			connection,
 			classConfig,
 			result.documentManager,
+			configResolver,
 			result.checkManager
 		)
 	);

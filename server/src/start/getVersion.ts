@@ -16,17 +16,12 @@ export async function getVersion(
 	| { success: false; error: string }
 > {
 	// Test if we can get the PHPStan version
-	const cwd = await ConfigurationManager.getCwd(classConfig);
-	if (!cwd) {
-		return {
-			success: false,
-			error: 'Failed to find cwd',
-		};
-	}
-
+	const cwd = await ConfigurationManager.getCwd(classConfig, true);
+	const workspaceRoot = (await classConfig.workspaceFolders.get())?.default;
 	const binConfigResult = await ConfigurationManager.getBinComand(
 		classConfig,
-		cwd
+		cwd ?? undefined,
+		workspaceRoot?.fsPath
 	);
 	if (!binConfigResult.success) {
 		return {
@@ -39,7 +34,6 @@ export async function getVersion(
 		const binArgs = binConfigResult.getBinCommand(['--version']);
 		const proc = spawn(binArgs[0], binArgs.slice(1), {
 			...SPAWN_ARGS,
-			cwd: cwd,
 		});
 
 		let data = '';

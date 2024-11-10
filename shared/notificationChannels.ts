@@ -47,9 +47,14 @@ export type WatcherNotificationType =
 	  }
 	| {
 			operation: 'checkProject';
+			file: WatcherNotificationFileData | null;
+	  }
+	| {
+			operation: 'checkAllProjects';
 	  }
 	| {
 			operation: 'onConfigChange';
+			file: WatcherNotificationFileData | null;
 	  }
 	| {
 			operation: 'clear';

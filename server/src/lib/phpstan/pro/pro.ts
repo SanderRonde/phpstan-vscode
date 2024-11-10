@@ -2,6 +2,7 @@ import { pathExists, tryReadJSON, wait } from '../../../../../shared/util';
 import { ConfigurationManager } from '../../checkConfigManager';
 import { SPAWN_ARGS } from '../../../../../shared/constants';
 import { getEditorConfiguration } from '../../editorConfig';
+import type { ConfigResolver } from '../../configResolver';
 import { PHPStanProErrorManager } from './proErrorManager';
 import type { Disposable } from 'vscode-languageserver';
 import type { ClassConfig } from '../../types';
@@ -12,6 +13,7 @@ import * as path from 'path';
 
 export async function launchPro(
 	classConfig: ClassConfig,
+	configResolver: ConfigResolver,
 	onProgress?: (progress: {
 		done: number;
 		total: number;
@@ -23,7 +25,9 @@ export async function launchPro(
 
 	const launchConfig = await ConfigurationManager.collectConfiguration(
 		classConfig,
+		configResolver,
 		'analyse',
+		null,
 		null
 	);
 	if (!launchConfig) {
