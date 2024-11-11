@@ -71,6 +71,60 @@ export class ConfigResolver implements Disposable {
 		return this._configs;
 	}
 
+	/**
+	 * When given a file path, orders all configs such that:
+	 * - Configs in the same directory as the file are first
+	 * - This is followed by configs in parent directories, sorted by depth (closest to file first)
+	 * - This is followed by configs going down the root directory, sorted by depth (closest to root first)
+	 */
+	private async _findConfigsOrderedForFile(
+		filePath: URI
+	): Promise<Config[][]> {
+		const configs = await this._findConfigs();
+		const filePathDir = path.dirname(filePath.fsPath);
+
+		return configs.map((configGroup) => {
+			// Create path info for each config in group
+			const configsWithPathInfo = configGroup.map((config) => ({
+				config,
+				configDir: path.dirname(config.uri.fsPath),
+				// Get relative path from file to config (going up)
+				relativeToFile: path.relative(
+					filePathDir,
+					path.dirname(config.uri.fsPath)
+				),
+			}));
+
+			return configsWithPathInfo
+				.sort((a, b) => {
+					// If config is in same dir as file or above (starts with ..), sort by path depth
+					const aIsAboveOrSame = !a.relativeToFile.startsWith('..');
+					const bIsAboveOrSame = !b.relativeToFile.startsWith('..');
+
+					if (aIsAboveOrSame && !bIsAboveOrSame) {
+						return -1;
+					}
+					if (!aIsAboveOrSame && bIsAboveOrSame) {
+						return 1;
+					}
+
+					// Both above/same or both below
+					if (aIsAboveOrSame) {
+						// Sort by path depth (shorter = higher up = first)
+						return (
+							a.relativeToFile.length - b.relativeToFile.length
+						);
+					} else {
+						// Sort by path depth (shorter = closer = first)
+						return (
+							a.relativeToFile.length - b.relativeToFile.length
+						);
+					}
+				})
+				.map((info) => info.config);
+		});
+	}
+
 	private async getSingleConfig(): Promise<Config | null> {
 		const configs = await this._findConfigs();
 		if (configs.length === 0) {
@@ -83,7 +137,7 @@ export class ConfigResolver implements Disposable {
 	}
 
 	private async resolveConfigForFile(filePath: URI): Promise<Config | null> {
-		const configGroups = await this._findConfigs();
+		const configGroups = await this._findConfigsOrderedForFile(filePath);
 		for (const configGroup of configGroups) {
 			for (const config of configGroup) {
 				if (config.file.isInPaths(filePath.fsPath)) {
