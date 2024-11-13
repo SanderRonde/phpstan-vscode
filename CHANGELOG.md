@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.15
+
+-   Adapt to new PHPStan 2.0 changes
+
 ## 3.2.14
 
 -   Ignore Xdebug errors by default
