@@ -6,9 +6,6 @@ rules:
 	- PHPStanVSCodeTreeFetcher
 
 parameters:
-	# Don't complain when a non-included file is checked
-	- zeroFiles: false
-
 	# Use a custom cacheDir so that the transformed-args and
 	# default args don't clear each others' caches.
 	tmpDir: ../test/cacheDir
