@@ -10,6 +10,7 @@ test/demo/vendor
 test/demo/cache
 test/demo/reported.json
 test/scratchpad
+test/cacheDir
 **/reported.json
 user_config.json
 
