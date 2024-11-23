@@ -9,7 +9,12 @@ import type { ExtensionContext } from 'vscode';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
-export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> {
+export function getEditorConfiguration(): TypedWorkspaceConfiguration<
+	ConfigSettings & {
+		'files.exclude'?: Record<string, boolean>;
+		'search.exclude'?: Record<string, boolean>;
+	}
+> {
 	const document = window.activeTextEditor?.document;
 
 	if (document) {

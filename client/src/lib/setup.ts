@@ -28,6 +28,7 @@ import { getEditorConfiguration } from './editorConfig';
 import { config } from '../../../shared/commands/defs';
 import { testRunRequest } from './requestChannels';
 import { MultiStepInput } from './multiStepInput';
+import { findFiles } from './files';
 import * as path from 'path';
 
 enum SetupMethod {
@@ -461,7 +462,7 @@ abstract class SetupSteps {
 				file?: WatcherNotificationFileData;
 			} = { ...this._state };
 			if (this._state.singleFileMode) {
-				const options = await workspace.findFiles('**/*.php');
+				const options = await findFiles('**/*.php');
 				const choice = await window.showQuickPick(
 					options.map((uri) => ({
 						label: path.relative(
