@@ -3,12 +3,12 @@ import {
 	type Disposable,
 	window,
 	CancellationTokenSource,
-	workspace,
 } from 'vscode';
 import { configResolveRequest, findFilesRequest } from '../lib/requestChannels';
 import type { FindFilesRequestType } from '../../../shared/requestChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { Commands } from '../../../shared/commands/defs';
+import { findFiles } from '../lib/files';
 import type { Command } from 'vscode';
 import { Uri } from 'vscode';
 import path from 'path';
@@ -30,8 +30,8 @@ export class ConfigResolveLanguageStatus implements Disposable {
 				findFilesRequest,
 				async (params): Promise<FindFilesRequestType['response']> => {
 					return {
-						files: (await workspace.findFiles(params.pattern)).map(
-							(file) => file.toString()
+						files: (await findFiles(params.pattern)).map((file) =>
+							file.toString()
 						),
 					};
 				}
