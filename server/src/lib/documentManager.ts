@@ -293,6 +293,7 @@ export class DocumentManager implements AsyncDisposable {
 		checkManager: PHPStanCheckManager,
 		e: WatcherNotificationFileData | null
 	): Promise<void> {
+		this._configResolver.clearCache();
 		if (!(await this._enabled)) {
 			return;
 		}

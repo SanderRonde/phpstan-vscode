@@ -135,7 +135,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		}
 	}
 
-	private _toErrorMessageMap(result: ReturnResult<ReportedErrors>): {
+	private _toErrorMessageMap(result: ReturnResult<ReportedErrors, Error>): {
 		fileSpecificErrors: Record<string, string[]>;
 		notFileSpecificErrors: string[];
 	} {
@@ -220,10 +220,21 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
-			Promise<ReturnResult<ReportedErrors>>
+			Promise<ReturnResult<ReportedErrors, Error>>
 		>({
 			promise: check.check(true, onError, currentFile),
 			timeout: editorConfig.projectTimeout,
+			onError: async (error) => {
+				await check.dispose();
+				void log(
+					this._classConfig.connection,
+					checkPrefix(check),
+					`PHPStan check exited with error: ${error.message}`
+				);
+				await operation.finish(OperationStatus.ERROR);
+
+				return ReturnResult.error(error);
+			},
 			onTimeout: async () => {
 				await check.dispose();
 				void this._onTimeout(check, onError);
@@ -242,7 +253,11 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		log(
 			checkPrefix(check),
 			'Check completed for project, errors=',
-			JSON.stringify(this._toErrorMessageMap(result))
+			JSON.stringify(
+				this._toErrorMessageMap(
+					result as ReturnResult<ReportedErrors, Error>
+				)
+			)
 		);
 
 		return result.status;
@@ -275,10 +290,21 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		const editorConfig = await getEditorConfiguration(this._classConfig);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
-			Promise<ReturnResult<ReportedErrors>>
+			Promise<ReturnResult<ReportedErrors, Error>>
 		>({
 			promise: check.check(true, onError, URI.parse(file.uri), file),
 			timeout: editorConfig.timeout,
+			onError: async (error) => {
+				await check.dispose();
+				void log(
+					this._classConfig.connection,
+					checkPrefix(check),
+					`PHPStan check exited with error: ${error.message}`
+				);
+				await operation.finish(OperationStatus.ERROR);
+
+				return ReturnResult.error(error);
+			},
 			onTimeout: async () => {
 				await check.dispose();
 				void this._onTimeout(check, onError);
@@ -303,7 +329,11 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		log(
 			checkPrefix(check),
 			'Check completed for file, errors=',
-			JSON.stringify(this._toErrorMessageMap(result))
+			JSON.stringify(
+				this._toErrorMessageMap(
+					result as ReturnResult<ReportedErrors, Error>
+				)
+			)
 		);
 
 		return result.status;

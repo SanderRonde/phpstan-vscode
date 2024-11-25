@@ -182,6 +182,10 @@ export class ConfigResolver implements Disposable {
 		return allConfigs;
 	}
 
+	public clearCache(): void {
+		this._configs = undefined;
+	}
+
 	public dispose(): void {
 		this._disposables.forEach((d) => d.dispose());
 	}
