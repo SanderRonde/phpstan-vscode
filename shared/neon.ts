@@ -67,6 +67,10 @@ export class ParsedConfigFile {
 				continue;
 			}
 
+			if (!neonFile.has('parameters')) {
+				continue;
+			}
+
 			const parameters = neonFile.get('parameters');
 			if (!(parameters instanceof NeonMap)) {
 				continue;

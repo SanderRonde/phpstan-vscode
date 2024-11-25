@@ -65,6 +65,7 @@ export function createPromise<R>(): Promise<PromiseObject<R>> {
 
 export function withTimeout<P, R>(timeoutConfig: {
 	onTimeout: () => R;
+	onError: (error: Error) => R;
 	promise: Promise<P>;
 	timeout: number;
 }): Disposable & {
@@ -75,12 +76,20 @@ export function withTimeout<P, R>(timeoutConfig: {
 		timeout = setTimeout(() => {
 			resolve(timeoutConfig.onTimeout());
 		}, timeoutConfig.timeout);
-		void timeoutConfig.promise.then((result) => {
-			resolve(result);
-			if (timeout) {
-				clearTimeout(timeout);
+		void timeoutConfig.promise.then(
+			(result) => {
+				resolve(result);
+				if (timeout) {
+					clearTimeout(timeout);
+				}
+			},
+			(error) => {
+				resolve(timeoutConfig.onError(error as Error));
+				if (timeout) {
+					clearTimeout(timeout);
+				}
 			}
-		});
+		);
 	});
 	return {
 		dispose: () => (timeout ? clearTimeout(timeout) : void 0),

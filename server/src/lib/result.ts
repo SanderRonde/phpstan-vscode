@@ -13,12 +13,12 @@ export class ReturnResult<R, E = void> {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	public static killed(): ReturnResult<any> {
+	public static killed(): ReturnResult<any, any> {
 		return new ReturnResult(OperationStatus.KILLED, null);
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	public static canceled(): ReturnResult<any> {
+	public static canceled(): ReturnResult<any, any> {
 		return new ReturnResult(OperationStatus.CANCELLED, null);
 	}
 
