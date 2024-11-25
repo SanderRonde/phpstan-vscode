@@ -2,9 +2,13 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.17
+
+-   Only sync/check relevant URI schemes
+
 ## 3.2.16
 
-- Fix `showTypeOnHover` for PHPStan 2.0
+-   Fix `showTypeOnHover` for PHPStan 2.0
 
 ## 3.2.15
 
