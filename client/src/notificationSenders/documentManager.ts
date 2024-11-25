@@ -19,7 +19,13 @@ export class DocumentManager implements Disposable {
 	}
 
 	private _shouldSyncDocument(e: PartialDocument): boolean {
-		return e.languageId === 'php' && !e.isDirty;
+		return (
+			e.languageId === 'php' &&
+			!e.isDirty &&
+			['file', 'vscode-vfs', 'git', 'vscode-remote'].includes(
+				e.uri.scheme
+			)
+		);
 	}
 
 	private _isConfigFile(e: PartialDocument): boolean {
