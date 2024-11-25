@@ -9,6 +9,9 @@ php/vendor
 test/demo/vendor
 test/demo/cache
 test/demo/reported.json
+test/demo.2/vendor
+test/demo.2/cache
+test/demo.2/reported.json
 test/scratchpad
 test/cacheDir
 **/reported.json

@@ -1,0 +1,15 @@
+parameters:
+    tmpDir: %currentWorkingDirectory%/cache/phpstan
+    level: 10
+    treatPhpDocTypesAsCertain: true
+    editorUrl: 'vscode://file/%%file%%:%%line%%'
+    editorUrlTitle: '%%relFile%%:%%line%%'
+    paths:
+        - php
+    reportUnmatchedIgnoredErrors: false
+    checkImplicitMixed: true
+    reportMaybesInMethodSignatures: true
+    reportMaybesInPropertyPhpDocTypes: true
+    ignoreErrors:
+        - '#Dynamic call to static method Symfony\\Component\\HttpFoundation\\Response::.*#'
+        - '#Dynamic call to static method Illuminate\\Http\\Request::validate\(\).#'
