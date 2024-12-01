@@ -119,7 +119,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 
 		const diagnostic = new vscode.Diagnostic(
 			range,
-			`${error.message}${tip}`
+			`${error.message || error.identifier || '<no message>'} ${tip}`
 		);
 		diagnostic.source = 'PHPStan';
 		if (error.identifier) {
