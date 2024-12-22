@@ -6,6 +6,7 @@ import { processNotification } from './notificationChannels';
 import type { AsyncDisposable, ClassConfig } from './types';
 import { getEditorConfiguration } from './editorConfig';
 import { execute, wait } from '../../../shared/util';
+import { debug, sanitizeFilePath } from './debug';
 import { exec, spawn } from 'child_process';
 import { default as psTree } from 'ps-tree';
 import type { Disposable } from 'vscode';
@@ -159,9 +160,19 @@ export class Process implements AsyncDisposable {
 		timeout: number,
 		options: SpawnSyncOptionsWithStringEncoding
 	): Promise<Process> {
+		debug(classConfig.connection, 'spawnWithRobustTimeout', {
+			binStr: sanitizeFilePath(binStr),
+			args: args.map(sanitizeFilePath),
+			timeout,
+			options,
+		});
 		const proc = await (async () => {
 			if (process.platform === 'win32') {
 				const codePage = await this._getCodePage();
+				debug(classConfig.connection, 'spawnWithRobustTimeout', {
+					isWin: true,
+					codePage,
+				});
 				if (codePage && codePage !== 850) {
 					// Set codepage to 850 aka Latin 1
 					return exec(
@@ -175,6 +186,9 @@ export class Process implements AsyncDisposable {
 					);
 				}
 			}
+			debug(classConfig.connection, 'spawnWithRobustTimeout', {
+				isWin: false,
+			});
 			return spawn(binStr, args, {
 				...options,
 				stdio: ['pipe', 'pipe', 'overlapped'],
@@ -182,6 +196,10 @@ export class Process implements AsyncDisposable {
 		})();
 
 		if (proc.pid) {
+			debug(classConfig.connection, 'spawnWithRobustTimeout', {
+				pid: proc.pid,
+				timeout: timeout,
+			});
 			void classConfig.connection.sendNotification(processNotification, {
 				pid: proc.pid,
 				timeout: timeout,
@@ -206,6 +224,9 @@ export class Process implements AsyncDisposable {
 	}
 
 	private async _killPid(pid: number): Promise<void> {
+		debug(this._classConfig.connection, 'killPid', {
+			pid,
+		});
 		if (process.platform === 'win32') {
 			return new Promise<void>((resolve) => {
 				const killProc = spawn('taskkill', [

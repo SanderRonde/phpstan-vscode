@@ -8,6 +8,7 @@ import type { AsyncDisposable, ClassConfig } from '../types';
 import type { DocumentManager } from '../documentManager';
 import { getEditorConfiguration } from '../editorConfig';
 import type { Disposable } from 'vscode-languageserver';
+import { debug, sanitizeFilePath } from '../debug';
 import type { ReportedErrors } from './check';
 import { executeCommand } from '../commands';
 import { showError } from '../errorUtil';
@@ -250,6 +251,9 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		// Prep check
 		const check = new PHPStanCheck(this._classConfig);
 		log(checkPrefix(check), `Check started for file: ${file.uri}`);
+		debug(this._classConfig.connection, 'performFileCheck', {
+			fileURI: sanitizeFilePath(file.uri),
+		});
 
 		this._operationCount++;
 		this._operations.set(file.uri, {
@@ -279,9 +283,15 @@ export class PHPStanCheckManager implements AsyncDisposable {
 				return ReturnResult.killed();
 			},
 		});
+		debug(this._classConfig.connection, 'checkManager', {
+			status: 'started',
+		});
 		check.disposables.push(runningCheck);
 		this._disposables.push(runningCheck);
 		const result = await runningCheck.promise;
+		debug(this._classConfig.connection, 'checkManager', {
+			status: 'finished',
+		});
 
 		// Show result of operation in statusbar
 		await operation.finish(result.status);
@@ -298,6 +308,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	private async _checkProject(
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
+		debug(this._classConfig.connection, 'checkProject', {});
 		// Kill all current running instances
 		if (this._operations) {
 			await Promise.all(
@@ -331,18 +342,33 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		file: WatcherNotificationFileData,
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
+		debug(this._classConfig.connection, 'checkFile', {
+			fileURI: sanitizeFilePath(file.uri),
+			contentHash: basicHash(file.content),
+		});
 		// Kill current running instances for this file
 		if (this._operations?.get(file.uri)) {
+			debug(this._classConfig.connection, 'hasRunningOperations', {
+				count: this._operations.size,
+			});
 			const currentOperationForFile = this._operations.get(file.uri)!;
 			if (
 				currentOperationForFile.hashes[file.uri] ===
 				basicHash(file.content)
 			) {
+				debug(this._classConfig.connection, 'fileIsSame', {
+					fileURI: sanitizeFilePath(file.uri),
+					contentHash: basicHash(file.content),
+				});
 				// File is the same, wait for the current check
 				return this._getFilePromise(file.uri);
 			}
 
 			// Different content, kill previous check and start new one
+			debug(this._classConfig.connection, 'fileIsDifferent', {
+				fileURI: sanitizeFilePath(file.uri),
+				contentHash: basicHash(file.content),
+			});
 			await currentOperationForFile.check.dispose();
 			this._operations.delete(file.uri);
 		}

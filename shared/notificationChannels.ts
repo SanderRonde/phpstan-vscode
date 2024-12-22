@@ -9,6 +9,7 @@ export enum NotificationChannel {
 	COMMAND = 'phpstan.command',
 	ERROR = 'phpstan.error',
 	SPAWNER = 'phpstan.spawner',
+	DEBUG = 'phpstan.debug',
 	PHPSTAN_PRO = 'phpstan.phpstanPro',
 	TEST = 'phpstan.test',
 }
@@ -110,4 +111,8 @@ export type PHPStanProNotificationType =
 
 export interface ErrorNotificationType {
 	diagnostics: ReportedErrors;
+}
+
+export interface DebugNotificationType {
+	debugData: { type: string; data: unknown[] };
 }

@@ -1,5 +1,6 @@
 import type {
 	CommandNotificationType,
+	DebugNotificationType,
 	ErrorNotificationType,
 	LogNotificationType,
 	PHPStanProNotificationType,
@@ -36,3 +37,6 @@ export const phpstanProNotification =
 	new NotificationType<PHPStanProNotificationType>(
 		NotificationChannel.PHPSTAN_PRO
 	);
+export const debugNotification = new NotificationType<DebugNotificationType>(
+	NotificationChannel.DEBUG
+);

@@ -8,8 +8,10 @@ import { commands, Commands } from '../../../shared/commands/defs';
 // eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
 import type { LanguageClient } from 'vscode-languageclient/node';
+import { getDebugData } from '../notificationReceivers/debug';
 import { getEditorConfiguration } from './editorConfig';
 import { showError } from './errorUtil';
+
 import { launchSetup } from './setup';
 import * as vscode from 'vscode';
 
@@ -149,6 +151,26 @@ export function registerListeners(
 					...commandArgs
 				);
 			}
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.DOWNLOAD_DEBUG_DATA,
+			async () => {
+				const debugData = getDebugData();
+				const json = JSON.stringify(debugData, null, '\t');
+				const timestamp = Date.now();
+				const uri = vscode.Uri.joinPath(
+					vscode.workspace.workspaceFolders?.[0]?.uri ??
+						vscode.Uri.file(''),
+					`phpstan-vscode-debug-${timestamp}.json`
+				);
+				await vscode.workspace.fs.writeFile(uri, Buffer.from(json));
+
+				await vscode.commands.executeCommand('vscode.open', uri);
+			},
+			commands
 		)
 	);
 }

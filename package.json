@@ -208,6 +208,10 @@
 				"title": "Launch setup"
 			},
 			{
+				"command": "phpstan.downloadDebugData",
+				"title": "Download debug data"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
 			},
@@ -234,6 +238,10 @@
 			{
 				"command": "cmd.phpstan.launchSetup",
 				"title": "PHPStan: Launch setup"
+			},
+			{
+				"command": "cmd.phpstan.downloadDebugData",
+				"title": "PHPStan: Download debug data"
 			}
 		],
 		"menus": {
@@ -267,6 +275,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.downloadDebugData",
+					"when": "false"
+				},
+				{
 					"command": "cmd.phpstan.scanFileForErrors",
 					"when": "true"
 				},
@@ -292,6 +304,10 @@
 				},
 				{
 					"command": "cmd.phpstan.launchSetup",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.downloadDebugData",
 					"when": "true"
 				}
 			]

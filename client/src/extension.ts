@@ -18,6 +18,7 @@ import type {
 	ServerOptions,
 } from 'vscode-languageclient/node';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
+import { debug, initDebugReceiver } from './notificationReceivers/debug';
 import { DocumentManager } from './notificationSenders/documentManager';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';
@@ -85,11 +86,13 @@ async function startLanguageServer(
 
 export async function activate(context: ExtensionContext): Promise<void> {
 	log(context, CLIENT_PREFIX, 'Initializing PHPStan extension');
+	debug('lifecycle', 'Initializing PHPStan extension');
 	const outputChannel = createOutputChannel();
 
 	const telemetry = new Telemetry();
 	telemetry.report(context);
 	const client = await startLanguageServer(context, outputChannel);
+	initDebugReceiver(client);
 	const statusBar = new StatusBar(context, client);
 	const watcher = new DocumentManager(client);
 	const errorManager = new ErrorManager(client);

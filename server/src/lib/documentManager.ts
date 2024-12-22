@@ -8,6 +8,7 @@ import type { Disposable } from 'vscode-languageserver';
 import { getEditorConfiguration } from './editorConfig';
 import type { Watcher } from './watcher';
 import * as phpParser from 'php-parser';
+import { debug } from '../lib/debug';
 import { URI } from 'vscode-uri';
 
 class DocumentManagerFileData implements WatcherNotificationFileData {
@@ -98,6 +99,9 @@ export class DocumentManager implements AsyncDisposable {
 					watcherNotification,
 					// eslint-disable-next-line @typescript-eslint/no-misused-promises
 					async (data) => {
+						debug(this._classConfig.connection, 'documentManager', {
+							data,
+						});
 						switch (data.operation) {
 							case 'close':
 								this._documents.delete(data.file.uri);

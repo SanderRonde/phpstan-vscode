@@ -8,6 +8,7 @@ import { assertUnreachable } from '../../../shared/util';
 import { log, STATUS_BAR_PREFIX } from '../lib/log';
 import type { Disposable } from 'vscode';
 import * as vscode from 'vscode';
+import { debug } from './debug';
 
 export class StatusBar implements Disposable {
 	private _runningOperation: {
@@ -36,6 +37,9 @@ export class StatusBar implements Disposable {
 					"notification:'",
 					JSON.stringify(params)
 				);
+				debug('statusBar', {
+					params,
+				});
 
 				if (!getEditorConfiguration().get('phpstan.enableStatusBar')) {
 					return;

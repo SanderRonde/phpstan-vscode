@@ -12,6 +12,7 @@ export enum Commands {
 	PREVIOUS_ERROR = 'phpstan.previousError',
 	OPEN_PHPSTAN_PRO = 'phpstan.openPhpstanPro',
 	LAUNCH_SETUP = 'phpstan.launchSetup',
+	DOWNLOAD_DEBUG_DATA = 'phpstan.downloadDebugData',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -41,6 +42,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.LAUNCH_SETUP]: {
 		title: 'Launch setup',
+		inCommandPalette: true,
+	},
+	[Commands.DOWNLOAD_DEBUG_DATA]: {
+		title: 'Download debug data',
 		inCommandPalette: true,
 	},
 };

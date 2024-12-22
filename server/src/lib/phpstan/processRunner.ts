@@ -8,6 +8,7 @@ import { ConfigurationManager } from '../checkConfigManager';
 import type { AsyncDisposable, ClassConfig } from '../types';
 import type { CheckConfig } from '../checkConfigManager';
 import { getEditorConfiguration } from '../editorConfig';
+import { debug, sanitizeFilePath } from '../debug';
 import type { ProgressListener } from './check';
 import { executeCommand } from '../commands';
 import { showError } from '../errorUtil';
@@ -236,6 +237,15 @@ export class PHPStanRunner implements AsyncDisposable {
 			onError: null | ((error: string) => void);
 		}
 	): Promise<ReturnResult<R | string>> {
+		debug(this._classConfig.connection, 'runProcess', {
+			checkConfig: {
+				args: checkConfig.args.map((arg) => sanitizeFilePath(arg)),
+				configFile: sanitizeFilePath(
+					checkConfig.configFile ?? '<none>'
+				),
+			},
+			prefix,
+		});
 		const phpstan = await this._spawnProcess(
 			checkConfig,
 			prefix,
