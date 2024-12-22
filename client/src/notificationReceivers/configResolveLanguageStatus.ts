@@ -54,6 +54,10 @@ export class ConfigResolveLanguageStatus implements Disposable {
 				void this._update(editor.document.uri);
 			})
 		);
+
+		if (window.activeTextEditor) {
+			void this._update(window.activeTextEditor.document.uri);
+		}
 	}
 
 	private _setStatus(config: {
