@@ -1,0 +1,4 @@
+{
+	"phpstan.rootDir": "./",
+	"phpstan.configFile": "light.neon,heavy.neon"
+}

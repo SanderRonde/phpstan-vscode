@@ -1,0 +1,19 @@
+parameters:
+	level: 9
+	scanDirectories:
+		- .
+	paths:
+		- .
+	tmpDir: %currentWorkingDirectory%/cache/phpstan
+
+rules:
+	- TreeFetcher
+
+services:
+	-
+		class: PHPStanVSCodeDiagnoser
+		tags:
+			- phpstan.diagnoseExtension
+		arguments:
+			analysedPaths: %analysedPaths%
+			currentWorkingDirectory: %currentWorkingDirectory%
