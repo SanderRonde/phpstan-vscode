@@ -2,6 +2,14 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.19
+
+-   Add `phpstan.downloadDebugData` command to download debug data
+
+## 3.2.18
+
+-   Fix issue where errors would not be shown when PHPStan reported no error message
+
 ## 3.2.17
 
 -   Only sync/check relevant URI schemes
