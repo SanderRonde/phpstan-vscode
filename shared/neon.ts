@@ -4,7 +4,19 @@ import fs from 'fs/promises';
 import path from 'path';
 
 export async function readNeonFile(filePath: string): Promise<Neon[]> {
-	const parsed = decode(await fs.readFile(filePath, 'utf8'));
+	const parsed = await (async () => {
+		try {
+			return decode(await fs.readFile(filePath, 'utf8'));
+		} catch (error) {
+			console.log(
+				`Error while parsing .neon file "${filePath}": ${(error as Error).message}`
+			);
+			return null;
+		}
+	})();
+	if (!parsed) {
+		return [];
+	}
 
 	const output: Neon[] = [parsed];
 	if (!(parsed instanceof NeonMap)) {
