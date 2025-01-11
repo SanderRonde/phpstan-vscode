@@ -27,7 +27,6 @@ import { StatusBar } from './notificationReceivers/statusBar';
 import type { ExtensionContext, OutputChannel } from 'vscode';
 import { initRequest } from './lib/requestChannels';
 import { registerListeners } from './lib/commands';
-import { Telemetry } from './lib/telemetry';
 import { window, workspace } from 'vscode';
 import { INSPECT_BRK } from './lib/dev';
 import * as path from 'path';
@@ -89,8 +88,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	debug('lifecycle', 'Initializing PHPStan extension');
 	const outputChannel = createOutputChannel();
 
-	const telemetry = new Telemetry();
-	telemetry.report(context);
 	const client = await startLanguageServer(context, outputChannel);
 	initDebugReceiver(client);
 	const statusBar = new StatusBar(context, client);
@@ -107,8 +104,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		watcher,
 		errorManager,
 		proManager,
-		zombieKiller,
-		telemetry
+		zombieKiller
 	);
 
 	let wasReady = false;
