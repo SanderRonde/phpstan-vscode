@@ -4,6 +4,7 @@ import type { Disposable } from 'vscode-languageserver';
 import { ParsedConfigFile } from '../../../shared/neon';
 import { getEditorConfiguration } from './editorConfig';
 import type { ClassConfig } from './types';
+import { log, NEON_PREFIX } from './log';
 import { URI } from 'vscode-uri';
 import path from 'path';
 
@@ -61,7 +62,16 @@ export class ConfigResolver implements Disposable {
 					await Promise.all(
 						fileURIs.map(async (fileURI) => ({
 							uri: fileURI,
-							file: await ParsedConfigFile.from(fileURI.fsPath),
+							file: await ParsedConfigFile.from(
+								fileURI.fsPath,
+								(error) => {
+									void log(
+										this._classConfig.connection,
+										NEON_PREFIX,
+										`Error while parsing .neon file "${fileURI.fsPath}": ${error.message}`
+									);
+								}
+							),
 						}))
 					)
 				);
