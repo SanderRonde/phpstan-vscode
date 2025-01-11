@@ -2,8 +2,7 @@ import { processNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import type { Disposable, ExtensionContext } from 'vscode';
 import { PROCESS_SPAWNER_PREFIX, log } from '../lib/log';
-import type { Program } from 'ps-node';
-import { lookup, kill } from 'ps-node';
+import { default as psTree } from 'ps-tree';
 
 interface ProcessDescriptor {
 	pid: number;
@@ -28,14 +27,19 @@ export class ZombieKiller implements Disposable {
 			client.onNotification(
 				processNotification,
 				({ pid, children, timeout }) => {
-					log(
-						this._context,
-						PROCESS_SPAWNER_PREFIX,
-						'Spawning process',
-						String(pid),
-						'with timeout',
-						String(timeout)
-					);
+					const currentPids = this._context.workspaceState.get<
+						Record<number, RootProcessDescriptor>
+					>(ZombieKiller.STORAGE_KEY, {});
+					if (!currentPids[pid]) {
+						log(
+							this._context,
+							PROCESS_SPAWNER_PREFIX,
+							'Spawning process',
+							String(pid),
+							'with timeout',
+							String(timeout)
+						);
+					}
 					void this._pushPid(pid, children ?? [], timeout);
 				}
 			)
@@ -47,22 +51,22 @@ export class ZombieKiller implements Disposable {
 	}
 
 	private _killProc(pid: number, binStr?: string): void {
-		lookup({ pid }, (err, list) => {
-			if (err || list.length === 0) {
+		psTree(pid, (err, children) => {
+			if (err || children.length === 0) {
 				// No longer exists or something went wrong
 				return;
 			}
 
-			list.forEach((proc) => {
-				if (binStr && proc.command !== binStr) {
+			children.forEach((proc) => {
+				if (binStr && proc.COMMAND !== binStr) {
 					return;
 				}
 
-				kill(proc.pid, 'SIGINT', (err) => {
-					if (err) {
-						kill(proc.pid, 'SIGKILL');
-					}
-				});
+				try {
+					process.kill(Number(proc.PID), 'SIGINT');
+				} catch (e) {
+					process.kill(Number(proc.PID), 'SIGKILL');
+				}
 			});
 		});
 	}
@@ -97,33 +101,30 @@ export class ZombieKiller implements Disposable {
 			}
 		});
 
-		const programs =
-			toKill.length > 0
-				? await new Promise<Program[]>((resolve) => {
-						lookup(
-							{
-								pid: toKill.map(({ pid }) => pid),
-							},
-							(err, list) => {
-								if (err) {
-									resolve([]);
-								} else {
-									resolve(list);
-								}
+		const programs: psTree.PS[] = [];
+		await Promise.all(
+			toKill.map(
+				async ({ pid }) =>
+					new Promise<void>((resolve) => {
+						psTree(Number(pid), (err, children) => {
+							if (!err) {
+								programs.push(...children);
 							}
-						);
+							resolve();
+						});
 					})
-				: [];
+			)
+		);
 
 		for (const { descriptor, pid } of toKill) {
 			const program = programs.find(
 				(p) =>
-					p.pid === parseInt(pid, 10) &&
+					p.PID === pid &&
 					(descriptor.binStr === undefined ||
-						p.command === descriptor.binStr)
+						p.COMMAND === descriptor.binStr)
 			);
 			if (program) {
-				void this._killProc(parseInt(pid, 10), program.command);
+				void this._killProc(parseInt(pid, 10), program.COMMAND);
 			}
 		}
 
@@ -145,25 +146,20 @@ export class ZombieKiller implements Disposable {
 		children: number[],
 		timeout: number
 	): Promise<void> {
-		const programs = await new Promise<Program[]>((resolve) => {
-			lookup(
-				{
-					pid: [String(pid), ...children.map(String)],
-				},
-				(err, list) => {
-					if (err) {
-						resolve([]);
-					} else {
-						resolve(list);
-					}
+		const programs = await new Promise<readonly psTree.PS[]>((resolve) => {
+			psTree(pid, (err, list) => {
+				if (err) {
+					resolve([]);
+				} else {
+					resolve(list);
 				}
-			);
+			});
 		});
 
-		const binStr = programs.find((p) => p.pid === pid)?.command;
+		const binStr = programs.find((p) => p.PID === String(pid))?.COMMAND;
 		const childBinStrs = children.map((child) => {
-			const program = programs.find((p) => p.pid === child);
-			return program?.command;
+			const program = programs.find((p) => p.PID === String(child));
+			return program?.COMMAND;
 		});
 
 		const targetTime = timeout === 0 ? 0 : Date.now() + timeout;
