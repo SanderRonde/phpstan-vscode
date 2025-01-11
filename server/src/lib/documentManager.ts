@@ -1,14 +1,14 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
+import { assertUnreachable, basicHash } from '../../../shared/util';
 import type { PHPStanCheckManager } from './phpstan/checkManager';
 import type { PartialDocument } from './phpstan/processRunner';
 import { watcherNotification } from './notificationChannels';
 import type { AsyncDisposable, ClassConfig } from './types';
-import { assertUnreachable } from '../../../shared/util';
 import type { Disposable } from 'vscode-languageserver';
 import { getEditorConfiguration } from './editorConfig';
+import { debug, sanitizeFilePath } from '../lib/debug';
 import type { Watcher } from './watcher';
 import * as phpParser from 'php-parser';
-import { debug } from '../lib/debug';
 import { URI } from 'vscode-uri';
 
 class DocumentManagerFileData implements WatcherNotificationFileData {
@@ -100,7 +100,9 @@ export class DocumentManager implements AsyncDisposable {
 					// eslint-disable-next-line @typescript-eslint/no-misused-promises
 					async (data) => {
 						debug(this._classConfig.connection, 'documentManager', {
-							data,
+							data: {
+								operation: data.operation,
+							},
 						});
 						switch (data.operation) {
 							case 'close':
@@ -117,6 +119,14 @@ export class DocumentManager implements AsyncDisposable {
 							}
 						}
 
+						debug(this._classConfig.connection, 'documentManager', {
+							data: {
+								file: {
+									uri: sanitizeFilePath(data.file.uri),
+									content: basicHash(data.file.content),
+								},
+							},
+						});
 						this._documents.set(
 							data.file.uri,
 							new DocumentManagerFileData(

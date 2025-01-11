@@ -33,7 +33,12 @@ function sanitizeString(str: string): string {
 }
 
 export function sanitizeFilePath(filePath: string): string {
-	if (!filePath.includes('/') && !path.extname(filePath)) {
+	if (
+		!filePath.includes('/') &&
+		!filePath.includes('\\') &&
+		!filePath.includes('\\\\') &&
+		!path.extname(filePath)
+	) {
 		return filePath;
 	}
 
@@ -48,7 +53,9 @@ export function sanitizeFilePath(filePath: string): string {
 		0,
 		pathWithoutProtocol.length - fileExtension.length
 	);
-	const fileParts = fileWithoutExtension.split('/');
+	const fileParts = fileWithoutExtension
+		.split('/')
+		.flatMap((part) => part.split('\\'));
 
 	return protocol + fileParts.map(sanitizeString).join('/') + fileExtension;
 }
