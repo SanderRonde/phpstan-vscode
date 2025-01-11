@@ -6,7 +6,7 @@ import { ExtensionMode, window } from 'vscode';
 let channel: OutputChannel | null;
 
 export function createOutputChannel(): OutputChannel {
-	channel = window.createOutputChannel('PHPStan Client');
+	channel = window.createOutputChannel('PHPStan');
 	return channel;
 }
 
