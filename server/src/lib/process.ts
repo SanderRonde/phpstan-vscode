@@ -11,6 +11,8 @@ import { exec, spawn } from 'child_process';
 import { default as psTree } from 'ps-tree';
 import type { Disposable } from 'vscode';
 import type { Readable } from 'stream';
+import type { LogPrefix } from './log';
+import { log } from './log';
 
 export class Process implements AsyncDisposable {
 	private readonly _children: Set<number> = new Set();
@@ -155,6 +157,7 @@ export class Process implements AsyncDisposable {
 	 */
 	public static async spawnWithRobustTimeout(
 		classConfig: ClassConfig,
+		prefix: LogPrefix,
 		binStr: string,
 		args: string[],
 		timeout: number,
@@ -164,8 +167,13 @@ export class Process implements AsyncDisposable {
 			binStr: sanitizeFilePath(binStr),
 			args: args.map(sanitizeFilePath),
 			timeout,
-			options,
 		});
+
+		log(
+			prefix,
+			'Spawning PHPStan, command: ',
+			[binStr, ...args.map((a) => `"${a}"`)].join(' ')
+		);
 		const proc = await (async () => {
 			if (process.platform === 'win32') {
 				const codePage = await this._getCodePage();
