@@ -51,6 +51,7 @@ export async function launchPro(
 	);
 	const proc = await Process.spawnWithRobustTimeout(
 		classConfig,
+		PRO_PREFIX,
 		binStr,
 		[...args, '--watch'],
 		0,
