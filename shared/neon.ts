@@ -3,14 +3,15 @@ import type { Neon } from 'neon-js';
 import fs from 'fs/promises';
 import path from 'path';
 
-export async function readNeonFile(filePath: string): Promise<Neon[]> {
+async function readNeonFile(
+	filePath: string,
+	onError: (error: Error) => void
+): Promise<Neon[]> {
 	const parsed = await (async () => {
 		try {
 			return decode(await fs.readFile(filePath, 'utf8'));
 		} catch (error) {
-			console.log(
-				`Error while parsing .neon file "${filePath}": ${(error as Error).message}`
-			);
+			onError(error as Error);
 			return null;
 		}
 	})();
@@ -35,11 +36,12 @@ export async function readNeonFile(filePath: string): Promise<Neon[]> {
 			}
 
 			if (path.isAbsolute(file)) {
-				output.push(...(await readNeonFile(file)));
+				output.push(...(await readNeonFile(file, onError)));
 			} else {
 				output.push(
 					...(await readNeonFile(
-						path.join(path.dirname(filePath), file)
+						path.join(path.dirname(filePath), file),
+						onError
 					))
 				);
 			}
@@ -56,9 +58,12 @@ export class ParsedConfigFile {
 
 	private constructor(public filePath: string) {}
 
-	public static async from(filePath: string): Promise<ParsedConfigFile> {
+	public static async from(
+		filePath: string,
+		onError: (error: Error) => void
+	): Promise<ParsedConfigFile> {
 		const parsedFile = new ParsedConfigFile(filePath);
-		parsedFile.contents = await readNeonFile(filePath);
+		parsedFile.contents = await readNeonFile(filePath, onError);
 
 		const { paths, excludePaths } = this._getIncludedPaths(
 			parsedFile.contents
