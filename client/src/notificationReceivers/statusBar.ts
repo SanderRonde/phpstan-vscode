@@ -23,7 +23,7 @@ export class StatusBar implements Disposable {
 				command?: Commands;
 		  }
 		| undefined = undefined;
-	private _hideTimeout: NodeJS.Timer | undefined;
+	private _hideTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	public constructor(
 		private readonly _context: vscode.ExtensionContext,

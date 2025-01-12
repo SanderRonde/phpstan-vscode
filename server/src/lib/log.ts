@@ -19,4 +19,3 @@ export const ERROR_PREFIX = '[error]' as LogPrefix;
 export const HOVER_PROVIDER_PREFIX = '[hover-provider]' as LogPrefix;
 export const SERVER_PREFIX = '[server]' as LogPrefix;
 export const PRO_PREFIX = '[pro]' as LogPrefix;
-export const DIAGNOSE_GET_FILES = '[diagnose-get-files]' as LogPrefix;

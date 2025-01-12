@@ -1,11 +1,4 @@
 import {
-	createOutputChannel,
-	SERVER_PREFIX,
-	log,
-	registerLogMessager,
-	CLIENT_PREFIX,
-} from './lib/log';
-import {
 	getEditorConfiguration,
 	registerEditorConfigurationListener,
 } from './lib/editorConfig';
@@ -17,6 +10,12 @@ import type {
 	LanguageClientOptions,
 	ServerOptions,
 } from 'vscode-languageclient/node';
+import {
+	createOutputChannel,
+	SERVER_PREFIX,
+	log,
+	CLIENT_PREFIX,
+} from './lib/log';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { debug, initDebugReceiver } from './notificationReceivers/debug';
 import { DocumentManager } from './notificationSenders/documentManager';
@@ -98,7 +97,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
 	registerListeners(context, client, errorManager, proManager);
 	registerEditorConfigurationListener(context, client);
-	registerLogMessager(context, client);
 	context.subscriptions.push(
 		statusBar,
 		watcher,

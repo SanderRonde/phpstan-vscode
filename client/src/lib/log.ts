@@ -1,6 +1,4 @@
-import type { LanguageClient } from 'vscode-languageclient/node';
 import type { ExtensionContext, OutputChannel } from 'vscode';
-import { logNotification } from './notificationChannels';
 import { ExtensionMode, window } from 'vscode';
 
 let channel: OutputChannel | null;
@@ -8,17 +6,6 @@ let channel: OutputChannel | null;
 export function createOutputChannel(): OutputChannel {
 	channel = window.createOutputChannel('PHPStan');
 	return channel;
-}
-
-export function registerLogMessager(
-	context: ExtensionContext,
-	client: LanguageClient
-): void {
-	context.subscriptions.push(
-		client.onNotification(logNotification, ({ data }) => {
-			log(context, ...(data as [Prefix, ...string[]]));
-		})
-	);
 }
 
 type Prefix = string & {
@@ -42,5 +29,4 @@ export function log(
 export const STATUS_BAR_PREFIX = '[status-bar]' as Prefix;
 export const CLIENT_PREFIX = '[client]' as Prefix;
 export const SERVER_PREFIX = '[server]' as Prefix;
-export const ERROR_PREFIX = '[error]' as Prefix;
 export const PROCESS_SPAWNER_PREFIX = '[process-spawner]' as Prefix;

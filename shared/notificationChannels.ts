@@ -3,7 +3,6 @@ import type { OperationStatus } from './statusBar';
 import type { Commands } from './commands/defs';
 
 export enum NotificationChannel {
-	LOG = 'phpstan.log',
 	STATUS_BAR = 'phpstan.statusBar',
 	WATCHER = 'phpstan.watcher',
 	COMMAND = 'phpstan.command',

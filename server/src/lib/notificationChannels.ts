@@ -2,7 +2,6 @@ import type {
 	CommandNotificationType,
 	DebugNotificationType,
 	ErrorNotificationType,
-	LogNotificationType,
 	PHPStanProNotificationType,
 	ProcessNotificationType,
 	StatusBarNotificationType,
@@ -16,10 +15,6 @@ export const watcherNotification =
 
 export const commandNotification =
 	new NotificationType<CommandNotificationType>(NotificationChannel.COMMAND);
-
-export const logNotification = new NotificationType<LogNotificationType>(
-	NotificationChannel.LOG
-);
 
 export const statusBarNotification =
 	new NotificationType<StatusBarNotificationType>(
