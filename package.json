@@ -11,6 +11,12 @@
 	"categories": [
 		"Linters"
 	],
+	"keywords": [
+		"php",
+		"phpstan",
+		"static analysis",
+		"linter"
+	],
 	"icon": "static/images/phpstan.png",
 	"repository": {
 		"type": "git",
