@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.21
+
+-   Pass docker environment variables to docker process
+
 ## 3.2.20
 
 -   Fix bug where the UI would hang while checking
