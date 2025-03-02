@@ -1,5 +1,8 @@
+import type {
+	ConfigSettingsWithoutPrefix,
+	DockerConfigSettings,
+} from '../../../shared/config';
 import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
-import type { ConfigSettingsWithoutPrefix } from '../../../shared/config';
 import { fromEntries } from '../../../shared/util';
 import type { ClassConfig } from './types';
 
@@ -61,4 +64,18 @@ export async function getEditorConfiguration(
 			editorConfig.showTypeOnHover ||
 			false,
 	};
+}
+
+export async function getDockerEnvironment(
+	classConfig: Pick<ClassConfig, 'connection' | 'workspaceFolders'>
+): Promise<Record<string, string> | null> {
+	const workspaceFolders = await classConfig.workspaceFolders.get();
+	const scope = workspaceFolders?.default.toString();
+	const editorConfig = {
+		...((await classConfig.connection.workspace.getConfiguration({
+			scopeUri: scope,
+			section: 'docker',
+		})) as DockerConfigSettings),
+	};
+	return editorConfig['docker.environment'];
 }

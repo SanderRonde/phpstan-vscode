@@ -1,15 +1,20 @@
 // eslint-disable-next-line node/no-extraneous-import
 import type { TypedWorkspaceConfiguration } from 'vscode-generate-package-json/dist/types/src/configuration';
 
+import type {
+	ConfigSettings,
+	ExternalConfigSettings,
+} from '../../../shared/config';
 import type { LanguageClient } from 'vscode-languageclient/node';
-import type { ConfigSettings } from '../../../shared/config';
 import { watcherNotification } from './notificationChannels';
 import { config } from '../../../shared/commands/defs';
 import type { ExtensionContext } from 'vscode';
 import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
-export function getEditorConfiguration(): TypedWorkspaceConfiguration<ConfigSettings> {
+export function getEditorConfiguration(): TypedWorkspaceConfiguration<
+	ConfigSettings & ExternalConfigSettings
+> {
 	const document = window.activeTextEditor?.document;
 
 	if (document) {

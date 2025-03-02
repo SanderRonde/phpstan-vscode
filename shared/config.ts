@@ -16,3 +16,9 @@ export type ConfigSettings = Omit<
 	/** @deprecated */
 	'phpstan.enableLanguageServer'?: boolean;
 };
+
+export type DockerConfigSettings = {
+	'docker.environment': Record<string, string>;
+};
+
+export type ExternalConfigSettings = DockerConfigSettings;

@@ -175,9 +175,9 @@ function getAbsolutePath(filePath: string | null, cwd?: string): string | null {
 	return path.join(cwd, filePath);
 }
 
-export async function execute(
-	binary: string,
+export async function docker(
 	args: ReadonlyArray<string>,
+	dockerEnv: Record<string, string> | null,
 	options: Omit<
 		SpawnOptionsWithStdioTuple<StdioNull, StdioPipe, StdioPipe>,
 		'stdio'
@@ -189,8 +189,12 @@ export async function execute(
 	stderr: string;
 	err: Error | null;
 }> {
-	const proc = spawn(binary, args, {
+	const proc = spawn('docker', args, {
 		...options,
+		env: {
+			...process.env,
+			...dockerEnv,
+		},
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	let stdout = '';

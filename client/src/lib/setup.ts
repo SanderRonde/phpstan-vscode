@@ -2,7 +2,7 @@ import {
 	assertUnreachable,
 	getConfigFile,
 	pathExists,
-	execute,
+	docker,
 	getPathMapper,
 } from '../../../shared/util';
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
@@ -545,23 +545,25 @@ class DockerSetupSteps extends SetupSteps {
 	};
 	private async _dockerPathExists(path: string): Promise<boolean> {
 		return (
-			await execute('docker', [
-				'exec',
-				this._state.dockerContainerName,
-				'sh',
-				'-c',
-				`[ -f ${path} ]`,
-			])
+			await docker(
+				[
+					'exec',
+					this._state.dockerContainerName,
+					'sh',
+					'-c',
+					`[ -f ${path} ]`,
+				],
+				getEditorConfiguration().get('docker.environment')
+			)
 		).success;
 	}
 
 	private async _getDockerCwd(): Promise<string> {
 		return (
-			await execute('docker', [
-				'exec',
-				this._state.dockerContainerName,
-				'pwd',
-			])
+			await docker(
+				['exec', this._state.dockerContainerName, 'pwd'],
+				getEditorConfiguration().get('docker.environment')
+			)
 		).stdout.trim();
 	}
 
@@ -569,12 +571,10 @@ class DockerSetupSteps extends SetupSteps {
 		input: MultiStepInput,
 		next: InputStep
 	): Promise<InputStep> {
-		const { stdout, success } = await execute('docker', [
-			'ps',
-			'-a',
-			'--format',
-			'{{json .Names}}',
-		]);
+		const { stdout, success } = await docker(
+			['ps', '-a', '--format', '{{json .Names}}'],
+			getEditorConfiguration().get('docker.environment')
+		);
 		const dockerContainers = success
 			? stdout
 					.trim()
@@ -602,12 +602,10 @@ class DockerSetupSteps extends SetupSteps {
 			typeof choice === 'string' ? choice : choice.label;
 
 		const containerExists = (
-			await execute('docker', [
-				'exec',
-				this._state.dockerContainerName,
-				'echo',
-				'1',
-			])
+			await docker(
+				['exec', this._state.dockerContainerName, 'echo', '1'],
+				getEditorConfiguration().get('docker.environment')
+			)
 		).success;
 
 		if (containerExists) {

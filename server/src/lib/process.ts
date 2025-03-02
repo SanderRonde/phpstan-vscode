@@ -2,10 +2,10 @@ import type {
 	ChildProcess,
 	SpawnSyncOptionsWithStringEncoding,
 } from 'child_process';
+import { getDockerEnvironment, getEditorConfiguration } from './editorConfig';
 import { processNotification } from './notificationChannels';
 import type { AsyncDisposable, ClassConfig } from './types';
-import { getEditorConfiguration } from './editorConfig';
-import { execute, wait } from '../../../shared/util';
+import { docker, wait } from '../../../shared/util';
 import { debug, sanitizeFilePath } from './debug';
 import { exec, spawn } from 'child_process';
 import { default as psTree } from 'ps-tree';
@@ -85,15 +85,19 @@ export class Process implements AsyncDisposable {
 
 	private static async _getDockerChildPids(
 		containerName: string,
-		pid: number
+		pid: number,
+		classConfig: ClassConfig
 	): Promise<number[]> {
-		const result = await execute('docker', [
-			'exec',
-			containerName,
-			'sh',
-			'-c',
-			"ls /proc | grep -E '^[0-9]+$' | xargs -I{} cat /proc/{}/stat",
-		]);
+		const result = await docker(
+			[
+				'exec',
+				containerName,
+				'sh',
+				'-c',
+				"ls /proc | grep -E '^[0-9]+$' | xargs -I{} cat /proc/{}/stat",
+			],
+			await getDockerEnvironment(classConfig)
+		);
 		if (!result.stdout) {
 			return [];
 		}
@@ -267,16 +271,17 @@ export class Process implements AsyncDisposable {
 			.dockerContainerName;
 		const pids = [
 			pid,
-			...(await Process._getDockerChildPids(containerName, pid)),
-		];
-		return pids.map((pid) =>
-			execute('docker', [
-				'exec',
+			...(await Process._getDockerChildPids(
 				containerName,
-				'kill',
-				'-9',
-				pid.toString(),
-			]).then(() => undefined)
+				pid,
+				this._classConfig
+			)),
+		];
+		return pids.map(async (pid) =>
+			docker(
+				['exec', containerName, 'kill', '-9', pid.toString()],
+				await getDockerEnvironment(this._classConfig)
+			).then(() => undefined)
 		);
 	}
 

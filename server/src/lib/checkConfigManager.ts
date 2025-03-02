@@ -1,5 +1,5 @@
-import { execute, getConfigFile, getPathMapper } from '../../../shared/util';
-import { getEditorConfiguration } from './editorConfig';
+import { getDockerEnvironment, getEditorConfiguration } from './editorConfig';
+import { docker, getConfigFile, getPathMapper } from '../../../shared/util';
 import { showErrorOnce } from './errorUtil';
 import type { ClassConfig } from './types';
 import * as fs from 'fs/promises';
@@ -47,13 +47,16 @@ export class ConfigurationManager {
 			.dockerContainerName;
 		if (dockerContainerName) {
 			const exists = (
-				await execute('docker', [
-					'exec',
-					dockerContainerName,
-					'sh',
-					'-c',
-					`[ -${isDir ? 'd' : 'f'} ${filePath} ]`,
-				])
+				await docker(
+					[
+						'exec',
+						dockerContainerName,
+						'sh',
+						'-c',
+						`[ -${isDir ? 'd' : 'f'} ${filePath} ]`,
+					],
+					await getDockerEnvironment(classConfig)
+				)
 			).success;
 			return exists ? filePath : null;
 		}
