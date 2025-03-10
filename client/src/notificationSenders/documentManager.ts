@@ -20,10 +20,14 @@ export class DocumentManager implements Disposable {
 		this._client = client;
 	}
 
-	private _shouldSyncDocument(e: PartialDocument): boolean {
+	private _shouldSyncDocument(
+		e: PartialDocument,
+		changes?: readonly vscode.TextDocumentContentChangeEvent[]
+	): boolean {
 		return (
 			e.languageId === 'php' &&
 			!e.isDirty &&
+			(!changes || changes.length === 0) &&
 			['file', 'vscode-vfs', 'git', 'vscode-remote'].includes(
 				e.uri.scheme
 			)
@@ -54,24 +58,26 @@ export class DocumentManager implements Disposable {
 		};
 	}
 
-	private async _onDocumentChange(e: vscode.TextDocument): Promise<void> {
-		if (this._isConfigFile(e)) {
+	private async _onDocumentChange(
+		e: vscode.TextDocumentChangeEvent
+	): Promise<void> {
+		if (this._isConfigFile(e.document)) {
 			debug('configChange', {
-				filePath: sanitizeFilePath(e.uri.fsPath),
+				filePath: sanitizeFilePath(e.document.uri.fsPath),
 			});
 			await this._client.sendNotification(watcherNotification, {
 				operation: 'onConfigChange',
-				file: this._toSendData(e),
+				file: this._toSendData(e.document),
 			});
 		}
-		if (this._shouldSyncDocument(e)) {
+		if (this._shouldSyncDocument(e.document, e.contentChanges)) {
 			debug('documentChange', {
 				checking: true,
-				filePath: sanitizeFilePath(e.uri.fsPath),
+				filePath: sanitizeFilePath(e.document.uri.fsPath),
 			});
 			await this._client.sendNotification(watcherNotification, {
 				operation: 'change',
-				file: this._toSendData(e),
+				file: this._toSendData(e.document),
 			});
 		}
 	}
@@ -177,7 +183,7 @@ export class DocumentManager implements Disposable {
 
 		this._disposables.push(
 			vscode.workspace.onDidChangeTextDocument((e) => {
-				void this._onDocumentChange(e.document);
+				void this._onDocumentChange(e);
 			})
 		);
 
