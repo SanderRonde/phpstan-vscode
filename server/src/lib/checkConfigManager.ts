@@ -293,10 +293,7 @@ export class ConfigurationManager {
 		}
 
 		if (!cwd) {
-			await showErrorOnce(
-				classConfig.connection,
-				'PHPStan: failed to get CWD'
-			);
+			showErrorOnce(classConfig.connection, 'PHPStan: failed to get CWD');
 			return null;
 		}
 

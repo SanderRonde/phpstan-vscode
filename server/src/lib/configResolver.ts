@@ -65,8 +65,7 @@ export class ConfigResolver implements Disposable {
 							file: await ParsedConfigFile.from(
 								fileURI.fsPath,
 								(error) => {
-									void log(
-										this._classConfig.connection,
+									log(
 										NEON_PREFIX,
 										`Error while parsing .neon file "${fileURI.fsPath}": ${error.message}`
 									);
