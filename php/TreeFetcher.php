@@ -152,7 +152,7 @@ class PHPStanVSCodeTreeFetcher implements Rule {
  */
 class PHPStanVSCodeTreeFetcherCollector {
 	/** @var list<array{ClosureType, list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}>> */
-	private array $closureTypeToNode = [];
+	private $closureTypeToNode = [];
 
 	/**
 	 * @return ?list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}>
@@ -161,7 +161,8 @@ class PHPStanVSCodeTreeFetcherCollector {
 	{
 		$anonymousFunctionReflection = $scope->getAnonymousFunctionReflection();
 		if ($anonymousFunctionReflection) {
-			foreach ($this->closureTypeToNode as [$closureType, $closureClosures]) {
+			foreach ($this->closureTypeToNode as $closureTypeToNode) {
+				list($closureType, $closureClosures) = $closureTypeToNode;
 				if ($anonymousFunctionReflection !== $closureType) {
 					continue;
 				}
@@ -178,15 +179,14 @@ class PHPStanVSCodeTreeFetcherCollector {
 			// We grab the type as well as the node and connect the two so that later
 			// callers inside this closure can resolve to the node from the type.
 			$closureType = $scope->getType($node);
-			$this->closureTypeToNode[] = [$closureType, [
-				...$this->getClosuresFromScope($scope) ?? [],
-				[
-					'startPos' => $node->getStartFilePos(),
-					'endPos' => $node->getEndFilePos() + 1,
-					'isUsed' => false,
-					'closureNode' => $node
-				]
-			]];
+			$existingClosures = $this->getClosuresFromScope($scope) ?? [];
+			$existingClosures[] = [
+				'startPos' => $node->getStartFilePos(),
+				'endPos' => $node->getEndFilePos() + 1,
+				'isUsed' => false,
+				'closureNode' => $node
+			];
+			$this->closureTypeToNode[] = [$closureType, $existingClosures];
 		}
 	}
 
@@ -199,7 +199,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 	private function _processFunction(Scope $scope): array {
 		$functionKey = implode('.', [
 			$scope->getFile(),
-			$scope->getClassReflection()?->getName(),
+			$scope->getClassReflection() ? $scope->getClassReflection()->getName() : null,
 			$scope->getFunctionName()
 		]);
 		if (in_array($functionKey, $this->visitedFunctions, true)) {
@@ -227,7 +227,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 	private function _processClosure(Scope $scope, array $closures): array {
 		$functionKey = implode('.', [
 			$scope->getFile(),
-			$scope->getClassReflection()?->getName(),
+			$scope->getClassReflection() ? $scope->getClassReflection()->getName() : null,
 			json_encode($closures)
 		]);
 		if (in_array($functionKey, $this->visitedMethods, true)) {
@@ -252,18 +252,12 @@ class PHPStanVSCodeTreeFetcherCollector {
 		$data = [];
 		$this->processClosures($node, $scope);
 		if ($scope->getFunctionName()) {
-			$data = [
-				...$data,
-				...$this->_processFunction($scope)
-			];
+			$data = array_merge($data, $this->_processFunction($scope));
 		}
 
 		$closures = $this->getClosuresFromScope($scope);
 		if ($closures) {
-			$data = [
-				...$data,
-				...$this->_processClosure($scope, $closures)
-			];
+			$data = array_merge($data, $this->_processClosure($scope, $closures));
 		}
 		return $data;
 	}
@@ -279,7 +273,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 	/**
 	 * @return ?CollectedData
 	 */
-	private function processNodeWithType(Variable|PropertyFetch $node, Type $type): ?array
+	private function processNodeWithType($node, Type $type): ?array
 	{
 		$varName = $node instanceof Variable ? $node->name : $node->name->name;
 		$typeDescr = $type->describe(VerbosityLevel::precise());
@@ -302,7 +296,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 	/**
 	 * @param list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}> $closures
 	 */
-	protected function onClosure(ExprClosure|ArrowFunction $node, ParametersAcceptor $type): array {
+	protected function onClosure($node, ParametersAcceptor $type): array {
 		/** @var array<string, Param> */
 		$paramNodesByName = [];
 		foreach ($node->getParams() as $param) {
@@ -375,10 +369,7 @@ class PHPStanVSCodeTreeFetcherCollector {
 		/** @var list<CollectedData> $data */
 		$data = [];
 
-		$data = [
-			...$data,
-			...$this->processFunctionTrackings($node, $scope)
-		];
+		$data = array_merge($data, $this->processFunctionTrackings($node, $scope));
 
 		if ($node instanceof InForeachNode) {
 			$keyVar = $node->getOriginalNode()->keyVar;
