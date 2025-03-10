@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 3.2.22
+
+-   `TreeFetcher.php` now no longer contains PHP 7.4+ code
+
 ## 3.2.21
 
 -   Pass docker environment variables to docker process
