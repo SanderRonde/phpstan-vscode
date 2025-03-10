@@ -26,5 +26,6 @@ test/scratchpad
 test/cacheDir
 **/reported.json
 user_config.json
+test/cache/phpstan
 
 _config
