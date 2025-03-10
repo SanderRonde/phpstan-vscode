@@ -14,8 +14,8 @@ import {
 	CLIENT_PREFIX,
 } from './lib/log';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
-import { registerEditorConfigurationListener } from './lib/editorConfig';
 import { debug, initDebugReceiver } from './notificationReceivers/debug';
+import { registerEditorConfigurationListener } from './lib/editorConfig';
 import { DocumentManager } from './notificationSenders/documentManager';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';

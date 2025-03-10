@@ -222,12 +222,12 @@
 				"title": "Launch setup"
 			},
 			{
-				"command": "phpstan.showOutputChannel",
-				"title": "Show output channel"
-			},
-			{
 				"command": "phpstan.downloadDebugData",
 				"title": "Download debug data"
+			},
+			{
+				"command": "phpstan.showOutputChannel",
+				"title": "Show output channel"
 			},
 			{
 				"command": "cmd.phpstan.scanFileForErrors",
@@ -309,11 +309,11 @@
 					"when": "false"
 				},
 				{
-					"command": "phpstan.showOutputChannel",
+					"command": "phpstan.downloadDebugData",
 					"when": "false"
 				},
 				{
-					"command": "phpstan.downloadDebugData",
+					"command": "phpstan.showOutputChannel",
 					"when": "false"
 				},
 				{

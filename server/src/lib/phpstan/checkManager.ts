@@ -226,8 +226,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			timeout: editorConfig.projectTimeout,
 			onError: async (error) => {
 				await check.dispose();
-				void log(
-					this._classConfig.connection,
+				log(
 					checkPrefix(check),
 					`PHPStan check exited with error: ${error.message}`
 				);
@@ -296,8 +295,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			timeout: editorConfig.timeout,
 			onError: async (error) => {
 				await check.dispose();
-				void log(
-					this._classConfig.connection,
+				log(
 					checkPrefix(check),
 					`PHPStan check exited with error: ${error.message}`
 				);
