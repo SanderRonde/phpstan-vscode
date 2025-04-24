@@ -106,7 +106,11 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		error: PHPStanError
 	): vscode.Diagnostic {
 		if (this._diagnosticMap.has(error)) {
-			return this._diagnosticMap.get(error)!;
+			const diagnostic = this._diagnosticMap.get(error)!;
+			if (!diagnostic.range.isEqual(range)) {
+				diagnostic.range = range;
+			}
+			return diagnostic;
 		}
 
 		const tip = error.tip
