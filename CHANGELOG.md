@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.1
+
+-   Add command for clearing errors
+
 ## 4.0.0
 
 -   Resolve config files relative to the file that is being checked, allowing for multiple config files in the project.
