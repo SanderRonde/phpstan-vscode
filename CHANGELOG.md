@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.2
+
+-   Recalculate diagnostic line range when file is opened
+
 ## 4.0.1
 
 -   Add command for clearing errors
