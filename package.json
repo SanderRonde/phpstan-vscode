@@ -190,6 +190,10 @@
 				"title": "Scan current file for errors"
 			},
 			{
+				"command": "phpstan.clearErrors",
+				"title": "Clear errors"
+			},
+			{
 				"command": "phpstan.scanProjectForErrors",
 				"title": "Scan project for errors"
 			},
@@ -220,6 +224,10 @@
 			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
+			},
+			{
+				"command": "cmd.phpstan.clearErrors",
+				"title": "PHPStan: Clear errors"
 			},
 			{
 				"command": "cmd.phpstan.scanProjectForErrors",
@@ -257,6 +265,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.clearErrors",
+					"when": "false"
+				},
+				{
 					"command": "phpstan.scanProjectForErrors",
 					"when": "false"
 				},
@@ -286,6 +298,10 @@
 				},
 				{
 					"command": "cmd.phpstan.scanFileForErrors",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.clearErrors",
 					"when": "true"
 				},
 				{

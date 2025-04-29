@@ -31,11 +31,7 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	public constructor(client: LanguageClient) {
 		this._disposables.push(
 			client.onNotification(errorNotification, (params) => {
-				this._errors = {
-					fileSpecificErrors: new Map(),
-					notFileSpecificErrors: [],
-				};
-				this._diagnosticsCollection.clear();
+				this.clearErrors();
 				for (const uri in params.diagnostics.fileSpecificErrors) {
 					this._errors.fileSpecificErrors.set(
 						uri,
@@ -292,6 +288,14 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	): vscode.ProviderResult<vscode.CodeAction> {
 		codeAction.resolveEdit();
 		return codeAction;
+	}
+
+	public clearErrors(): void {
+		this._errors = {
+			fileSpecificErrors: new Map(),
+			notFileSpecificErrors: [],
+		};
+		this._diagnosticsCollection.clear();
 	}
 
 	public dispose(): void {

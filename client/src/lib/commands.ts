@@ -156,6 +156,14 @@ export function registerListeners(
 
 	context.subscriptions.push(
 		autoRegisterCommand(
+			Commands.CLEAR_ERRORS,
+			() => errorManager.clearErrors(),
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
 			Commands.DOWNLOAD_DEBUG_DATA,
 			async () => {
 				const debugData = getDebugData();

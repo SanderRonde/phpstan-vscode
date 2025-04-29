@@ -13,11 +13,16 @@ export enum Commands {
 	OPEN_PHPSTAN_PRO = 'phpstan.openPhpstanPro',
 	LAUNCH_SETUP = 'phpstan.launchSetup',
 	DOWNLOAD_DEBUG_DATA = 'phpstan.downloadDebugData',
+	CLEAR_ERRORS = 'phpstan.clearErrors',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
 	[Commands.SCAN_FILE_FOR_ERRORS]: {
 		title: 'Scan current file for errors',
+		inCommandPalette: true,
+	},
+	[Commands.CLEAR_ERRORS]: {
+		title: 'Clear errors',
 		inCommandPalette: true,
 	},
 	[Commands.SCAN_PROJECT]: {
