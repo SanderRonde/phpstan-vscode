@@ -1,7 +1,4 @@
-import {
-	getEditorConfiguration,
-	registerEditorConfigurationListener,
-} from './lib/editorConfig';
+import { ConfigResolveLanguageStatus } from './notificationReceivers/configResolveLanguageStatus';
 import {
 	getInstallationConfig,
 	writeInstallationConfig,
@@ -18,6 +15,7 @@ import {
 } from './lib/log';
 import { LanguageClient, TransportKind } from 'vscode-languageclient/node';
 import { debug, initDebugReceiver } from './notificationReceivers/debug';
+import { registerEditorConfigurationListener } from './lib/editorConfig';
 import { DocumentManager } from './notificationSenders/documentManager';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';
@@ -94,15 +92,18 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const errorManager = new ErrorManager(client);
 	const proManager = new PHPStanProManager(client);
 	const zombieKiller = new ZombieKiller(client, context);
+	const configResolveLanguageStatus = new ConfigResolveLanguageStatus(client);
 
-	registerListeners(context, client, errorManager, proManager);
+	registerListeners(context, client, errorManager, proManager, outputChannel);
 	registerEditorConfigurationListener(context, client);
 	context.subscriptions.push(
 		statusBar,
 		watcher,
 		errorManager,
 		proManager,
-		zombieKiller
+		zombieKiller,
+		configResolveLanguageStatus,
+		outputChannel
 	);
 
 	let wasReady = false;
@@ -131,27 +132,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		})
 	);
 	log(context, CLIENT_PREFIX, 'Initializing done');
-
-	void (async () => {
-		if (
-			workspace.workspaceFolders &&
-			workspace.workspaceFolders?.length > 1 &&
-			!getEditorConfiguration().get('phpstan.suppressWorkspaceMessage')
-		) {
-			const SUPPRESS_OPTION = "Don't show again";
-			const choice = await window.showWarningMessage(
-				`PHPStan extension only supports single-workspace projects, it'll only use the first workspace folder (${workspace.workspaceFolders[0].name}`,
-				SUPPRESS_OPTION
-			);
-			if (choice === SUPPRESS_OPTION) {
-				await getEditorConfiguration().update(
-					'phpstan.suppressWorkspaceMessage',
-					true
-				);
-			}
-		}
-	})();
-
 	log(context, CLIENT_PREFIX, 'Showing one-time messages (if needed)');
 	const installationConfig = await getInstallationConfig(context);
 	const version = (context.extension.packageJSON as { version: string })

@@ -9,6 +9,16 @@ php/vendor
 test/demo/vendor
 test/demo/cache
 test/demo/reported.json
+cache/phpstan
+test/multi-config-demo/vendor
+test/multi-config-demo/cache
+test/multi-config-demo/reported.json
+test/multi-workspace-demo/primary/vendor
+test/multi-workspace-demo/primary/cache
+test/multi-workspace-demo/secondary/vendor
+test/multi-workspace-demo/secondary/cache
+test/exclude-config-demo/vendor
+test/exclude-config-demo/cache
 test/demo.2/vendor
 test/demo.2/cache
 test/demo.2/reported.json
@@ -16,5 +26,6 @@ test/scratchpad
 test/cacheDir
 **/reported.json
 user_config.json
+test/cache/phpstan
 
 _config

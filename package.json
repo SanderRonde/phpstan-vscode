@@ -2,7 +2,7 @@
 	"name": "phpstan-vscode",
 	"displayName": "phpstan",
 	"description": "PHPStan inline error provider",
-	"version": "3.2.22",
+	"version": "4.0.0",
 	"engines": {
 		"vscode": "^1.64.0",
 		"node": ">=14.16.0"
@@ -71,7 +71,7 @@
 						"backend/phpstan.neon",
 						"phpstan.neon,phpstan.neon.dist"
 					],
-					"description": "Path to the config file (use a comma-separated list to resolve in order)"
+					"description": "Filename or path to the config file (use a comma-separated list to resolve in order)"
 				},
 				"phpstan.paths": {
 					"type": "object",
@@ -198,6 +198,10 @@
 				"title": "Scan project for errors"
 			},
 			{
+				"command": "phpstan.scanCurrentProjectForErrors",
+				"title": "Scan current project for errors"
+			},
+			{
 				"command": "phpstan.reload",
 				"title": "Reload language server"
 			},
@@ -222,6 +226,10 @@
 				"title": "Download debug data"
 			},
 			{
+				"command": "phpstan.showOutputChannel",
+				"title": "Show output channel"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
 			},
@@ -232,6 +240,10 @@
 			{
 				"command": "cmd.phpstan.scanProjectForErrors",
 				"title": "PHPStan: Scan project for errors"
+			},
+			{
+				"command": "cmd.phpstan.scanCurrentProjectForErrors",
+				"title": "PHPStan: Scan current project for errors"
 			},
 			{
 				"command": "cmd.phpstan.reload",
@@ -273,6 +285,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.scanCurrentProjectForErrors",
+					"when": "false"
+				},
+				{
 					"command": "phpstan.reload",
 					"when": "false"
 				},
@@ -297,6 +313,10 @@
 					"when": "false"
 				},
 				{
+					"command": "phpstan.showOutputChannel",
+					"when": "false"
+				},
+				{
 					"command": "cmd.phpstan.scanFileForErrors",
 					"when": "true"
 				},
@@ -306,6 +326,10 @@
 				},
 				{
 					"command": "cmd.phpstan.scanProjectForErrors",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.scanCurrentProjectForErrors",
 					"when": "true"
 				},
 				{
@@ -401,6 +425,11 @@
 		"vscode-test": "^1.6.1"
 	},
 	"dependencies": {
-		"ps-tree": "^1.2.0"
+		"@vscode/extension-telemetry": "^0.9.7",
+		"chokidar": "^3.6.0",
+		"neon-js": "^1.1.2",
+		"ps-node": "^0.1.6",
+		"ps-tree": "^1.2.0",
+		"tmp-promise": "^3.0.3"
 	}
 }

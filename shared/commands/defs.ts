@@ -7,6 +7,7 @@ import type {
 export enum Commands {
 	SCAN_FILE_FOR_ERRORS = 'phpstan.scanFileForErrors',
 	SCAN_PROJECT = 'phpstan.scanProjectForErrors',
+	SCAN_CURRENT_PROJECT = 'phpstan.scanCurrentProjectForErrors',
 	RELOAD = 'phpstan.reload',
 	NEXT_ERROR = 'phpstan.nextError',
 	PREVIOUS_ERROR = 'phpstan.previousError',
@@ -14,6 +15,7 @@ export enum Commands {
 	LAUNCH_SETUP = 'phpstan.launchSetup',
 	DOWNLOAD_DEBUG_DATA = 'phpstan.downloadDebugData',
 	CLEAR_ERRORS = 'phpstan.clearErrors',
+	SHOW_OUTPUT_CHANNEL = 'phpstan.showOutputChannel',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -27,6 +29,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.SCAN_PROJECT]: {
 		title: 'Scan project for errors',
+		inCommandPalette: true,
+	},
+	[Commands.SCAN_CURRENT_PROJECT]: {
+		title: 'Scan current project for errors',
 		inCommandPalette: true,
 	},
 	[Commands.RELOAD]: {
@@ -52,6 +58,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	[Commands.DOWNLOAD_DEBUG_DATA]: {
 		title: 'Download debug data',
 		inCommandPalette: true,
+	},
+	[Commands.SHOW_OUTPUT_CHANNEL]: {
+		title: 'Show output channel',
+		inCommandPalette: false,
 	},
 };
 
@@ -92,7 +102,7 @@ export const config = {
 				'phpstan.neon,phpstan.neon.dist',
 			],
 			description:
-				'Path to the config file (use a comma-separated list to resolve in order)',
+				'Filename or path to the config file (use a comma-separated list to resolve in order)',
 		},
 	},
 	'phpstan.paths': {

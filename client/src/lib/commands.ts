@@ -19,7 +19,8 @@ export function registerListeners(
 	context: vscode.ExtensionContext,
 	client: LanguageClient,
 	errorManager: ErrorManager,
-	phpstanProManager: PHPStanProManager
+	phpstanProManager: PHPStanProManager,
+	outputChannel: vscode.OutputChannel
 ): void {
 	context.subscriptions.push(
 		autoRegisterCommand(
@@ -59,7 +60,28 @@ export function registerListeners(
 			Commands.SCAN_PROJECT,
 			async () => {
 				await client.sendNotification(watcherNotification, {
+					operation: 'checkAllProjects',
+				});
+			},
+			commands
+		)
+	);
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.SCAN_CURRENT_PROJECT,
+			async () => {
+				await client.sendNotification(watcherNotification, {
 					operation: 'checkProject',
+					file: vscode.window.activeTextEditor
+						? {
+								content:
+									vscode.window.activeTextEditor.document.getText(),
+								uri: vscode.window.activeTextEditor.document.uri.toString(),
+								languageId:
+									vscode.window.activeTextEditor.document
+										.languageId,
+							}
+						: null,
 				});
 			},
 			commands
@@ -138,6 +160,14 @@ export function registerListeners(
 		autoRegisterCommand(
 			Commands.LAUNCH_SETUP,
 			() => launchSetup(client),
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.SHOW_OUTPUT_CHANNEL,
+			() => outputChannel.show(),
 			commands
 		)
 	);

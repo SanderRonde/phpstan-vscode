@@ -13,7 +13,11 @@ import { window, workspace } from 'vscode';
 import { CLIENT_PREFIX, log } from './log';
 
 export function getEditorConfiguration(): TypedWorkspaceConfiguration<
-	ConfigSettings & ExternalConfigSettings
+	ConfigSettings &
+		ExternalConfigSettings & {
+			'files.exclude'?: Record<string, boolean>;
+			'search.exclude'?: Record<string, boolean>;
+		}
 > {
 	const document = window.activeTextEditor?.document;
 
@@ -47,6 +51,7 @@ export function registerEditorConfigurationListener(
 
 		await client.sendNotification(watcherNotification, {
 			operation: 'onConfigChange',
+			file: null,
 		});
 
 		if (e.affectsConfiguration('phpstan.paths')) {

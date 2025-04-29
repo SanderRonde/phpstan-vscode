@@ -13,7 +13,7 @@ export async function getEditorConfiguration(
 	>
 ): Promise<Omit<ConfigSettingsWithoutPrefix, 'enableLanguageServer'>> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
-	const scope = workspaceFolders?.default.toString();
+	const scope = workspaceFolders?.default?.toString();
 
 	const editorConfig = {
 		...((await classConfig.connection.workspace.getConfiguration({
@@ -70,7 +70,7 @@ export async function getDockerEnvironment(
 	classConfig: Pick<ClassConfig, 'connection' | 'workspaceFolders'>
 ): Promise<Record<string, string> | null> {
 	const workspaceFolders = await classConfig.workspaceFolders.get();
-	const scope = workspaceFolders?.default.toString();
+	const scope = workspaceFolders?.default?.toString();
 	const editorConfig = {
 		...((await classConfig.connection.workspace.getConfiguration({
 			scopeUri: scope,
