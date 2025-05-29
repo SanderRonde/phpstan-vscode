@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.3
+
+-   Fix issue where on-hover-info fetcher was broken when using implicit parameters in getters/setters.
+
 ## 4.0.2
 
 -   Recalculate diagnostic line range when file is opened
