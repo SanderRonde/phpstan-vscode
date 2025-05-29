@@ -3,7 +3,6 @@
 use PhpParser\Node;
 use PhpParser\Node\Expr\ArrowFunction;
 use PhpParser\Node\Expr\Assign;
-use PhpParser\Node\Expr\Closure as ExprClosure;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\FunctionLike;
@@ -282,6 +281,10 @@ class PHPStanVSCodeTreeFetcherCollector {
 			return null;
 		}
 
+		if ($node->getStartFilePos() === -1 || $node->getEndFilePos() === -1) {
+			return null;
+		}
+
 		return [
 			'typeDescr' => $typeDescr,
 			'name' => $varName,
@@ -312,6 +315,10 @@ class PHPStanVSCodeTreeFetcherCollector {
 			}
 
 			$typeDescr = $parameter->getType()->describe(VerbosityLevel::precise());
+			if ($paramNode->getStartFilePos() === -1 || $paramNode->getEndFilePos() === -1) {
+				// Implicit parameter
+				continue;
+			}
 
 			$data[] = [
 				'typeDescr' => $typeDescr,
@@ -346,6 +353,10 @@ class PHPStanVSCodeTreeFetcherCollector {
 
 				$typeDescr = $parameter->getType()->describe(VerbosityLevel::precise());
 
+				if ($paramNode->getStartFilePos() === -1 || $paramNode->getEndFilePos() === -1) {
+					// Implicit parameter
+					continue;
+				}
 				$data[] = [
 					'typeDescr' => $typeDescr,
 					'name' => $parameter->getName(),
