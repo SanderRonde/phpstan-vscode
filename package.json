@@ -429,7 +429,6 @@
 		"chokidar": "^3.6.0",
 		"neon-js": "^1.1.2",
 		"ps-node": "^0.1.6",
-		"ps-tree": "^1.2.0",
-		"tmp-promise": "^3.0.3"
+		"ps-tree": "^1.2.0"
 	}
 }
