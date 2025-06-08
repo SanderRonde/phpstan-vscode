@@ -159,14 +159,23 @@ export class ParsedConfigFile {
 		}
 
 		const configFileDir = path.dirname(this.filePath);
+		const safeFnmatch = (pattern: string, string: string): boolean => {
+			try {
+				return fnmatch(pattern, string);
+			} catch (e) {
+				// The file/folder does not exist
+				return false;
+			}
+		};
+
 		for (const excludePath of this.excludePaths) {
-			if (fnmatch(path.join(configFileDir, excludePath), filePath)) {
+			if (safeFnmatch(path.join(configFileDir, excludePath), filePath)) {
 				return false;
 			}
 		}
 
 		for (const includePath of this.paths) {
-			if (fnmatch(path.join(configFileDir, includePath), filePath)) {
+			if (safeFnmatch(path.join(configFileDir, includePath), filePath)) {
 				return true;
 			}
 		}
