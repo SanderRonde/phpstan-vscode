@@ -248,6 +248,10 @@ export function getPathMapper(
 		const expandedFilePath = filePath.replace(/^~/, os.homedir());
 		// eslint-disable-next-line prefer-const
 		for (let [fromPath, toPath] of Object.entries(pathMapping)) {
+			if (fromPath === '' || toPath === '') {
+				continue;
+			}
+
 			if (!path.isAbsolute(fromPath) && workspaceRoot) {
 				fromPath = path.join(workspaceRoot, fromPath);
 			}

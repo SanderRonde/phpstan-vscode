@@ -1,0 +1,8 @@
+/vendor/
+.env
+.env.*
+!.env.example
+composer.lock
+.idea/
+.vscode/
+*.log 

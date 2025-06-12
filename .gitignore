@@ -19,6 +19,8 @@ test/multi-workspace-demo/secondary/vendor
 test/multi-workspace-demo/secondary/cache
 test/exclude-config-demo/vendor
 test/exclude-config-demo/cache
+test/docker/app/vendor
+test/docker/app/cache
 test/demo.2/vendor
 test/demo.2/cache
 test/demo.2/reported.json
