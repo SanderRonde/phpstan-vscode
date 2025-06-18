@@ -320,7 +320,7 @@ export class ConfigurationManager {
 				? await ConfigurationManager.applyPathMapping(
 						classConfig,
 						configFile,
-						cwd
+						workspaceRoot
 					)
 				: null,
 			args: extensionConfig.options ?? [],
