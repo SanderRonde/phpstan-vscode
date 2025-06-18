@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.5
+
+-   Fix path mapping issue when combining a docker setup with a non-default `rootDir`
+
 ## 4.0.4
 
 -   Fix issue where config files that don't exist would throw an error
