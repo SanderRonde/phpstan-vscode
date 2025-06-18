@@ -1,0 +1,11 @@
+{
+    "name": "demo/phpstan-test",
+    "description": "Demo project for PHPStan VSCode testing",
+    "type": "project",
+    "require": {
+        "php": "^8.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.10"
+    }
+} 

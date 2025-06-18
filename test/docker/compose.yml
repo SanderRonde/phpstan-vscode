@@ -1,0 +1,6 @@
+services:
+  php:
+    image: php-app:latest
+    volumes:
+      - ./app:/app
+    container_name: api-php-1 
