@@ -635,6 +635,13 @@ class DockerSetupSteps extends SetupSteps {
 			['ps', '-a', '--format', '{{json .Names}}'],
 			getEditorConfiguration().get('docker.environment')
 		);
+		if (!success) {
+			void window.showWarningMessage(
+				'Failed to get docker containers (`docker ps` failed), please check the status of the docker daemon and your permissions.'
+			);
+			return (input) => this._dockerContainerNameStep(input, next);
+		}
+
 		const dockerContainers = success
 			? stdout
 					.trim()
