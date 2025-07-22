@@ -71,7 +71,7 @@ jobs:
     if: github.event.inputs.publishMS == 'true'
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.package.outputs.packageName }}
       - name: Publish to VS marketplace
@@ -84,7 +84,7 @@ jobs:
     if: github.event.inputs.publishOVSX == 'true'
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.package.outputs.packageName }}
       - name: Publish to Open VSX
@@ -96,7 +96,7 @@ jobs:
     needs: package
     if: github.event.inputs.publishGH == 'true'
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           name: ${{ needs.package.outputs.packageName }}
 
