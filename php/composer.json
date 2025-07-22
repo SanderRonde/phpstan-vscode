@@ -1,7 +1,7 @@
 {
 	"name": "sander/php",
 	"require": {
-		"phpstan/phpstan": "^1.12",
+		"phpstan/phpstan": "2.1.18",
 		"nikic/php-parser": "^4.14"
 	},
 	"autoload": {

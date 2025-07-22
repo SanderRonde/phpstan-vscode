@@ -1,7 +1,7 @@
 {
 	"name": "sander/demo",
 	"require": {
-		"phpstan/phpstan": "2.0.2"
+		"phpstan/phpstan": "2.1.18"
 	},
 	"autoload": {
 		"psr-4": {
