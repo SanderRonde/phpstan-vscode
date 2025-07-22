@@ -47,7 +47,7 @@ jobs:
 
       - name: Package
         run: |
-          npx vsce package --out ${{ steps.setup.outputs.packageName }}
+          npx vsce package --out ${{ steps.setup.outputs.packageName }} --no-yarn
 
       - uses: actions/upload-artifact@v4
         with:
