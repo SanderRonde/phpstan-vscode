@@ -36,8 +36,10 @@ jobs:
           node-version: 14
           registry-url: https://registry.npmjs.org/
 
+      - uses: oven-sh/setup-bun@v1
+
       - name: Install dependencies
-        run: npm i
+        run: bun install
 
       - name: Setup package path
         id: setup
