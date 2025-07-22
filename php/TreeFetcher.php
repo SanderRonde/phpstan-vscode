@@ -149,7 +149,7 @@ class PHPStanVSCodeTreeFetcher implements Rule {
  * }
  * @implements Collector<Node, list<CollectedData>>
  */
-class PHPStanVSCodeTreeFetcherCollector {
+class PHPStanVSCodeTreeFetcherCollector implements Collector {
 	/** @var list<array{ClosureType, list<array{startPos: int, endPos: int, isUsed: false, closureNode: Closure|ArrowFunction}}}>> */
 	private $closureTypeToNode = [];
 
