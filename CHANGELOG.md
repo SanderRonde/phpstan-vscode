@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.6
+
+-   Fix issue where PHPStan 2.1.18 would throw an error
+
 ## 4.0.5
 
 -   Fix path mapping issue when combining a docker setup with a non-default `rootDir`
