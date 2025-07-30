@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.7
+
+-   Make `showTypeOnHover` setting work with Docker setups
+
 ## 4.0.6
 
 -   Fix issue where PHPStan 2.1.18 would throw an error
