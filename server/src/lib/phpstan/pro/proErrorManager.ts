@@ -114,7 +114,9 @@ export class PHPStanProErrorManager implements Disposable {
 
 		// eslint-disable-next-line @typescript-eslint/no-misused-promises
 		this._wsClient.on('open', async () => {
-			await this._classConfig.hooks.provider.onCheckDone();
+			await this._classConfig.hooks.provider.onCheckDone(
+				this._classConfig
+			);
 
 			void this._applyErrors();
 		});
@@ -130,7 +132,9 @@ export class PHPStanProErrorManager implements Disposable {
 
 			const onAnalysisDone = async (): Promise<void> => {
 				if (checkOperation) {
-					await this._classConfig.hooks.provider.onCheckDone();
+					await this._classConfig.hooks.provider.onCheckDone(
+						this._classConfig
+					);
 					await checkOperation.finish(OperationStatus.SUCCESS);
 					checkOperation = null;
 				}

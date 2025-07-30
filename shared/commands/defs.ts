@@ -199,7 +199,7 @@ export const config = {
 		jsonDefinition: {
 			type: 'boolean',
 			description:
-				'Show type information on hover. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker) or if you run into caching problems. Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
+				'Show type information on hover. Disable this if you run into caching problems. Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
 			default: false,
 		},
 	},
@@ -207,7 +207,7 @@ export const config = {
 		jsonDefinition: {
 			type: 'boolean',
 			description:
-				'Enable language server that provides on-hover type information. Disable this if you have a custom PHPStan binary that runs on another filesystem (such as Docker) or if you run into caching problems. Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
+				'Enable language server that provides on-hover type information. Disable this if you run into caching problems. Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
 			default: false,
 			deprecationMessage: 'Use phpstan.showTypeOnHover instead',
 		},

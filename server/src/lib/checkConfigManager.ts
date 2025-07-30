@@ -364,6 +364,7 @@ export class ConfigurationManager {
 		return checkConfig.getBinCommand(
 			await classConfig.hooks.provider.transformArgs(
 				checkConfig,
+				classConfig,
 				args,
 				checkConfig.operation
 			)

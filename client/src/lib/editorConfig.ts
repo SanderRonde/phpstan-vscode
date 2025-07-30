@@ -54,19 +54,7 @@ export function registerEditorConfigurationListener(
 			file: null,
 		});
 
-		if (e.affectsConfiguration('phpstan.paths')) {
-			const editorConfig = getEditorConfiguration();
-			const paths = editorConfig.get('phpstan.paths');
-			if (
-				(editorConfig.get('phpstan.showTypeOnHover') ||
-					editorConfig.get('phpstan.enableLanguageServer')) &&
-				Object.keys(paths).length > 0
-			) {
-				await window.showWarningMessage(
-					'On-hover type information is disabled when the paths setting is being used'
-				);
-			}
-		} else if (
+		if (
 			e.affectsConfiguration('phpstan.pro') ||
 			e.affectsConfiguration('phpstan.proTmpDir') ||
 			(e.affectsConfiguration('phpstan.enabled') &&

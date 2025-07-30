@@ -359,7 +359,9 @@ export class PHPStanRunner implements AsyncDisposable {
 					if (editorConfig.singleFileMode) {
 						log(prefix, 'PHPStan found no files to analyse');
 
-						await this._classConfig.hooks.provider.onCheckDone();
+						await this._classConfig.hooks.provider.onCheckDone(
+							this._classConfig
+						);
 
 						resolve(
 							ReturnResult.success({
@@ -424,7 +426,9 @@ export class PHPStanRunner implements AsyncDisposable {
 
 				log(prefix, 'PHPStan process exited succesfully');
 
-				await this._classConfig.hooks.provider.onCheckDone();
+				await this._classConfig.hooks.provider.onCheckDone(
+					this._classConfig
+				);
 
 				const stdout = getData();
 				try {
