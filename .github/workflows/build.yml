@@ -24,6 +24,9 @@ jobs:
 
             - uses: oven-sh/setup-bun@v1
 
+            - name: Disable Corepack
+              run: corepack disable
+
             - name: Install
               run: bun devBun
 
