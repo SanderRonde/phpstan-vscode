@@ -1,0 +1,29 @@
+{
+    "phpstan.singleFileMode": false,
+    "phpstan.binPath": "vendor/bin/phpstan",
+    "phpstan.binCommand": [],
+    "phpstan.configFile": "phpstan.neon",
+    "phpstan.dockerContainerName": "api-php-1",
+    // "phpstan.rootDir": "app",
+    "phpstan.rootDir": "app",
+    "phpstan.options": [],
+    "phpstan.enableStatusBar": true,
+    "phpstan.memoryLimit": "1G",
+    "phpstan.enabled": true,
+    "phpstan.projectTimeout": 300000,
+    "phpstan.timeout": 300000,
+    "phpstan.suppressTimeoutMessage": false,
+    "phpstan.showProgress": false,
+    "phpstan.showTypeOnHover": false,
+    "phpstan.ignoreErrors": [
+        "Xdebug: .*"
+    ],
+    "phpstan.suppressWorkspaceMessage": false,
+    "phpstan.pro": false,
+    "phpstan.tmpDir": "",
+    "phpstan.checkValidity": false,
+    "phpstan.paths": {
+        "": ""
+    },
+    "phpstan.enableLanguageServer": false
+} 
