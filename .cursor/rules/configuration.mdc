@@ -1,0 +1,64 @@
+---
+description: Extension configuration and settings
+---
+
+# PHPStan Extension Configuration
+
+## User-facing Configuration
+
+All configuration options are defined in [package.json](mdc:package.json) under `contributes.configuration.properties`.
+
+### Main Settings
+
+-   **phpstan.binPath** - Path to PHPStan binary (default: `vendor/bin/phpstan`)
+-   **phpstan.binCommand** - Command array to run PHPStan (alternative to binPath)
+-   **phpstan.configFile** - PHPStan config file(s) (supports comma-separated list for fallbacks)
+-   **phpstan.rootDir** - Project root directory
+-   **phpstan.pro** - Enable PHPStan Pro support (requires license)
+
+### Performance Settings
+
+-   **phpstan.singleFileMode** - Only scan changed file (not recommended, busts cache)
+-   **phpstan.memoryLimit** - Memory limit for PHPStan (default: `1G`)
+-   **phpstan.projectTimeout** - Timeout for full project scan (default: 300000ms)
+-   **phpstan.timeout** - Timeout for single file check (default: 300000ms)
+
+### Docker/Path Mapping
+
+-   **phpstan.dockerContainerName** - Docker container to use
+-   **phpstan.paths** - Path mapping object for Docker/remote development
+    -   Example: `{ "/host/path": "/container/path" }`
+
+### UI Settings
+
+-   **phpstan.enableStatusBar** - Show status bar during scans
+-   **phpstan.showProgress** - Show progress bar for single-file checks
+-   **phpstan.showTypeOnHover** - Enable hover type information (requires PHPStan >= 1.8.0)
+-   **phpstan.enabled** - Enable/disable the extension
+
+### Advanced Settings
+
+-   **phpstan.options** - Extra CLI options array (supports `${workspaceFolder}`)
+-   **phpstan.tmpDir** - Custom PHPStan temp directory
+-   **phpstan.ignoreErrors** - Regex array to ignore stderr messages
+-   **phpstan.checkValidity** - Pre-check PHP syntax (useful with auto-save)
+
+## Configuration Implementation
+
+Configuration is handled in [shared/config.ts](mdc:shared/config.ts) with TypeScript types.
+
+## Modifying Configuration
+
+1. Edit command definitions in [shared/commands/defs.ts](mdc:shared/commands/defs.ts) if adding commands
+2. Run `bun generate-package` to update [package.json](mdc:package.json)
+3. Update [shared/config.ts](mdc:shared/config.ts) if adding config types
+4. Configuration is validated on the server side
+
+## Variable Substitution
+
+The extension supports `${workspaceFolder}` substitution in:
+
+-   `phpstan.options`
+-   Other path-related settings
+
+Implementation is in [shared/variables.ts](mdc:shared/variables.ts).

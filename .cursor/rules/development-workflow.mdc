@@ -1,0 +1,107 @@
+---
+alwaysApply: true
+---
+
+# Development Workflow
+
+## Getting Started
+
+Run `bun dev` to set up the development environment. This will:
+
+1. Install all JavaScript dependencies (root, client, server)
+2. Install PHP dependencies via Composer
+3. Clone PHPStan source for development
+
+Prerequisites:
+
+-   `bun` installed
+-   `composer` installed
+-   `git` installed
+
+## Package Manager
+
+**IMPORTANT**: This project uses **Bun**, not npm or yarn.
+
+-   Install dependencies: `bun install`
+-   Run scripts: `bun <script-name>`
+-   Install in all workspaces: `bun devBun`
+
+## Building
+
+### Development Build
+
+```bash
+bun build-debug          # Build with debugging enabled
+bun build-debug:main     # Build client and server in debug mode
+```
+
+### Production Build
+
+```bash
+bun build                # Production build
+bun compile              # Type check only (no output)
+```
+
+### Watch Mode
+
+```bash
+bun watch                # Watch TypeScript changes
+```
+
+## Running the Extension
+
+Use VS Code's built-in debugger:
+
+-   **Launch Client** - Run the extension
+-   **Client + Server** - Run with server debugger attached
+
+See `.vscode/launch.json` for debug configurations.
+
+## Pre-commit Checks
+
+Before committing, the following should pass:
+
+```bash
+bun generate-package     # Regenerate package.json from commands
+bun format-staged        # Format staged files
+bun lint --fix           # Lint and fix issues
+bun compile              # Type check
+```
+
+Or run the complete pre-push check:
+
+```bash
+bun prepush
+```
+
+## Publishing
+
+### Create Package
+
+```bash
+bun package              # Create .vsix file for production
+bun package-dev          # Create .vsix with debug variant
+```
+
+### Before Publishing
+
+The `prepack` script runs automatically and checks:
+
+1. Package.json is generated
+2. Code is formatted (Prettier)
+3. No lint errors
+4. TypeScript compiles
+5. Production build succeeds
+
+## Testing PHPStan Plugin
+
+Test the PHPStan hover data collector directly:
+
+```bash
+php/vendor/bin/phpstan analyze -c php/config.neon -a php/TreeFetcher.php --debug test/demo/php/DemoClass.php
+```
+
+## Knip - Unused Code Detection
+
+Run `bun knip` to find unused code, dependencies, and exports.
+Configuration in [knip.ts](mdc:knip.ts).

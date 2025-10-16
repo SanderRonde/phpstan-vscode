@@ -1,0 +1,86 @@
+---
+description: Common architectural patterns and communication flows
+---
+
+# Architecture Patterns
+
+## Client-Server Communication
+
+The extension uses **Language Server Protocol** (LSP) via `vscode-languageclient`.
+
+### Communication Channels
+
+Defined in [shared/](mdc:shared/):
+
+-   **[shared/notificationChannels.ts](mdc:shared/notificationChannels.ts)** - One-way notifications (no response)
+-   **[shared/requestChannels.ts](mdc:shared/requestChannels.ts)** - Request-response communication
+
+### Client Side
+
+-   **Senders** in [client/src/notificationSenders/](mdc:client/src/notificationSenders/)
+    -   Send notifications from client to server
+-   **Receivers** in [client/src/notificationReceivers/](mdc:client/src/notificationReceivers/)
+    -   Receive notifications from server to client
+
+### Server Side
+
+Located in [server/src/](mdc:server/src/):
+
+-   **Providers** in [server/src/providers/](mdc:server/src/providers/)
+    -   Implement LSP features (hover, diagnostics, etc.)
+-   Main server logic in [server/src/server.ts](mdc:server/src/server.ts)
+
+## Command Pattern
+
+Commands are the primary way users interact with the extension.
+
+### Command Definition Flow
+
+1. Define command in [shared/commands/defs.ts](mdc:shared/commands/defs.ts)
+2. Run `bun generate-package` to update [package.json](mdc:package.json)
+3. Implement handler in [client/src/lib/commands.ts](mdc:client/src/lib/commands.ts)
+4. Handler is registered in [client/src/extension.ts](mdc:client/src/extension.ts)
+
+### Command Naming Convention
+
+Commands have two versions:
+
+-   `phpstan.*` - Internal commands (hidden from command palette via `when: false`)
+-   `cmd.phpstan.*` - Public commands (shown in command palette)
+
+Example:
+
+-   `phpstan.scanFileForErrors` (internal)
+-   `cmd.phpstan.scanFileForErrors` (public, shows as "PHPStan: Scan current file for errors")
+
+## PHPStan Execution Flow
+
+1. User saves a PHP file or runs a command
+2. Client notifies server of file change/command
+3. Server executes PHPStan binary via child process
+4. PHPStan outputs JSON with errors
+5. Server parses JSON and creates diagnostics
+6. Server sends diagnostics back to client
+7. Client displays errors in editor
+
+## File Watching
+
+The extension uses `chokidar` for file watching:
+
+-   Watches for changes in PHP files
+-   Triggers re-analysis when files change
+-   Can be configured to watch entire project or single files
+
+## Extension Lifecycle
+
+1. **Activation** - Extension activates on PHP file open ([client/src/extension.ts](mdc:client/src/extension.ts))
+2. **Server Start** - Language server starts in separate process
+3. **Initial Scan** - Optional initial project scan
+4. **Watch Mode** - Continuous monitoring of file changes
+5. **Deactivation** - Cleanup on extension close
+
+## Debugging Support
+
+-   Debug data collection via `phpstan.downloadDebugData` command
+-   Output channel for logging (`phpstan.showOutputChannel`)
+-   Telemetry via `@vscode/extension-telemetry` (respects VS Code telemetry settings)

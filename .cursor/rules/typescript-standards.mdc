@@ -1,0 +1,60 @@
+---
+globs: *.ts,*.tsx
+---
+
+# TypeScript Coding Standards
+
+## Compiler Settings
+
+This project uses **strict TypeScript** with the following enabled:
+- `strict: true`
+- `noImplicitReturns: true`
+- `noFallthroughCasesInSwitch: true`
+- `noUnusedParameters: true`
+- `noImplicitOverride: true`
+- Target: ES2020
+- Module: CommonJS
+
+## Code Style
+
+### Formatting
+- Use **Prettier** for all formatting (configured in the project)
+- Run `bun format` to format all files
+- Run `bun format-staged` for staged files only
+- Never manually format code - let Prettier handle it
+
+### Linting
+- Use **ESLint** with strict rules
+- Run `bun lint` to check for issues
+- Run `bun lint --fix` to auto-fix issues
+- Configuration includes:
+  - `@typescript-eslint/eslint-plugin`
+  - `eslint-plugin-prettier`
+  - `eslint-plugin-unused-imports`
+  - `eslint-plugin-node`
+
+## Import Organization
+
+Prettier with `prettier-plugin-sort-imports` handles import sorting automatically:
+- Keep imports organized by groups
+- Let Prettier sort them on save
+
+## Type Safety
+
+- Always prefer explicit types over `any`
+- Use strict null checks
+- Define types in [shared/types.ts](mdc:shared/types.ts) for cross-package usage
+- Use the shared configuration types from [shared/config.ts](mdc:shared/config.ts)
+
+## Development Workflow
+
+1. Make changes to TypeScript files
+2. Run `bun compile` to type check (doesn't emit - `noEmit: true`)
+3. Run `bun build` to actually build the extension
+4. For debugging, use `bun build-debug` for source maps
+
+## Common Patterns
+
+- Client-server communication uses notification and request channels defined in [shared/](mdc:shared/)
+- Commands are defined in [shared/commands/defs.ts](mdc:shared/commands/defs.ts)
+- Use the VS Code API types from `@types/vscode` (pinned to 1.64.0 for compatibility)

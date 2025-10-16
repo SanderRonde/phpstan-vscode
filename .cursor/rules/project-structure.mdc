@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+
+# PHPStan VSCode Extension - Project Structure
+
+This is a VS Code extension that provides PHPStan integration for PHP projects. It's a wrapper around the PHPStan binary that displays errors inline and provides language server features.
+
+## Architecture
+
+This extension follows a **client-server architecture** using the Language Server Protocol:
+
+-   **[client/](mdc:client/)** - VS Code extension client code
+    -   [client/src/extension.ts](mdc:client/src/extension.ts) - Main entry point for the extension
+    -   Handles VS Code API interactions, UI, and user commands
+-   **[server/](mdc:server/)** - Language server implementation
+    -   [server/src/server.ts](mdc:server/src/server.ts) - Main language server entry point
+    -   Handles PHPStan execution, file watching, and diagnostics
+-   **[shared/](mdc:shared/)** - Code shared between client and server
+
+    -   [shared/config.ts](mdc:shared/config.ts) - Configuration types
+    -   [shared/commands/](mdc:shared/commands/) - Command definitions
+    -   [shared/types.ts](mdc:shared/types.ts) - Shared TypeScript types
+
+-   **[php/](mdc:php/)** - PHPStan plugin for collecting hover data
+
+    -   Custom PHPStan extension for type information extraction
+
+-   **[test/](mdc:test/)** - Test files and demo projects
+    -   Contains demo PHP files for testing
+
+## Key Files
+
+-   [package.json](mdc:package.json) - Extension manifest, auto-generated from command definitions
+-   [tsconfig.json](mdc:tsconfig.json) - TypeScript configuration
+-   [knip.ts](mdc:knip.ts) - Unused code detection configuration
+
+## Build System
+
+-   Uses **Bun** as the package manager (not npm/yarn)
+-   Build tool: **esbuild** for bundling
+-   Compiler: **tsc** for type checking
+-   Output directory: `./out/`
+
+## Important Notes
+
+-   The [package.json](mdc:package.json) is **auto-generated** via `generate-package` script
+-   Command definitions are in [shared/commands/defs.ts](mdc:shared/commands/defs.ts)
+-   Always run `bun generate-package` after modifying commands
+-   This extension is NOT affiliated with the PHPStan project - it's a wrapper

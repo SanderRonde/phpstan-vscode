@@ -1,0 +1,137 @@
+---
+description: Common issues and troubleshooting guide
+---
+
+# Troubleshooting & Common Issues
+
+## Extension Scope
+
+**IMPORTANT**: This extension is a wrapper around PHPStan, not PHPStan itself.
+
+### What This Extension CAN Do
+
+-   Display PHPStan errors in VS Code
+-   Watch for file changes and trigger scans
+-   Provide hover type information (with PHPStan >= 1.8.0)
+-   Execute PHPStan with custom configurations
+
+### What This Extension CANNOT Do
+
+-   Fix PHPStan installation issues
+-   Fix parallelization or performance issues
+-   Fix incorrectly reported PHPStan errors
+-   Modify PHPStan's analysis behavior
+
+**Rule of thumb**: If you can run PHPStan on the command line with the same settings and your issue persists, report it to [PHPStan project](https://github.com/phpstan/phpstan/issues), not this extension.
+
+See [CONTRIBUTING.md](mdc:CONTRIBUTING.md) for more details.
+
+## Common Issues
+
+### XDebug Problems
+
+If checks fail with "The Xdebug PHP extension is active, but '--xdebug' is not used":
+
+-   Add Xdebug warnings to `phpstan.ignoreErrors` configuration
+-   Default already includes: `["Xdebug: .*"]`
+-   See GitHub issues #17 and #19 for solutions
+
+### Multi-workspace Support
+
+The extension currently **does not support** checking multiple workspaces:
+
+-   Can use in multi-workspace projects
+-   Only ONE PHPStan configuration can be active
+-   Configure which one using settings (rootDir, configFile, etc.)
+-   See issue #55 for discussion
+
+### Docker/Remote Development
+
+Use path mapping for Docker or remote development:
+
+```json
+"phpstan.paths": {
+    "/path/on/host": "/path/in/container"
+}
+```
+
+Set the Docker container:
+
+```json
+"phpstan.dockerContainerName": "my-php-container"
+```
+
+### Performance Issues
+
+If full project scans are too slow:
+
+-   Increase `phpstan.projectTimeout` (default: 300000ms)
+-   Consider `phpstan.singleFileMode` (not recommended, busts cache)
+-   Check PHPStan configuration for parallelization settings
+-   This is usually a PHPStan issue, not an extension issue
+
+### Cache Problems
+
+If experiencing caching issues:
+
+-   Disable `phpstan.showTypeOnHover`
+-   Check `phpstan.tmpDir` setting
+-   Consider enabling `phpstan.checkValidity` if auto-saving invalid PHP
+
+### Timeout Messages
+
+If constantly hitting timeouts:
+
+-   Increase timeout values in settings
+-   Use `phpstan.suppressTimeoutMessage: true` to hide the error
+-   Check that PHPStan itself runs quickly on command line
+
+## Debugging
+
+### Show Output
+
+Use command: "PHPStan: Show output channel" or `phpstan.showOutputChannel`
+
+### Download Debug Data
+
+Use command: "PHPStan: Download debug data" or `phpstan.downloadDebugData`
+
+### Extension Logging
+
+Check the PHPStan output channel in VS Code for detailed logs
+
+### Test PHPStan Directly
+
+Run PHPStan from command line with same configuration:
+
+```bash
+vendor/bin/phpstan analyze path/to/file.php --configuration phpstan.neon
+```
+
+## Development Issues
+
+### Package.json Out of Sync
+
+If CI fails with package.json diff:
+
+```bash
+bun generate-package
+```
+
+### Build Failures
+
+1. Ensure all dependencies installed: `bun devBun`
+2. Type check: `bun compile`
+3. Build: `bun build`
+
+### Formatting Issues
+
+```bash
+bun format
+```
+
+### Lint Errors
+
+```bash
+bun lint --fix
+```

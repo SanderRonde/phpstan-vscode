@@ -1,0 +1,63 @@
+---
+globs: .github/workflows/*.yml,.github/workflows/*.yaml
+---
+
+# GitHub Workflows
+
+## Build Workflow
+
+[.github/workflows/build.yml](mdc:.github/workflows/build.yml) runs on:
+
+-   Every push (except markdown files)
+-   Monthly schedule
+-   Tag creation
+
+### Build Steps
+
+1. Checkout code
+2. Setup Node.js 20
+3. Setup Bun
+4. Disable Corepack
+5. Install dependencies with `bun devBun`
+6. Check formatting with Prettier
+7. Run ESLint
+8. Type check with TypeScript
+9. Verify package.json is up-to-date
+
+## Publish Workflow
+
+[.github/workflows/publish.yml](mdc:.github/workflows/publish.yml) handles releases.
+
+### Key Points
+
+-   Triggered on version tags or manual dispatch
+-   Builds the `.vsix` package
+-   Publishes to VS Code marketplace
+-   Uses `vsce` for publishing
+
+## CI Requirements
+
+All checks must pass:
+
+-   ✓ Prettier formatting
+-   ✓ ESLint with no errors
+-   ✓ TypeScript compilation
+-   ✓ Generated package.json is up-to-date
+
+## Local CI Simulation
+
+Run the same checks locally:
+
+```bash
+bun devBun                                        # Install
+bun prettier --check client server                # Format check
+bun lint                                          # Lint
+bun compile                                       # Type check
+bun generate-package && git diff --exit-code      # Package check
+```
+
+Or use the pre-push script:
+
+```bash
+bun prepush
+```
