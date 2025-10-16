@@ -92,8 +92,19 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const errorManager = new ErrorManager(client);
 	const proManager = new PHPStanProManager(client);
 	const zombieKiller = new ZombieKiller(client, context);
+	const configResolveLanguageStatus = new ConfigResolveLanguageStatus(
+		context,
+		client
+	);
 
-	registerListeners(context, client, errorManager, proManager, outputChannel);
+	registerListeners(
+		context,
+		client,
+		errorManager,
+		proManager,
+		outputChannel,
+		configResolveLanguageStatus
+	);
 	registerEditorConfigurationListener(context, client);
 	context.subscriptions.push(
 		statusBar,
@@ -101,6 +112,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 		errorManager,
 		proManager,
 		zombieKiller,
+		configResolveLanguageStatus,
 		outputChannel
 	);
 
@@ -113,10 +125,6 @@ export async function activate(context: ExtensionContext): Promise<void> {
 					// First time it's ready, start watching
 					log(context, SERVER_PREFIX, 'Language server started');
 					void watcher.watch();
-
-					const configResolveLanguageStatus =
-						new ConfigResolveLanguageStatus(client);
-					context.subscriptions.push(configResolveLanguageStatus);
 				} else {
 					// Language server was already alive but then died
 					// and restarted. Clear local state that depends

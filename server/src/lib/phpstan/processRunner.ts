@@ -382,37 +382,33 @@ export class PHPStanRunner implements AsyncDisposable {
 						'At least one path must be specified to analyse'
 					)
 				) {
+					const errorMsg =
+						'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode';
 					if (_onError) {
-						_onError(
-							'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode'
-						);
+						_onError(errorMsg);
 					} else {
-						showError(
-							this._classConfig.connection,
-							'PHPStan: No paths specified to analyse, either specify "paths" in your config file or switch to single-file-check mode',
-							[
-								{
-									title: 'View docs for "paths"',
-									callback: () => {
-										void executeCommand(
-											this._classConfig.connection,
-											'vscode.open',
-											'https://phpstan.org/config-reference#analysed-files'
-										);
-									},
+						showError(this._classConfig.connection, errorMsg, [
+							{
+								title: 'View docs for "paths"',
+								callback: () => {
+									void executeCommand(
+										this._classConfig.connection,
+										'vscode.open',
+										'https://phpstan.org/config-reference#analysed-files'
+									);
 								},
-								{
-									title: 'Go to option single-file-check mode option',
-									callback: () => {
-										void executeCommand(
-											this._classConfig.connection,
-											'workbench.action.openSettings',
-											`@ext:${EXTENSION_ID} singleFileMode`
-										);
-									},
+							},
+							{
+								title: 'Go to option single-file-check mode option',
+								callback: () => {
+									void executeCommand(
+										this._classConfig.connection,
+										'workbench.action.openSettings',
+										`@ext:${EXTENSION_ID} singleFileMode`
+									);
 								},
-							]
-						);
+							},
+						]);
 					}
 					resolve(ReturnResult.error());
 					return;

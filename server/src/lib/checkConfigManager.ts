@@ -118,7 +118,7 @@ export class ConfigurationManager {
 			if (extensionConfig.configFile) {
 				showErrorOnce(
 					classConfig.connection,
-					`PHPStan: failed to find config file in "${extensionConfig.configFile}"`
+					`Failed to find config file in "${extensionConfig.configFile}"`
 				);
 			}
 		}
@@ -143,7 +143,7 @@ export class ConfigurationManager {
 			if (!allowFail) {
 				showErrorOnce(
 					classConfig.connection,
-					'PHPStan: failed to get CWD',
+					'Failed to get CWD',
 					'workspaceRoot=',
 					workspaceRoot?.fsPath ?? 'undefined'
 				);
@@ -155,7 +155,7 @@ export class ConfigurationManager {
 			if (!allowFail) {
 				showErrorOnce(
 					classConfig.connection,
-					`PHPStan: rootDir "${cwd}" does not exist`
+					`Root directory "${cwd}" does not exist`
 				);
 			}
 			return null;
@@ -293,7 +293,7 @@ export class ConfigurationManager {
 		}
 
 		if (!cwd) {
-			showErrorOnce(classConfig.connection, 'PHPStan: failed to get CWD');
+			showErrorOnce(classConfig.connection, 'Failed to get CWD');
 			return null;
 		}
 
@@ -302,10 +302,7 @@ export class ConfigurationManager {
 			if (onError) {
 				onError(result.error);
 			} else {
-				showErrorOnce(
-					classConfig.connection,
-					`PHPStan: ${result.error}`
-				);
+				showErrorOnce(classConfig.connection, result.error);
 			}
 			return null;
 		}

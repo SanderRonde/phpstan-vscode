@@ -230,6 +230,14 @@
 				"title": "Show output channel"
 			},
 			{
+				"command": "phpstan.dismissConfigError",
+				"title": "Dismiss PHPStan config error"
+			},
+			{
+				"command": "phpstan.showConfigErrorMenu",
+				"title": "Show PHPStan config error menu"
+			},
+			{
 				"command": "cmd.phpstan.scanFileForErrors",
 				"title": "PHPStan: Scan current file for errors"
 			},
@@ -314,6 +322,14 @@
 				},
 				{
 					"command": "phpstan.showOutputChannel",
+					"when": "false"
+				},
+				{
+					"command": "phpstan.dismissConfigError",
+					"when": "false"
+				},
+				{
+					"command": "phpstan.showConfigErrorMenu",
 					"when": "false"
 				},
 				{

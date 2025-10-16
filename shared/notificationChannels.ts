@@ -10,6 +10,7 @@ export enum NotificationChannel {
 	SPAWNER = 'phpstan.spawner',
 	DEBUG = 'phpstan.debug',
 	PHPSTAN_PRO = 'phpstan.phpstanPro',
+	CONFIG_ERROR = 'phpstan.configError',
 	TEST = 'phpstan.test',
 }
 
@@ -119,4 +120,9 @@ export interface ErrorNotificationType {
 
 export interface DebugNotificationType {
 	debugData: { type: string; data: unknown[] };
+}
+
+export interface ConfigErrorNotificationType {
+	error: string | null; // null clears the error
+	errorType: 'config' | 'binary' | 'cwd' | 'other';
 }

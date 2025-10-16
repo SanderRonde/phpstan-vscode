@@ -1,5 +1,4 @@
-import { commandNotification } from './notificationChannels';
-import { Commands } from '../../../shared/commands/defs';
+import { configErrorNotification } from './notificationChannels';
 import type { _Connection } from 'vscode-languageserver';
 import { ERROR_PREFIX, log } from './log';
 
@@ -14,17 +13,23 @@ export function showErrorOnce(
 	if (shownWarnings.has(message)) {
 		return;
 	}
-	showError(connection, message, [
-		{
-			title: 'Launch setup',
-			callback: () => {
-				void connection.sendNotification(commandNotification, {
-					commandName: Commands.LAUNCH_SETUP,
-					commandArgs: [],
-				});
-			},
-		},
-	]);
+
+	// Determine error type from message
+	let errorType: 'config' | 'binary' | 'cwd' | 'other' = 'other';
+	if (message.includes('config file')) {
+		errorType = 'config';
+	} else if (message.includes('binary') || message.includes('Binary')) {
+		errorType = 'binary';
+	} else if (message.includes('CWD') || message.includes('rootDir')) {
+		errorType = 'cwd';
+	}
+
+	// Send notification to client to update status bar
+	void connection.sendNotification(configErrorNotification, {
+		error: message,
+		errorType,
+	});
+
 	shownWarnings.add(message);
 }
 
@@ -48,4 +53,11 @@ export function showError(
 			const match = options.find((o) => o.title === choice.title);
 			void match?.callback();
 		});
+}
+
+export function clearConfigError(connection: _Connection): void {
+	void connection.sendNotification(configErrorNotification, {
+		error: null,
+		errorType: 'other',
+	});
 }

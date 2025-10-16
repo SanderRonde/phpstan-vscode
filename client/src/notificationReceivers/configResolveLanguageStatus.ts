@@ -3,13 +3,17 @@ import {
 	type Disposable,
 	window,
 	CancellationTokenSource,
+	type ExtensionContext,
+	LanguageStatusSeverity,
 } from 'vscode';
 import { configResolveRequest, findFilesRequest } from '../lib/requestChannels';
 import type { FindFilesRequestType } from '../../../shared/requestChannels';
+import { configErrorNotification } from '../lib/notificationChannels';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { Commands } from '../../../shared/commands/defs';
 import { findFiles } from '../lib/files';
 import type { Command } from 'vscode';
+import * as crypto from 'crypto';
 import { Uri } from 'vscode';
 import path from 'path';
 
@@ -20,10 +24,19 @@ export class ConfigResolveLanguageStatus implements Disposable {
 		[{ language: 'php' }, { pattern: '**/*.neon' }]
 	);
 	private _outstandingTokens = new Set<CancellationTokenSource>();
+	private _currentError: {
+		message: string;
+		type: 'config' | 'binary' | 'cwd' | 'other';
+	} | null = null;
+	private _dismissedErrors: Set<string> = new Set();
 
-	public constructor(private readonly _client: LanguageClient) {
+	public constructor(
+		private readonly _context: ExtensionContext,
+		private readonly _client: LanguageClient
+	) {
 		this._languageStatus.name = 'PHPStan';
 		this._disposables.push(this._languageStatus);
+		this._loadDismissedErrors();
 
 		this._disposables.push(
 			_client.onRequest(
@@ -55,6 +68,125 @@ export class ConfigResolveLanguageStatus implements Disposable {
 			})
 		);
 
+		this._disposables.push(
+			_client.onNotification(configErrorNotification, (params) => {
+				if (params.error === null) {
+					// Clear error
+					this._currentError = null;
+					if (window.activeTextEditor) {
+						void this._update(window.activeTextEditor.document.uri);
+					}
+				} else {
+					const errorHash = this._hashError(params.error);
+					if (this._dismissedErrors.has(errorHash)) {
+						// Error was dismissed, don't show it
+						return;
+					}
+
+					this._currentError = {
+						message: params.error,
+						type: params.errorType,
+					};
+					this._updateErrorStatus();
+				}
+			})
+		);
+
+		if (window.activeTextEditor) {
+			void this._update(window.activeTextEditor.document.uri);
+		}
+	}
+
+	private _loadDismissedErrors(): void {
+		const dismissed = this._context.globalState.get<string[]>(
+			'phpstan.dismissedErrors',
+			[]
+		);
+		this._dismissedErrors = new Set(dismissed);
+	}
+
+	private async _saveDismissedErrors(): Promise<void> {
+		await this._context.globalState.update(
+			'phpstan.dismissedErrors',
+			Array.from(this._dismissedErrors)
+		);
+	}
+
+	private _hashError(error: string): string {
+		return crypto.createHash('md5').update(error).digest('hex');
+	}
+
+	private _updateErrorStatus(): void {
+		if (!this._currentError) {
+			return;
+		}
+
+		const severity =
+			this._currentError.type === 'config' ||
+			this._currentError.type === 'binary'
+				? LanguageStatusSeverity.Error
+				: LanguageStatusSeverity.Warning;
+
+		this._languageStatus.severity = severity;
+		this._languageStatus.text = `PHPStan (${this._currentError.type} error)`;
+		this._languageStatus.detail = this._currentError.message;
+		this._languageStatus.busy = false;
+		this._languageStatus.command = {
+			title: 'Show options',
+			command: Commands.SHOW_CONFIG_ERROR_MENU,
+			arguments: [],
+		};
+	}
+
+	public async showConfigErrorMenu(): Promise<void> {
+		if (!this._currentError) {
+			return;
+		}
+
+		const choice = await window.showQuickPick(
+			[
+				{
+					label: 'Launch setup',
+					description: 'Open PHPStan setup wizard',
+					action: 'setup',
+				},
+				{
+					label: 'Dismiss permanently',
+					description:
+						'Never show this error again (can be reset in settings)',
+					action: 'dismiss',
+				},
+			],
+			{
+				placeHolder: `PHPStan ${this._currentError.type} error: ${this._currentError.message}`,
+			}
+		);
+
+		if (!choice) {
+			return;
+		}
+
+		if (choice.action === 'setup') {
+			await window.showInformationMessage(
+				'PHPStan setup wizard is not yet implemented. Please configure PHPStan manually.',
+				{ modal: false }
+			);
+		} else if (choice.action === 'dismiss') {
+			await this.dismissCurrentError();
+		}
+	}
+
+	public async dismissCurrentError(): Promise<void> {
+		if (!this._currentError) {
+			return;
+		}
+
+		const errorHash = this._hashError(this._currentError.message);
+		this._dismissedErrors.add(errorHash);
+		await this._saveDismissedErrors();
+
+		// Clear the current error display
+		this._currentError = null;
 		if (window.activeTextEditor) {
 			void this._update(window.activeTextEditor.document.uri);
 		}
@@ -65,9 +197,15 @@ export class ConfigResolveLanguageStatus implements Disposable {
 		command: Command | undefined;
 		busy: boolean;
 	}): void {
+		// If there's a current error, don't override it
+		if (this._currentError) {
+			return;
+		}
 		this._languageStatus.text = config.text;
 		this._languageStatus.command = config.command;
 		this._languageStatus.busy = config.busy ?? false;
+		this._languageStatus.severity = LanguageStatusSeverity.Information;
+		this._languageStatus.detail = undefined;
 	}
 
 	private async _update(uri: Uri): Promise<void> {

@@ -16,6 +16,8 @@ export enum Commands {
 	DOWNLOAD_DEBUG_DATA = 'phpstan.downloadDebugData',
 	CLEAR_ERRORS = 'phpstan.clearErrors',
 	SHOW_OUTPUT_CHANNEL = 'phpstan.showOutputChannel',
+	DISMISS_CONFIG_ERROR = 'phpstan.dismissConfigError',
+	SHOW_CONFIG_ERROR_MENU = 'phpstan.showConfigErrorMenu',
 }
 
 export const commands: Record<Commands, CommandDefinition> = {
@@ -61,6 +63,14 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.SHOW_OUTPUT_CHANNEL]: {
 		title: 'Show output channel',
+		inCommandPalette: false,
+	},
+	[Commands.DISMISS_CONFIG_ERROR]: {
+		title: 'Dismiss PHPStan config error',
+		inCommandPalette: false,
+	},
+	[Commands.SHOW_CONFIG_ERROR_MENU]: {
+		title: 'Show PHPStan config error menu',
 		inCommandPalette: false,
 	},
 };

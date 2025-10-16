@@ -12,6 +12,7 @@ import { getEditorConfiguration } from '../editorConfig';
 import { getPathMapper } from '../../../../shared/util';
 import type { ConfigResolver } from '../configResolver';
 import { PHPStanRunner } from './processRunner';
+import { clearConfigError } from '../errorUtil';
 import { ReturnResult } from '../result';
 import { checkPrefix } from '../log';
 import { URI } from 'vscode-uri';
@@ -187,6 +188,9 @@ export class PHPStanCheck implements AsyncDisposable {
 		if (!checkConfig) {
 			return ReturnResult.error();
 		}
+
+		// Configuration was successfully resolved, clear any previous errors
+		clearConfigError(this._classConfig.connection);
 
 		const errorManager = new PHPStanCheckErrorManager(this._classConfig);
 		const pathMapper = getPathMapper(

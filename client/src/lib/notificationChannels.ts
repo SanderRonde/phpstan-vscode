@@ -1,5 +1,6 @@
 import type {
 	CommandNotificationType,
+	ConfigErrorNotificationType,
 	DebugNotificationType,
 	ErrorNotificationType,
 	PHPStanProNotificationType,
@@ -35,3 +36,8 @@ export const phpstanProNotification =
 export const debugNotification = new NotificationType<DebugNotificationType>(
 	NotificationChannel.DEBUG
 );
+
+export const configErrorNotification =
+	new NotificationType<ConfigErrorNotificationType>(
+		NotificationChannel.CONFIG_ERROR
+	);

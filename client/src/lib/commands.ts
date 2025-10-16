@@ -1,3 +1,4 @@
+import type { ConfigResolveLanguageStatus } from '../notificationReceivers/configResolveLanguageStatus';
 import {
 	commandNotification,
 	watcherNotification,
@@ -20,7 +21,8 @@ export function registerListeners(
 	client: LanguageClient,
 	errorManager: ErrorManager,
 	phpstanProManager: PHPStanProManager,
-	outputChannel: vscode.OutputChannel
+	outputChannel: vscode.OutputChannel,
+	configResolveLanguageStatus: ConfigResolveLanguageStatus
 ): void {
 	context.subscriptions.push(
 		autoRegisterCommand(
@@ -207,6 +209,26 @@ export function registerListeners(
 				await vscode.workspace.fs.writeFile(uri, Buffer.from(json));
 
 				await vscode.commands.executeCommand('vscode.open', uri);
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.SHOW_CONFIG_ERROR_MENU,
+			async () => {
+				await configResolveLanguageStatus.showConfigErrorMenu();
+			},
+			commands
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.DISMISS_CONFIG_ERROR,
+			async () => {
+				await configResolveLanguageStatus.dismissCurrentError();
 			},
 			commands
 		)
