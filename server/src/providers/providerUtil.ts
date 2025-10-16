@@ -427,15 +427,19 @@ export class ProviderCheckHooks {
 				workspaceFolders?.getForPath(checkConfig.configFile)?.fsPath ??
 				workspaceFolders?.default?.fsPath;
 
-			const configFile = await this._getConfigFile(
-				configTarget,
-				await ConfigurationManager.applyPathMapping(
-					classConfig,
-					checkConfig.configFile,
-					workspaceRoot
-				)
+			const configFile = ConfigurationManager.escapeFilePath(
+				(
+					await this._getConfigFile(
+						configTarget,
+						await ConfigurationManager.applyPathMapping(
+							classConfig,
+							checkConfig.configFile,
+							workspaceRoot
+						)
+					)
+				).path
 			);
-			args.push('-c', configFile.path);
+			args.push('-c', configFile);
 		}
 		return args;
 	}

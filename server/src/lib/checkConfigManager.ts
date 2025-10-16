@@ -26,6 +26,9 @@ export class ConfigurationManager {
 		if (os.platform() !== 'win32') {
 			return filePath;
 		}
+		if (/^[a-z]:/.test(filePath)) {
+			filePath = filePath.charAt(0).toUpperCase() + filePath.slice(1);
+		}
 		if (filePath.indexOf(' ') !== -1) {
 			filePath = '"' + filePath + '"';
 		}
@@ -344,7 +347,10 @@ export class ConfigurationManager {
 				]
 			);
 		} else if (checkConfig.configFile) {
-			args.push('-c', checkConfig.configFile);
+			args.push(
+				'-c',
+				ConfigurationManager.escapeFilePath(checkConfig.configFile)
+			);
 		}
 
 		if (checkConfig.operation === 'analyse') {
