@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.8
+
+-   Fix issue where a lowercase drive letter would be used on windows, causing fake errors.
+-   Warnings/errors are now shown in the language status status bar item instead of as notifications.
+
 ## 4.0.7
 
 -   Make `showTypeOnHover` setting work with Docker setups
