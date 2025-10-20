@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.9
+
+-   Fix bug where autoload path was not escaped on windows
+
 ## 4.0.8
 
 -   Fix issue where a lowercase drive letter would be used on windows, causing fake errors.
