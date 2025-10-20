@@ -420,7 +420,10 @@ export class ProviderCheckHooks {
 			userAutoloadFile
 		);
 
-		args.push('-a', autoloadFilePath.path);
+		args.push(
+			'-a',
+			ConfigurationManager.escapeFilePath(autoloadFilePath.path)
+		);
 		if (checkConfig.configFile) {
 			const workspaceFolders = await classConfig.workspaceFolders.get();
 			const workspaceRoot =
