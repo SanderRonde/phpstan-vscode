@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.10
+
+-   Fix issue where config resolve status would be called before the language server was ready.
+
 ## 4.0.9
 
 -   Fix bug where autoload path was not escaped on windows
