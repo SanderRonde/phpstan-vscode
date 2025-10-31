@@ -9,6 +9,7 @@ import {
 import { configResolveRequest, findFilesRequest } from '../lib/requestChannels';
 import type { FindFilesRequestType } from '../../../shared/requestChannels';
 import { configErrorNotification } from '../lib/notificationChannels';
+import type { PromisedValue } from '../../../server/src/lib/types';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { Commands } from '../../../shared/commands/defs';
 import { findFiles } from '../lib/files';
@@ -32,7 +33,8 @@ export class ConfigResolveLanguageStatus implements Disposable {
 
 	public constructor(
 		private readonly _context: ExtensionContext,
-		private readonly _client: LanguageClient
+		private readonly _client: LanguageClient,
+		private readonly _languageServerReady: PromisedValue<boolean>
 	) {
 		this._languageStatus.name = 'PHPStan';
 		this._disposables.push(this._languageStatus);
@@ -217,6 +219,7 @@ export class ConfigResolveLanguageStatus implements Disposable {
 			command: undefined,
 			busy: true,
 		});
+		await this._languageServerReady.get();
 		const result = await this._client.sendRequest(
 			configResolveRequest,
 			{

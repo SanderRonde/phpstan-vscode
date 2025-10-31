@@ -22,6 +22,7 @@ import { ZombieKiller } from './notificationReceivers/zombieKiller';
 import { PHPStanProManager } from './notificationReceivers/pro';
 import { StatusBar } from './notificationReceivers/statusBar';
 import type { ExtensionContext, OutputChannel } from 'vscode';
+import { PromisedValue } from '../../server/src/lib/types';
 import { initRequest } from './lib/requestChannels';
 import { registerListeners } from './lib/commands';
 import { window, workspace } from 'vscode';
@@ -92,9 +93,11 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	const errorManager = new ErrorManager(client);
 	const proManager = new PHPStanProManager(client);
 	const zombieKiller = new ZombieKiller(client, context);
+	const languageServerReady = new PromisedValue<boolean>();
 	const configResolveLanguageStatus = new ConfigResolveLanguageStatus(
 		context,
-		client
+		client,
+		languageServerReady
 	);
 
 	registerListeners(
@@ -121,6 +124,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 	context.subscriptions.push(
 		client.onRequest(initRequest, ({ ready }) => {
 			if (ready) {
+				languageServerReady.set(true);
 				if (!wasReady) {
 					// First time it's ready, start watching
 					log(context, SERVER_PREFIX, 'Language server started');
