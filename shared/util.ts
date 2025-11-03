@@ -257,10 +257,9 @@ export function getPathMapper(
 				: [fromPath, toPath];
 			const expandedFromPath = from.replace(/^~/, os.homedir());
 			if (expandedFilePath.startsWith(expandedFromPath)) {
-				return expandedFilePath.replace(
-					expandedFromPath,
-					to.replace(/^~/, os.homedir())
-				);
+				return expandedFilePath
+					.replace(expandedFromPath, to.replace(/^~/, os.homedir()))
+					.replace(/\\/g, '/');
 			}
 		}
 		return filePath;
