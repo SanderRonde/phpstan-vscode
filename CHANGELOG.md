@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.11
+
+-   Fix issue where paths would not be mapped correctly when using a workspace folder.
+
 ## 4.0.10
 
 -   Fix issue where config resolve status would be called before the language server was ready.
