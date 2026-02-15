@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.12
+
+-   Fix issue where non-.neon files would be parsed as config files.
+
 ## 4.0.11
 
 -   Fix issue where paths would not be mapped correctly when using a workspace folder.
