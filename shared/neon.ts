@@ -7,6 +7,10 @@ async function readNeonFile(
 	filePath: string,
 	onError: (error: Error) => void
 ): Promise<Neon[]> {
+	// Skip non-.neon files
+	if (!filePath.endsWith('.neon')) {
+		return [];
+	}
 	const parsed = await (async () => {
 		try {
 			return decode(await fs.readFile(filePath, 'utf8'));
@@ -32,6 +36,14 @@ async function readNeonFile(
 
 		for (const file of includes.values()) {
 			if (typeof file !== 'string') {
+				continue;
+			}
+
+			// Skip non-.neon files
+			const resolvedPath = path.isAbsolute(file)
+				? file
+				: path.join(path.dirname(filePath), file);
+			if (!resolvedPath.endsWith('.neon')) {
 				continue;
 			}
 

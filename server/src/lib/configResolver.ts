@@ -67,7 +67,7 @@ export class ConfigResolver implements Disposable {
 								(error) => {
 									log(
 										NEON_PREFIX,
-										`Error while parsing .neon file "${fileURI.fsPath}": ${error.message}`
+										`Issue while parsing .neon file "${fileURI.fsPath}": ${error.message}. Checking can continue without this file.`
 									);
 								}
 							),
