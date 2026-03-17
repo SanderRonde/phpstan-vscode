@@ -54,6 +54,7 @@ async function main(): Promise<void> {
 	const workspaceFolders = new PromisedValue<WorkspaceFolders | null>();
 	const version = new PromisedValue<PHPStanVersion | null>();
 	const extensionPath = new PromisedValue<URI>();
+	const extensionStartedAt = new PromisedValue<Date>();
 
 	connection.onInitialize((params) => {
 		const uri = params.workspaceFolders?.[0].uri;
@@ -73,13 +74,17 @@ async function main(): Promise<void> {
 					return undefined;
 				},
 			};
-			if (params.workspaceFolders?.length === 1) {
-				initializedFolders.default = URI.parse(uri);
-			}
+
+			// Use first folder as default even if there are multiple, to avoid crashes
+			// in string replacement.
+			initializedFolders.default = URI.parse(uri);
+
 			for (const folder of params.workspaceFolders ?? []) {
 				initializedFolders.byName[folder.name] = URI.parse(folder.uri);
 			}
 			workspaceFolders.set(initializedFolders);
+		} else {
+			workspaceFolders.set(null);
 		}
 		return {
 			capabilities: {
@@ -107,13 +112,6 @@ async function main(): Promise<void> {
 
 	await onConnectionInitialized;
 	log(SERVER_PREFIX, 'Language server ready');
-	const extensionStartedAt = new PromisedValue<Date>();
-	void connection
-		.sendRequest(initRequest, { ready: true })
-		.then((response) => {
-			extensionStartedAt.set(new Date(response.startedAt));
-			extensionPath.set(URI.parse(response.extensionPath));
-		});
 
 	// Create required values
 	const editorConfigOverride: ClassConfig['editorConfigOverride'] =
@@ -123,6 +121,7 @@ async function main(): Promise<void> {
 		workspaceFolders,
 		editorConfigOverride: editorConfigOverride,
 	});
+
 	const providerHooks = new ProviderCheckHooks(
 		connection,
 		version,
@@ -182,6 +181,13 @@ async function main(): Promise<void> {
 			result.checkManager
 		)
 	);
+
+	void connection
+		.sendRequest(initRequest, { ready: true })
+		.then((response) => {
+			extensionStartedAt.set(new Date(response.startedAt));
+			extensionPath.set(URI.parse(response.extensionPath));
+		});
 }
 
 export interface StartResult {
@@ -195,7 +201,21 @@ export interface StartResult {
 	checkManager?: PHPStanCheckManager;
 }
 
-void main();
-process.on('uncaughtException', () => {
-	// Bug in ps-tree where it doesn't catch errors of the processes it spawns
+void main().catch((err: unknown) => {
+	log(
+		SERVER_PREFIX,
+		`Server crashed: ${err instanceof Error ? err.stack : String(err)}`
+	);
+});
+process.on('uncaughtException', (err) => {
+	log(
+		SERVER_PREFIX,
+		`Uncaught Exception: ${err instanceof Error ? err.stack : String(err)}`
+	);
+});
+process.on('unhandledRejection', (reason) => {
+	log(
+		SERVER_PREFIX,
+		`Unhandled Rejection: ${reason instanceof Error ? reason.stack : String(reason)}`
+	);
 });

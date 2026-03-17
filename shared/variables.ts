@@ -24,9 +24,9 @@ export function replaceVariables(
 			}
 
 			if (!workspaceFolders?.default) {
-				throw new Error(
-					'workspaceFolder is not set but is used in a variable'
-				);
+				// We used to throw here but it's too aggressive and crashes the server.
+				// Instead, just return the placeholder if it's not set.
+				return '${workspaceFolder}';
 			}
 			return workspaceFolders.default.fsPath;
 		}
