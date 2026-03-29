@@ -13,6 +13,7 @@ import type { Disposable } from 'vscode';
 import type { Readable } from 'stream';
 import type { LogPrefix } from './log';
 import { log } from './log';
+import { stripPhpstanAgentDetectorEnvVars } from '../../../shared/phpstanSpawnEnv';
 
 export class Process implements AsyncDisposable {
 	private readonly _children: Set<number> = new Set();
@@ -178,6 +179,10 @@ export class Process implements AsyncDisposable {
 			'Spawning PHPStan, command: ',
 			[binStr, ...args.map((a) => `"${a}"`)].join(' ')
 		);
+		const spawnEnv = stripPhpstanAgentDetectorEnvVars({
+			...process.env,
+			...options.env,
+		});
 		const proc = await (async () => {
 			if (process.platform === 'win32') {
 				const codePage = await this._getCodePage();
@@ -194,6 +199,7 @@ export class Process implements AsyncDisposable {
 						{
 							cwd: options.cwd,
 							encoding: 'utf-8',
+							env: spawnEnv,
 						}
 					);
 				}
@@ -203,6 +209,7 @@ export class Process implements AsyncDisposable {
 			});
 			return spawn(binStr, args, {
 				...options,
+				env: spawnEnv,
 				stdio: ['pipe', 'pipe', 'overlapped'],
 			});
 		})();

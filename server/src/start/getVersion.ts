@@ -1,5 +1,6 @@
 import { ConfigurationManager } from '../lib/checkConfigManager';
 import { SPAWN_ARGS } from '../../../shared/constants';
+import { stripPhpstanAgentDetectorEnvVars } from '../../../shared/phpstanSpawnEnv';
 import type { ClassConfig } from '../lib/types';
 import { log, SERVER_PREFIX } from '../lib/log';
 import { spawn } from 'child_process';
@@ -34,6 +35,7 @@ export async function getVersion(
 		const binArgs = binConfigResult.getBinCommand(['--version']);
 		const proc = spawn(binArgs[0], binArgs.slice(1), {
 			...SPAWN_ARGS,
+			env: stripPhpstanAgentDetectorEnvVars({ ...process.env }),
 		});
 
 		let data = '';
