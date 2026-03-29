@@ -17,10 +17,10 @@ export const PHPSTAN_AGENT_DETECTOR_ENV_VARS = [
 	'REPL_ID',
 ] as const;
 
-export function stripPhpstanAgentDetectorEnvVars<
-	T extends NodeJS.ProcessEnv,
->(env: T): T {
-	const out = { ...env } as T;
+export function stripPhpstanAgentDetectorEnvVars<T extends NodeJS.ProcessEnv>(
+	env: T
+): T {
+	const out = { ...env };
 	for (const key of PHPSTAN_AGENT_DETECTOR_ENV_VARS) {
 		delete out[key];
 	}

@@ -1,6 +1,6 @@
+import { stripPhpstanAgentDetectorEnvVars } from '../../../shared/phpstanSpawnEnv';
 import { ConfigurationManager } from '../lib/checkConfigManager';
 import { SPAWN_ARGS } from '../../../shared/constants';
-import { stripPhpstanAgentDetectorEnvVars } from '../../../shared/phpstanSpawnEnv';
 import type { ClassConfig } from '../lib/types';
 import { log, SERVER_PREFIX } from '../lib/log';
 import { spawn } from 'child_process';
@@ -19,10 +19,15 @@ export async function getVersion(
 	// Test if we can get the PHPStan version
 	const cwd = await ConfigurationManager.getCwd(classConfig, true);
 	const workspaceRoot = (await classConfig.workspaceFolders.get())?.default;
+	const workspaceRootPath =
+		workspaceRoot &&
+		typeof (workspaceRoot as { fsPath?: unknown }).fsPath === 'string'
+			? (workspaceRoot as { fsPath: string }).fsPath
+			: undefined;
 	const binConfigResult = await ConfigurationManager.getBinComand(
 		classConfig,
 		cwd ?? undefined,
-		workspaceRoot?.fsPath
+		workspaceRootPath
 	);
 	if (!binConfigResult.success) {
 		return {
