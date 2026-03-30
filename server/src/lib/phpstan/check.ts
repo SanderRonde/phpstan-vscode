@@ -279,8 +279,10 @@ class PHPStanCheckErrorManager {
 		const reportedErrors = result.value;
 
 		const errors: ReportedErrors = {
-			fileSpecificErrors: {},
-			notFileSpecificErrors: [],
+			fileSpecificErrors: {
+				...reportedErrors.fileSpecificErrors,
+			},
+			notFileSpecificErrors: [...reportedErrors.notFileSpecificErrors],
 		};
 
 		/**
@@ -292,24 +294,12 @@ class PHPStanCheckErrorManager {
 			lastErrorConfigFile,
 			lastErrors,
 		] of PHPStanCheckErrorManager._lastErrors) {
-			if (lastErrorConfigFile === configFile) {
-				errors.notFileSpecificErrors.push(
-					...reportedErrors.notFileSpecificErrors
-				);
-				errors.fileSpecificErrors = {
-					...errors.fileSpecificErrors,
-					...(isPartial ? lastErrors.fileSpecificErrors : {}),
-					...reportedErrors.fileSpecificErrors,
-				};
-			} else {
-				errors.notFileSpecificErrors.push(
-					...lastErrors.notFileSpecificErrors
-				);
-				errors.fileSpecificErrors = {
-					...errors.fileSpecificErrors,
-					...lastErrors.fileSpecificErrors,
-				};
-			}
+			errors.fileSpecificErrors = {
+				...errors.fileSpecificErrors,
+				...(lastErrorConfigFile !== configFile || isPartial
+					? lastErrors.fileSpecificErrors
+					: {}),
+			};
 		}
 
 		return errors;
