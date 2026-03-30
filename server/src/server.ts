@@ -204,18 +204,18 @@ export interface StartResult {
 void main().catch((err: unknown) => {
 	log(
 		SERVER_PREFIX,
-		`Server crashed: ${err instanceof Error ? err.stack : String(err)}`
+		`Server crashed: ${err instanceof Error && err.stack ? err.stack : String(err)}`
 	);
 });
 process.on('uncaughtException', (err) => {
 	log(
 		SERVER_PREFIX,
-		`Uncaught Exception: ${err instanceof Error ? err.stack : String(err)}`
+		`Uncaught Exception: ${err instanceof Error && err.stack ? err.stack : String(err)}`
 	);
 });
 process.on('unhandledRejection', (reason) => {
 	log(
 		SERVER_PREFIX,
-		`Unhandled Rejection: ${reason instanceof Error ? reason.stack : String(reason)}`
+		`Unhandled Rejection: ${reason instanceof Error && reason.stack ? reason.stack : String(reason)}`
 	);
 });

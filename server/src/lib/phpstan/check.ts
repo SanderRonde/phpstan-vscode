@@ -110,7 +110,6 @@ export class PHPStanCheck implements AsyncDisposable {
 				args: [...checkConfig.args, this._escapeFilePath(filePath)],
 			},
 			checkPrefix(check),
-			true,
 			{
 				onError: onError,
 			}
@@ -147,7 +146,6 @@ export class PHPStanCheck implements AsyncDisposable {
 		const result = await runner.runProcess<PHPStanCheckResult>(
 			checkConfig,
 			checkPrefix(check),
-			true,
 			{
 				onProgress,
 				onError,

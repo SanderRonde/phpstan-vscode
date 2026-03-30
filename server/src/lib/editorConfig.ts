@@ -5,7 +5,6 @@ import type {
 import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
 import { fromEntries } from '../../../shared/util';
 import type { ClassConfig } from './types';
-import { log, SERVER_PREFIX } from './log';
 
 export async function getEditorConfiguration(
 	classConfig: Pick<
