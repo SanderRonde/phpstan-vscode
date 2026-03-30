@@ -202,34 +202,6 @@ export class PHPStanRunner implements AsyncDisposable {
 	public async runProcess<R>(
 		checkConfig: CheckConfig,
 		prefix: LogPrefix,
-		json: true,
-		options: {
-			onProgress?: ProgressListener;
-			onError: null | ((error: string) => void);
-		}
-	): Promise<ReturnResult<R>>;
-	public async runProcess(
-		checkConfig: CheckConfig,
-		prefix: LogPrefix,
-		json: false,
-		options: {
-			onProgress?: ProgressListener;
-			onError: null | ((error: string) => void);
-		}
-	): Promise<ReturnResult<string>>;
-	public async runProcess<R>(
-		checkConfig: CheckConfig,
-		prefix: LogPrefix,
-		json: boolean,
-		options: {
-			onProgress?: ProgressListener;
-			onError: null | ((error: string) => void);
-		}
-	): Promise<ReturnResult<R | string>>;
-	public async runProcess<R>(
-		checkConfig: CheckConfig,
-		prefix: LogPrefix,
-		json: boolean,
 		{
 			onProgress,
 			onError: _onError,
@@ -237,7 +209,7 @@ export class PHPStanRunner implements AsyncDisposable {
 			onProgress?: ProgressListener;
 			onError: null | ((error: string) => void);
 		}
-	): Promise<ReturnResult<R | string>> {
+	): Promise<ReturnResult<R>> {
 		debug(this._classConfig.connection, 'runProcess', {
 			checkConfig: {
 				args: checkConfig.args.map((arg) => sanitizeFilePath(arg)),
@@ -312,7 +284,7 @@ export class PHPStanRunner implements AsyncDisposable {
 
 		this._disposables.push(phpstan);
 
-		return await new Promise<ReturnResult<R | string>>((resolve) => {
+		return await new Promise<ReturnResult<R>>((resolve) => {
 			phpstan.onError((e) => {
 				void onError([' errMsg=' + e.message]);
 				resolve(ReturnResult.error());
@@ -352,6 +324,27 @@ export class PHPStanRunner implements AsyncDisposable {
 					return;
 				}
 
+				// Try to parse stdout first. Valid JSON in stdout
+				// takes priority over any stderr content (PHPStan may print notices
+				// such as coding-agent instructions to stderr even with
+				// --no-interaction --error-format=json).
+				const stdout = getData();
+				if (stdout) {
+					try {
+						const parsed = JSON.parse(stdout) as R;
+						log(prefix, 'PHPStan process exited succesfully');
+						await this._classConfig.hooks.provider.onCheckDone(
+							this._classConfig
+						);
+						resolve(ReturnResult.success(parsed));
+						return;
+					} catch {
+						// stdout is non-empty but not valid JSON; fall through
+						// to stderr-based error handling below
+					}
+				}
+
+				// No valid JSON in stdout — use stderr to surface the reason
 				if (getErr().includes('No files found to analyse')) {
 					const editorConfig = await getEditorConfiguration(
 						this._classConfig
@@ -420,23 +413,8 @@ export class PHPStanRunner implements AsyncDisposable {
 					return;
 				}
 
-				log(prefix, 'PHPStan process exited succesfully');
-
-				await this._classConfig.hooks.provider.onCheckDone(
-					this._classConfig
-				);
-
-				const stdout = getData();
-				try {
-					if (json) {
-						resolve(ReturnResult.success(JSON.parse(stdout) as R));
-					} else {
-						resolve(ReturnResult.success(stdout));
-					}
-				} catch (e) {
-					log(prefix, `Failed to parse PHPStan output: ${stdout}`);
-					resolve(ReturnResult.error());
-				}
+				log(prefix, `Failed to parse PHPStan output: ${stdout}`);
+				resolve(ReturnResult.error());
 			});
 		});
 	}
