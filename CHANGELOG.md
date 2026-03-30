@@ -2,6 +2,11 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.14
+
+-   Fix issue in PHPStan >=2.1.41 where the run would fail when within an AI code editor.
+-   Fix issue with showing errors on initial launch.
+
 ## 4.0.13
 
 -   Fix issue where errors would not be shown when using a workspace folder.
