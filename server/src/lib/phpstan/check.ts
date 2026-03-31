@@ -295,10 +295,10 @@ class PHPStanCheckErrorManager {
 			lastErrors,
 		] of PHPStanCheckErrorManager._lastErrors) {
 			errors.fileSpecificErrors = {
-				...errors.fileSpecificErrors,
 				...(lastErrorConfigFile !== configFile || isPartial
 					? lastErrors.fileSpecificErrors
 					: {}),
+				...errors.fileSpecificErrors,
 			};
 		}
 
