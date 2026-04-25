@@ -324,6 +324,33 @@ export class PHPStanRunner implements AsyncDisposable {
 					return;
 				}
 
+				// Check for PHP not found (e.g. shebang #!/usr/bin/env php fails)
+				if (
+					getErr().includes('No such file or directory') ||
+					getErr().includes('command not found')
+				) {
+					const errorMsg =
+						'PHPStan: PHP binary not found. Configure the path to PHP using the phpstan.binCommand setting (e.g. ["/path/to/php", "vendor/bin/phpstan"])';
+					if (_onError) {
+						_onError(errorMsg);
+					} else {
+						showError(this._classConfig.connection, errorMsg, [
+							{
+								title: 'Configure binCommand',
+								callback: () => {
+									void executeCommand(
+										this._classConfig.connection,
+										'workbench.action.openSettings',
+										`@ext:${EXTENSION_ID} binCommand`
+									);
+								},
+							},
+						]);
+					}
+					resolve(ReturnResult.error());
+					return;
+				}
+
 				// Try to parse stdout first. Valid JSON in stdout
 				// takes priority over any stderr content (PHPStan may print notices
 				// such as coding-agent instructions to stderr even with
