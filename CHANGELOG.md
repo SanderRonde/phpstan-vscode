@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.15
+
+-   Show actionable error when PHP binary is not found
+
 ## 4.0.14
 
 -   Fix issue in PHPStan >=2.1.41 where the run would fail when within an AI code editor.
