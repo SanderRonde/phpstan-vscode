@@ -38,6 +38,23 @@ https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9
 -   `phpstan.showProgress` - whether to show the progress bar when performing a single-file check (defaults to `false`)
 -   `phpstan.checkValidity` - Whether to check the validity of PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.'. (defaults to `false`)
 
+### Example config for containers
+
+Map your workspace folder into the container root dir using `phpstan.paths` and define a custom `phpstan.binCommand` to let the extension run within the container. Here is a working config for [ddev](https://ddev.com/):
+
+```json
+{
+    "phpstan.paths": {
+        "${workspaceFolder}": "/var/www/html"
+    },
+    "phpstan.binCommand": [
+        "ddev",
+        "exec",
+        "phpstan",
+    ],
+}
+```
+
 ## FAQ
 
 ### XDebug-related issues
