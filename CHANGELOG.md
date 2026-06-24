@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.16
+
+-   Add `phpstan.clearCache` command to clear the cache
+
 ## 4.0.15
 
 -   Show actionable error when PHP binary is not found
