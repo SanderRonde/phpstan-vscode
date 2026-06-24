@@ -18,7 +18,7 @@ export interface CheckConfig {
 	args: string[];
 	memoryLimit: string;
 	tmpDir: string | undefined;
-	operation: 'analyse';
+	operation: 'analyse' | 'clear-result-cache';
 }
 
 export class ConfigurationManager {
@@ -254,7 +254,7 @@ export class ConfigurationManager {
 	public static async collectConfiguration(
 		classConfig: ClassConfig,
 		configResolver: ConfigResolver,
-		operation: 'analyse',
+		operation: 'analyse' | 'clear-result-cache',
 		currentFile: URI | null,
 		onError: null | ((error: string) => void)
 	): Promise<CheckConfig | null> {
@@ -363,6 +363,12 @@ export class ConfigurationManager {
 				args.push('--no-progress');
 			}
 			args.push(...checkConfig.args);
+		} else if (checkConfig.operation === 'clear-result-cache') {
+			args.push(
+				'--no-interaction',
+				`--memory-limit=${checkConfig.memoryLimit}`,
+				...checkConfig.args
+			);
 		}
 		return checkConfig.getBinCommand(
 			await classConfig.hooks.provider.transformArgs(

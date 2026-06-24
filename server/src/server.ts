@@ -24,6 +24,7 @@ import { startIntegratedChecker } from './start/startIntegratedChecker';
 import type { PHPStanCheckManager } from './lib/phpstan/checkManager';
 import { ProviderCheckHooks } from './providers/providerUtil';
 import type { DocumentManager } from './lib/documentManager';
+import { listenClearCache } from './lib/phpstan/clearCache';
 import { getEditorConfiguration } from './lib/editorConfig';
 import type { PHPStanVersion } from './start/getVersion';
 import { ConfigResolver } from './lib/configResolver';
@@ -157,8 +158,7 @@ async function main(): Promise<void> {
 			connection,
 			disposables,
 			onConnectionInitialized,
-			workspaceFolders,
-			editorConfigOverride
+			workspaceFolders
 		);
 	} else {
 		result = startIntegratedChecker(
@@ -179,6 +179,13 @@ async function main(): Promise<void> {
 			result.documentManager,
 			configResolver,
 			result.checkManager
+		),
+		listenClearCache(
+			connection,
+			classConfig,
+			configResolver,
+			result.checkManager,
+			onConnectionInitialized
 		)
 	);
 

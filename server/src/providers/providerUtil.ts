@@ -397,8 +397,12 @@ export class ProviderCheckHooks {
 		checkConfig: CheckConfig,
 		classConfig: ClassConfig,
 		args: string[],
-		operation: 'analyse' | 'diagnose'
+		operation: 'analyse' | 'diagnose' | 'clear-result-cache'
 	): Promise<string[]> {
+		if (operation === 'clear-result-cache') {
+			return args;
+		}
+
 		if (!(await this._lsEnabled) && operation !== 'diagnose') {
 			return args;
 		}

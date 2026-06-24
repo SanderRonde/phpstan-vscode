@@ -1,8 +1,9 @@
-import type { ConfigResolveLanguageStatus } from '../notificationReceivers/configResolveLanguageStatus';
 import {
 	commandNotification,
+	clearCacheNotification,
 	watcherNotification,
 } from './notificationChannels';
+import type { ConfigResolveLanguageStatus } from '../notificationReceivers/configResolveLanguageStatus';
 import type { ErrorManager } from '../notificationReceivers/errorManager';
 import type { PHPStanProManager } from '../notificationReceivers/pro';
 import { commands, Commands } from '../../../shared/commands/defs';
@@ -183,6 +184,20 @@ export function registerListeners(
 					...commandArgs
 				);
 			}
+		)
+	);
+
+	context.subscriptions.push(
+		autoRegisterCommand(
+			Commands.CLEAR_CACHE,
+			async () => {
+				await client.sendNotification(clearCacheNotification, {
+					fileUri:
+						vscode.window.activeTextEditor?.document.uri.toString() ??
+						null,
+				});
+			},
+			commands
 		)
 	);
 

@@ -1,5 +1,6 @@
 import type {
 	CommandNotificationType,
+	ClearCacheNotificationType,
 	ConfigErrorNotificationType,
 	DebugNotificationType,
 	ErrorNotificationType,
@@ -40,4 +41,9 @@ export const debugNotification = new NotificationType<DebugNotificationType>(
 export const configErrorNotification =
 	new NotificationType<ConfigErrorNotificationType>(
 		NotificationChannel.CONFIG_ERROR
+	);
+
+export const clearCacheNotification =
+	new NotificationType<ClearCacheNotificationType>(
+		NotificationChannel.CLEAR_CACHE
 	);

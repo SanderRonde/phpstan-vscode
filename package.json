@@ -194,6 +194,10 @@
 				"title": "Clear errors"
 			},
 			{
+				"command": "phpstan.clearCache",
+				"title": "Clear cache"
+			},
+			{
 				"command": "phpstan.scanProjectForErrors",
 				"title": "Scan project for errors"
 			},
@@ -246,6 +250,10 @@
 				"title": "PHPStan: Clear errors"
 			},
 			{
+				"command": "cmd.phpstan.clearCache",
+				"title": "PHPStan: Clear cache"
+			},
+			{
 				"command": "cmd.phpstan.scanProjectForErrors",
 				"title": "PHPStan: Scan project for errors"
 			},
@@ -286,6 +294,10 @@
 				},
 				{
 					"command": "phpstan.clearErrors",
+					"when": "false"
+				},
+				{
+					"command": "phpstan.clearCache",
 					"when": "false"
 				},
 				{
@@ -338,6 +350,10 @@
 				},
 				{
 					"command": "cmd.phpstan.clearErrors",
+					"when": "true"
+				},
+				{
+					"command": "cmd.phpstan.clearCache",
 					"when": "true"
 				},
 				{

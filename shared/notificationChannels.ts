@@ -11,6 +11,7 @@ export enum NotificationChannel {
 	DEBUG = 'phpstan.debug',
 	PHPSTAN_PRO = 'phpstan.phpstanPro',
 	CONFIG_ERROR = 'phpstan.configError',
+	CLEAR_CACHE = 'phpstan.clearCache',
 	TEST = 'phpstan.test',
 }
 
@@ -60,6 +61,10 @@ export type WatcherNotificationType =
 	| {
 			operation: 'clear';
 	  };
+
+export interface ClearCacheNotificationType {
+	fileUri: string | null;
+}
 
 export interface CommandNotificationType {
 	commandName: string;

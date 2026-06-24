@@ -20,3 +20,4 @@ export const HOVER_PROVIDER_PREFIX = '[hover-provider]' as LogPrefix;
 export const SERVER_PREFIX = '[server]' as LogPrefix;
 export const PRO_PREFIX = '[pro]' as LogPrefix;
 export const NEON_PREFIX = '[neon]' as LogPrefix;
+export const CLEAR_CACHE_PREFIX = '[clear-cache]' as LogPrefix;

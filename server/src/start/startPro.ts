@@ -22,8 +22,7 @@ export async function startPro(
 	connection: _Connection,
 	disposables: Disposable[],
 	onConnectionInitialized: Promise<void>,
-	workspaceFolders: PromisedValue<WorkspaceFolders | null>,
-	editorConfigOverride: PromisedValue<Record<string, unknown>>
+	workspaceFolders: PromisedValue<WorkspaceFolders | null>
 ): Promise<StartResult> {
 	void connection.sendNotification(statusBarNotification, {
 		type: 'fallback',
@@ -74,7 +73,7 @@ export async function startPro(
 		{
 			connection: connection,
 			workspaceFolders: workspaceFolders,
-			editorConfigOverride,
+			editorConfigOverride: classConfig.editorConfigOverride,
 		},
 		{
 			onConnectionInitialized,
@@ -87,7 +86,7 @@ export async function startPro(
 	const providerArgs: ProviderArgs = {
 		connection,
 		hooks: classConfig.hooks.provider,
-		workspaceFolders,
+		workspaceFolders: workspaceFolders,
 		onConnectionInitialized,
 		documents: documentManager,
 	};

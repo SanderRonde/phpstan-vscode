@@ -15,6 +15,7 @@ export enum Commands {
 	LAUNCH_SETUP = 'phpstan.launchSetup',
 	DOWNLOAD_DEBUG_DATA = 'phpstan.downloadDebugData',
 	CLEAR_ERRORS = 'phpstan.clearErrors',
+	CLEAR_CACHE = 'phpstan.clearCache',
 	SHOW_OUTPUT_CHANNEL = 'phpstan.showOutputChannel',
 	DISMISS_CONFIG_ERROR = 'phpstan.dismissConfigError',
 	SHOW_CONFIG_ERROR_MENU = 'phpstan.showConfigErrorMenu',
@@ -27,6 +28,10 @@ export const commands: Record<Commands, CommandDefinition> = {
 	},
 	[Commands.CLEAR_ERRORS]: {
 		title: 'Clear errors',
+		inCommandPalette: true,
+	},
+	[Commands.CLEAR_CACHE]: {
+		title: 'Clear cache',
 		inCommandPalette: true,
 	},
 	[Commands.SCAN_PROJECT]: {
