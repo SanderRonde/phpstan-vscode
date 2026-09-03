@@ -38,19 +38,23 @@ export class ConfigurationManager {
 	public static async applyPathMapping(
 		classConfig: ClassConfig,
 		filePath: string,
-		workspaceRoot: string | undefined
+		workspaceRoot: string | undefined,
+		currentFile: URI | null = null
 	): Promise<string> {
-		const paths = (await getEditorConfiguration(classConfig)).paths;
+		const paths = (await getEditorConfiguration(classConfig, currentFile))
+			.paths;
 		return getPathMapper(paths, workspaceRoot)(filePath);
 	}
 
 	private static async _fileIfExists(
 		classConfig: ClassConfig,
 		filePath: string,
-		isDir: boolean
+		isDir: boolean,
+		currentFile: URI | null = null
 	): Promise<string | null> {
-		const dockerContainerName = (await getEditorConfiguration(classConfig))
-			.dockerContainerName;
+		const dockerContainerName = (
+			await getEditorConfiguration(classConfig, currentFile)
+		).dockerContainerName;
 		if (dockerContainerName) {
 			const exists = (
 				await docker(
@@ -61,7 +65,7 @@ export class ConfigurationManager {
 						'-c',
 						`[ -${isDir ? 'd' : 'f'} ${filePath} ]`,
 					],
-					await getDockerEnvironment(classConfig)
+					await getDockerEnvironment(classConfig, currentFile)
 				)
 			).success;
 			return exists ? filePath : null;
@@ -104,7 +108,10 @@ export class ConfigurationManager {
 		cwd: string | undefined,
 		currentFile: URI | null
 	): Promise<string | null> {
-		const extensionConfig = await getEditorConfiguration(classConfig);
+		const extensionConfig = await getEditorConfiguration(
+			classConfig,
+			currentFile
+		);
 
 		// Try to auto-resolve
 		const configFile = await configResolver.resolveConfig(currentFile);
@@ -131,11 +138,18 @@ export class ConfigurationManager {
 
 	public static async getCwd(
 		classConfig: ClassConfig,
-		allowFail: boolean
+		allowFail: boolean,
+		currentFile: URI | null = null
 	): Promise<string | null> {
-		const workspaceRoot = (await classConfig.workspaceFolders.get())
-			?.default;
-		const extensionConfig = await getEditorConfiguration(classConfig);
+		const workspaceFolders = await classConfig.workspaceFolders.get();
+		const workspaceRoot = currentFile
+			? (workspaceFolders?.getForPath(currentFile.fsPath) ??
+				workspaceFolders?.default)
+			: workspaceFolders?.default;
+		const extensionConfig = await getEditorConfiguration(
+			classConfig,
+			currentFile
+		);
 		const cwd =
 			this._getAbsolutePath(
 				extensionConfig.rootDir,
@@ -170,7 +184,8 @@ export class ConfigurationManager {
 	public static async getBinComand(
 		classConfig: ClassConfig,
 		cwd: string | undefined,
-		workspaceRoot: string | undefined
+		workspaceRoot: string | undefined,
+		currentFile: URI | null = null
 	): Promise<
 		| {
 				success: true;
@@ -181,7 +196,10 @@ export class ConfigurationManager {
 				error: string;
 		  }
 	> {
-		const extensionConfig = await getEditorConfiguration(classConfig);
+		const extensionConfig = await getEditorConfiguration(
+			classConfig,
+			currentFile
+		);
 		const providedBinPath = path.isAbsolute(extensionConfig.binPath)
 			? extensionConfig.binPath
 			: this._getAbsolutePath(extensionConfig.binPath, cwd);
@@ -197,7 +215,8 @@ export class ConfigurationManager {
 			binPath = await this.applyPathMapping(
 				classConfig,
 				binPath,
-				workspaceRoot
+				workspaceRoot,
+				currentFile
 			);
 		}
 
@@ -205,7 +224,12 @@ export class ConfigurationManager {
 		if (
 			(!binCommand || binCommand.length === 0) &&
 			(!binPath ||
-				!(await this._fileIfExists(classConfig, binPath, false)))
+				!(await this._fileIfExists(
+					classConfig,
+					binPath,
+					false,
+					currentFile
+				)))
 		) {
 			// Command binary does not exist
 			return {
@@ -259,12 +283,17 @@ export class ConfigurationManager {
 		onError: null | ((error: string) => void)
 	): Promise<CheckConfig | null> {
 		// Settings
-		const extensionConfig = await getEditorConfiguration(classConfig);
+		const extensionConfig = await getEditorConfiguration(
+			classConfig,
+			currentFile
+		);
 
 		const workspaceFolders = await classConfig.workspaceFolders.get();
 		let cwd: string | undefined;
 		if (workspaceFolders?.default) {
-			cwd = (await this.getCwd(classConfig, false)) ?? undefined;
+			cwd =
+				(await this.getCwd(classConfig, false, currentFile)) ??
+				undefined;
 			if (!cwd) {
 				return null;
 			}
@@ -300,7 +329,12 @@ export class ConfigurationManager {
 			return null;
 		}
 
-		const result = await this.getBinComand(classConfig, cwd, workspaceRoot);
+		const result = await this.getBinComand(
+			classConfig,
+			cwd,
+			workspaceRoot,
+			currentFile
+		);
 		if (!result.success) {
 			if (onError) {
 				onError(result.error);
@@ -320,7 +354,8 @@ export class ConfigurationManager {
 				? await ConfigurationManager.applyPathMapping(
 						classConfig,
 						configFile,
-						workspaceRoot
+						workspaceRoot,
+						currentFile
 					)
 				: null,
 			args: extensionConfig.options ?? [],

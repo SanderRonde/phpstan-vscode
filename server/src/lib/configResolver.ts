@@ -15,7 +15,7 @@ interface Config {
 
 export class ConfigResolver implements Disposable {
 	private readonly _disposables: Disposable[] = [];
-	private _configs: Config[][] | undefined;
+	private readonly _configs: Map<string, Config[][]> = new Map();
 
 	public constructor(private readonly _classConfig: ClassConfig) {
 		this._disposables.push(
@@ -37,47 +37,74 @@ export class ConfigResolver implements Disposable {
 		);
 	}
 
-	private async _findConfigs(): Promise<Config[][]> {
-		if (!this._configs) {
-			const editorConfig = await getEditorConfiguration(
-				this._classConfig
-			);
-			const configFilePaths = editorConfig.configFile
-				.split(',')
-				.map((configFile) => path.basename(configFile.trim()));
-			const configs: Config[][] = [];
-			for (const configFilePath of configFilePaths) {
-				const findFilesResult =
-					await this._classConfig.connection.sendRequest(
-						findFilesRequest,
-						{ pattern: `**/${configFilePath}` }
-					);
-				if (findFilesResult.files.length === 0) {
-					continue;
-				}
-				const fileURIs = findFilesResult.files.map((file) =>
-					URI.parse(file)
-				);
-				configs.push(
-					await Promise.all(
-						fileURIs.map(async (fileURI) => ({
-							uri: fileURI,
-							file: await ParsedConfigFile.from(
-								fileURI.fsPath,
-								(error) => {
-									log(
-										NEON_PREFIX,
-										`Issue while parsing .neon file "${fileURI.fsPath}": ${error.message}. Checking can continue without this file.`
-									);
-								}
-							),
-						}))
-					)
-				);
-			}
-			this._configs = configs;
+	/**
+	 * Discovers config files by basename. When `scopeFolder` is set, both the
+	 * `configFile` setting and the file search are scoped to that workspace
+	 * folder; otherwise the whole workspace is searched (used for cross-folder
+	 * operations like "scan all projects").
+	 */
+	private async _findConfigs(scopeFolder: URI | null): Promise<Config[][]> {
+		const cacheKey = scopeFolder?.toString() ?? '';
+		const cached = this._configs.get(cacheKey);
+		if (cached) {
+			return cached;
 		}
-		return this._configs;
+
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			scopeFolder
+		);
+		const configFilePaths = editorConfig.configFile
+			.split(',')
+			.map((configFile) => path.basename(configFile.trim()));
+		const configs: Config[][] = [];
+		for (const configFilePath of configFilePaths) {
+			const findFilesResult =
+				await this._classConfig.connection.sendRequest(
+					findFilesRequest,
+					{
+						pattern: `**/${configFilePath}`,
+						base: scopeFolder?.toString(),
+					}
+				);
+			if (findFilesResult.files.length === 0) {
+				continue;
+			}
+			const fileURIs = findFilesResult.files.map((file) =>
+				URI.parse(file)
+			);
+			configs.push(
+				await Promise.all(
+					fileURIs.map(async (fileURI) => ({
+						uri: fileURI,
+						file: await ParsedConfigFile.from(
+							fileURI.fsPath,
+							(error) => {
+								log(
+									NEON_PREFIX,
+									`Issue while parsing .neon file "${fileURI.fsPath}": ${error.message}. Checking can continue without this file.`
+								);
+							}
+						),
+					}))
+				)
+			);
+		}
+		this._configs.set(cacheKey, configs);
+		return configs;
+	}
+
+	private async _resolveScopeFolder(
+		filePath: URI | null
+	): Promise<URI | null> {
+		const workspaceFolders = await this._classConfig.workspaceFolders.get();
+		if (!workspaceFolders) {
+			return null;
+		}
+		const matchedFolder = filePath
+			? workspaceFolders.getForPath(filePath.fsPath)
+			: undefined;
+		return matchedFolder ?? workspaceFolders.default ?? null;
 	}
 
 	/**
@@ -89,7 +116,8 @@ export class ConfigResolver implements Disposable {
 	private async _findConfigsOrderedForFile(
 		filePath: URI
 	): Promise<Config[][]> {
-		const configs = await this._findConfigs();
+		const scopeFolder = await this._resolveScopeFolder(filePath);
+		const configs = await this._findConfigs(scopeFolder);
 		const filePathDir = path.dirname(filePath.fsPath);
 
 		return configs.map((configGroup) => {
@@ -135,7 +163,8 @@ export class ConfigResolver implements Disposable {
 	}
 
 	private async getSingleConfig(): Promise<Config | null> {
-		const configs = await this._findConfigs();
+		const scopeFolder = await this._resolveScopeFolder(null);
+		const configs = await this._findConfigs(scopeFolder);
 		if (configs.length === 0) {
 			return null;
 		}
@@ -172,7 +201,7 @@ export class ConfigResolver implements Disposable {
 		const coveredPaths = new Set<string>();
 
 		const allConfigs: Config[] = [];
-		const configGroups = await this._findConfigs();
+		const configGroups = await this._findConfigs(null);
 		for (const configGroup of configGroups) {
 			for (const config of configGroup) {
 				for (const relativeIncludedPath of config.file.paths) {
@@ -192,7 +221,7 @@ export class ConfigResolver implements Disposable {
 	}
 
 	public clearCache(): void {
-		this._configs = undefined;
+		this._configs.clear();
 	}
 
 	public dispose(): void {

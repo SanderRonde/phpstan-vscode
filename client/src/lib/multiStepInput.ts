@@ -33,8 +33,9 @@ interface InputBoxParameters extends MultiStepInputParameters {
 	shouldValidateInitially?: boolean;
 }
 
-export interface QuickPickParameters<T extends QuickPickItem>
-	extends MultiStepInputParameters {
+export interface QuickPickParameters<
+	T extends QuickPickItem,
+> extends MultiStepInputParameters {
 	matchOnDescription?: boolean;
 	matchOnDetail?: boolean;
 	canPickMany?: boolean;

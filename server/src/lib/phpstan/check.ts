@@ -101,7 +101,8 @@ export class PHPStanCheck implements AsyncDisposable {
 		const filePath = await ConfigurationManager.applyPathMapping(
 			this._classConfig,
 			URI.parse(file.uri).fsPath,
-			checkConfig.cwd
+			checkConfig.cwd,
+			URI.parse(file.uri)
 		);
 
 		const result = await runner.runProcess<PHPStanCheckResult>(
@@ -192,7 +193,8 @@ export class PHPStanCheck implements AsyncDisposable {
 
 		const errorManager = new PHPStanCheckErrorManager(this._classConfig);
 		const pathMapper = getPathMapper(
-			(await getEditorConfiguration(this._classConfig)).paths,
+			(await getEditorConfiguration(this._classConfig, currentFile))
+				.paths,
 			checkConfig.workspaceRoot
 		);
 		const runner = new PHPStanRunner(this._classConfig);

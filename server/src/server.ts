@@ -3,16 +3,17 @@
  * Licensed under the MIT License. See License.txt in the project root for license information.
  * ------------------------------------------------------------------------------------------ */
 
+import {
+	createConnection,
+	DidChangeWorkspaceFoldersNotification,
+	ProposedFeatures,
+	TextDocumentSyncKind,
+} from 'vscode-languageserver/node';
 import type {
 	Disposable,
 	Hover,
 	HoverParams,
 	ServerRequestHandler,
-} from 'vscode-languageserver/node';
-import {
-	createConnection,
-	ProposedFeatures,
-	TextDocumentSyncKind,
 } from 'vscode-languageserver/node';
 
 import {
@@ -58,37 +59,83 @@ async function main(): Promise<void> {
 	const extensionStartedAt = new PromisedValue<Date>();
 
 	connection.onInitialize((params) => {
-		const uri = params.workspaceFolders?.[0].uri;
-		if (uri) {
+		const folders = (params.workspaceFolders ?? []).map((folder) => ({
+			name: folder.name,
+			uri: URI.parse(folder.uri),
+		}));
+
+		if (folders.length > 0) {
+			// `folders` is mutated in place by the change listener below so
+			// `getForPath`/`byName` stay live as folders are added/removed
+			// after startup (e.g. "Add Folder to Workspace..."), since
+			// `PromisedValue` only lets us call `.set()` once.
 			const initializedFolders: WorkspaceFolders = {
 				byName: {},
 				getForPath: (filePath: string) => {
 					if (!path.isAbsolute(filePath)) {
 						return undefined;
 					}
-					for (const folder of params.workspaceFolders ?? []) {
-						const folderUri = URI.parse(folder.uri);
-						if (filePath.startsWith(folderUri.fsPath)) {
-							return folderUri;
+					for (const folder of folders) {
+						if (filePath.startsWith(folder.uri.fsPath)) {
+							return folder.uri;
 						}
 					}
 					return undefined;
 				},
 			};
 
-			// Use first folder as default even if there are multiple, to avoid crashes
-			// in string replacement.
-			initializedFolders.default = URI.parse(uri);
-
-			for (const folder of params.workspaceFolders ?? []) {
-				initializedFolders.byName[folder.name] = URI.parse(folder.uri);
-			}
+			const syncFolders = (): void => {
+				for (const name of Object.keys(initializedFolders.byName)) {
+					delete initializedFolders.byName[name];
+				}
+				for (const folder of folders) {
+					initializedFolders.byName[folder.name] = folder.uri;
+				}
+				// Only treat a folder as the unambiguous default when it's
+				// the only one open; with multiple folders, callers must
+				// resolve per-file via `getForPath` instead of guessing.
+				initializedFolders.default =
+					folders.length === 1 ? folders[0].uri : undefined;
+			};
+			syncFolders();
 			workspaceFolders.set(initializedFolders);
+
+			// Use the raw notification handler instead of
+			// `connection.workspace.onDidChangeWorkspaceFolders`: that
+			// getter assumes dynamic `client/registerCapability`
+			// support, which this project's client doesn't implement.
+			connection.onNotification(
+				DidChangeWorkspaceFoldersNotification.type,
+				({ event }) => {
+					for (const removed of event.removed) {
+						const removedUri = URI.parse(removed.uri).toString();
+						const index = folders.findIndex(
+							(folder) => folder.uri.toString() === removedUri
+						);
+						if (index !== -1) {
+							folders.splice(index, 1);
+						}
+					}
+					for (const added of event.added) {
+						folders.push({
+							name: added.name,
+							uri: URI.parse(added.uri),
+						});
+					}
+					syncFolders();
+				}
+			);
 		} else {
 			workspaceFolders.set(null);
 		}
 		return {
 			capabilities: {
+				workspace: {
+					workspaceFolders: {
+						supported: true,
+						changeNotifications: true,
+					},
+				},
 				textDocumentSync: {
 					openClose: true,
 					save: true,
@@ -145,9 +192,8 @@ async function main(): Promise<void> {
 
 	// Check version
 	void getVersion(classConfig).then((result) => {
-		if (result.success) {
-			classConfig.version.set(result.version);
-		}
+		// Always resolve, even on failure, so anything awaiting `version` doesn't hang forever
+		classConfig.version.set(result.success ? result.version : null);
 	});
 
 	let result: StartResult;
