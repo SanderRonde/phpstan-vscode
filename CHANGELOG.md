@@ -2,7 +2,7 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
-## 4.0.17
+## 4.0.18
 
 -   Support for multi-workspace projects (thanks to `eexit` for the PR)
 
