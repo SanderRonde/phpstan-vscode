@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## 4.0.17
+
+-   Support for multi-workspace projects (thanks to `eexit` for the PR)
+
 ## 4.0.16
 
 -   Add `phpstan.clearCache` command to clear the cache
