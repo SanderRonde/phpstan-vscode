@@ -1,8 +1,8 @@
+import { RelativePattern, workspace, Uri } from 'vscode';
 import { getEditorConfiguration } from './editorConfig';
-import { workspace } from 'vscode';
-import type { Uri } from 'vscode';
+import type { GlobPattern } from 'vscode';
 
-export function findFiles(pattern: string): Thenable<Uri[]> {
+export function findFiles(pattern: string, base?: string): Thenable<Uri[]> {
 	const editorConfig = getEditorConfiguration();
 	const excludes = new Set<string>(['**/vendor/**']);
 	const excludeFiles = editorConfig.get('files.exclude');
@@ -17,5 +17,8 @@ export function findFiles(pattern: string): Thenable<Uri[]> {
 			excludes.add(key);
 		}
 	}
-	return workspace.findFiles(pattern, `{${[...excludes].join(',')}}`);
+	const globPattern: GlobPattern = base
+		? new RelativePattern(Uri.parse(base), pattern)
+		: pattern;
+	return workspace.findFiles(globPattern, `{${[...excludes].join(',')}}`);
 }

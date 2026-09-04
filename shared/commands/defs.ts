@@ -84,6 +84,7 @@ export const config = {
 	'phpstan.singleFileMode': {
 		jsonDefinition: {
 			type: 'boolean',
+			scope: 'resource',
 			description:
 				"Whether to scan only the file that is being saved, instead of the whole project. This is not recommended since it busts the cache. Only use this if your computer can't handle a full-project scan",
 			default: false,
@@ -92,6 +93,7 @@ export const config = {
 	'phpstan.binPath': {
 		jsonDefinition: {
 			type: 'string',
+			scope: 'resource',
 			default: 'vendor/bin/phpstan',
 			description: 'Path to the PHPStan binary',
 		},
@@ -99,6 +101,7 @@ export const config = {
 	'phpstan.binCommand': {
 		jsonDefinition: {
 			type: 'array',
+			scope: 'resource',
 			examples: [['phpstan'], ['lando', 'phpstan']],
 			items: {
 				type: 'string',
@@ -110,6 +113,7 @@ export const config = {
 	'phpstan.configFile': {
 		jsonDefinition: {
 			type: 'string',
+			scope: 'resource',
 			default: 'phpstan.neon,phpstan.neon.dist,phpstan.dist.neon',
 			examples: [
 				'phpstan.neon',
@@ -123,6 +127,7 @@ export const config = {
 	'phpstan.paths': {
 		jsonDefinition: {
 			type: 'object',
+			scope: 'resource',
 			default: {},
 			__shape: '' as unknown as Record<string, string>,
 			examples: [
@@ -137,6 +142,7 @@ export const config = {
 	'phpstan.dockerContainerName': {
 		jsonDefinition: {
 			type: 'string',
+			scope: 'resource',
 			description: 'Name of the Docker container to use for scanning',
 			examples: ['docker-phpstan-php-1'],
 		},
@@ -144,12 +150,14 @@ export const config = {
 	'phpstan.rootDir': {
 		jsonDefinition: {
 			type: 'string',
+			scope: 'resource',
 			description: 'Path to the root directory',
 		},
 	},
 	'phpstan.options': {
 		jsonDefinition: {
 			type: 'array',
+			scope: 'resource',
 			default: [],
 			items: {
 				type: 'string',
@@ -168,6 +176,7 @@ export const config = {
 	'phpstan.memoryLimit': {
 		jsonDefinition: {
 			type: 'string',
+			scope: 'resource',
 			default: '1G',
 			description: 'Memory limit to use',
 		},
@@ -175,6 +184,7 @@ export const config = {
 	'phpstan.enabled': {
 		jsonDefinition: {
 			type: 'boolean',
+			scope: 'resource',
 			description: 'Whether to enable the on-save checker',
 			default: true,
 		},
@@ -182,6 +192,7 @@ export const config = {
 	'phpstan.projectTimeout': {
 		jsonDefinition: {
 			type: 'number',
+			scope: 'resource',
 			description:
 				'Timeout in milliseconds for a full project check. After this time the checking process is canceled',
 			default: 300000,
@@ -190,6 +201,7 @@ export const config = {
 	'phpstan.timeout': {
 		jsonDefinition: {
 			type: 'number',
+			scope: 'resource',
 			description:
 				'Timeout in milliseconds for a file check. After this time the checking process is canceled',
 			default: 300000,
@@ -213,6 +225,7 @@ export const config = {
 	'phpstan.showTypeOnHover': {
 		jsonDefinition: {
 			type: 'boolean',
+			scope: 'resource',
 			description:
 				'Show type information on hover. Disable this if you run into caching problems. Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
 			default: false,
@@ -221,6 +234,7 @@ export const config = {
 	'phpstan.enableLanguageServer': {
 		jsonDefinition: {
 			type: 'boolean',
+			scope: 'resource',
 			description:
 				'Enable language server that provides on-hover type information. Disable this if you run into caching problems. Does not work with PHPStan Pro enabled or for PHPStan version < 1.8.0.',
 			default: false,
@@ -230,6 +244,7 @@ export const config = {
 	'phpstan.ignoreErrors': {
 		jsonDefinition: {
 			type: 'array',
+			scope: 'resource',
 			description:
 				"An array of regular expressions to ignore in PHPStan's error output. If PHPStan outputs some warnings/errors in stderr that can be ignored, put them in here and they'll no longer cause the process to exit with an error.",
 			default: ['Xdebug: .*'],
@@ -250,6 +265,7 @@ export const config = {
 	'phpstan.pro': {
 		jsonDefinition: {
 			type: 'boolean',
+			scope: 'resource',
 			description:
 				'Use PHPStan Pro under the hood (if you have a license)',
 			default: false,
@@ -258,6 +274,7 @@ export const config = {
 	'phpstan.tmpDir': {
 		jsonDefinition: {
 			type: 'string',
+			scope: 'resource',
 			description:
 				'Path to the PHPStan TMP directory. Lets PHPStan determine the TMP directory if not set.',
 		},
@@ -265,6 +282,7 @@ export const config = {
 	'phpstan.checkValidity': {
 		jsonDefinition: {
 			type: 'boolean',
+			scope: 'resource',
 			description:
 				'Check the validity of the PHP code before checking it with PHPStan. This is recommended only if you have autoSave enabled or for some other reason save syntactically invalid code. PHPStan tends to invalidate its cache when checking an invalid file, leading to a slower experience.',
 			default: false,

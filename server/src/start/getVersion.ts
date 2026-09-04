@@ -15,13 +15,27 @@ export async function getVersion(
 	| { success: true; version: PHPStanVersion }
 	| { success: false; error: string }
 > {
-	// Test if we can get the PHPStan version
-	const cwd = await ConfigurationManager.getCwd(classConfig, true);
-	const workspaceRoot = (await classConfig.workspaceFolders.get())?.default;
+	// Test if we can get the PHPStan version. If there's no single default
+	// workspace folder (multi-root), fall back to any folder since the
+	// PHPStan version is only used as a general capability check.
+	const workspaceFolders = await classConfig.workspaceFolders.get();
+	const fallbackFolder = workspaceFolders
+		? Object.values(workspaceFolders.byName)[0]
+		: undefined;
+	const currentFile = workspaceFolders?.default
+		? null
+		: (fallbackFolder ?? null);
+	const cwd = await ConfigurationManager.getCwd(
+		classConfig,
+		true,
+		currentFile
+	);
+	const workspaceRoot = workspaceFolders?.default ?? fallbackFolder;
 	const binConfigResult = await ConfigurationManager.getBinComand(
 		classConfig,
 		cwd ?? undefined,
-		workspaceRoot?.fsPath
+		workspaceRoot?.fsPath,
+		currentFile
 	);
 	if (!binConfigResult.success) {
 		return {

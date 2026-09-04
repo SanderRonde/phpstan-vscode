@@ -1,0 +1,20 @@
+{
+	"name": "sander/demo",
+	"require": {
+		"phpstan/phpstan": "^1.12",
+		"league/oauth1-client": "^1.10",
+		"dragonmantank/cron-expression": "^3.4",
+		"jean85/pretty-package-versions": "^1.5 || ^2.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"Sander\\Demo\\": "src/"
+		}
+	},
+	"authors": [
+		{
+			"name": "\"Sander Ronde\"",
+			"email": "awsdfgvhbjn@gmail.com"
+		}
+	]
+}

@@ -133,7 +133,10 @@ export function listenClearCache(
 				classConfig.hooks.provider.clearReport();
 
 				await onConnectionInitialized;
-				const editorConfig = await getEditorConfiguration(classConfig);
+				const editorConfig = await getEditorConfiguration(
+					classConfig,
+					currentFile
+				);
 				if (
 					checkManager &&
 					editorConfig.enabled &&

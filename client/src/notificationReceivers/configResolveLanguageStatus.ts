@@ -45,9 +45,9 @@ export class ConfigResolveLanguageStatus implements Disposable {
 				findFilesRequest,
 				async (params): Promise<FindFilesRequestType['response']> => {
 					return {
-						files: (await findFiles(params.pattern)).map((file) =>
-							file.toString()
-						),
+						files: (
+							await findFiles(params.pattern, params.base)
+						).map((file) => file.toString()),
 					};
 				}
 			)

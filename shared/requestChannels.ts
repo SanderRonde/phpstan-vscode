@@ -48,6 +48,8 @@ export interface ConfigResolveRequestType {
 export interface FindFilesRequestType {
 	request: {
 		pattern: string;
+		/** Restricts the search to this workspace folder (URI string) instead of the whole workspace. */
+		base?: string;
 	};
 	response: {
 		files: string[];

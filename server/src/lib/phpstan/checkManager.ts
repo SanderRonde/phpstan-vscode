@@ -22,8 +22,7 @@ interface CheckOperation {
 	hashes: Record<string, string>;
 }
 type RecursivePromiseObject =
-	| PromiseObject<RecursivePromiseObject>
-	| OperationStatus;
+	PromiseObject<RecursivePromiseObject> | OperationStatus;
 
 const PROJECT_CHECK_STR = '__project__';
 export class PHPStanCheckManager implements AsyncDisposable {
@@ -77,9 +76,13 @@ export class PHPStanCheckManager implements AsyncDisposable {
 
 	private async _onTimeout(
 		check: PHPStanCheck,
-		onError: null | ((error: string) => void)
+		onError: null | ((error: string) => void),
+		currentFile: URI | null
 	): Promise<void> {
-		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			currentFile
+		);
 		if (!editorConfig.suppressTimeoutMessage) {
 			let error = `PHPStan check timed out after ${editorConfig.projectTimeout / 1000}s`;
 			if (!editorConfig.singleFileMode) {
@@ -217,7 +220,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		});
 
 		// Do check
-		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			currentFile
+		);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors, Error>>
@@ -236,7 +242,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			},
 			onTimeout: async () => {
 				await check.dispose();
-				void this._onTimeout(check, onError);
+				void this._onTimeout(check, onError, currentFile);
 				await operation.finish(OperationStatus.KILLED);
 
 				return ReturnResult.killed();
@@ -286,7 +292,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		await operation.start('Checking');
 
 		// Do check
-		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			URI.parse(file.uri)
+		);
 		const runningCheck = withTimeout<
 			ReturnResult<ReportedErrors>,
 			Promise<ReturnResult<ReportedErrors, Error>>
@@ -305,7 +314,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 			},
 			onTimeout: async () => {
 				await check.dispose();
-				void this._onTimeout(check, onError);
+				void this._onTimeout(check, onError, URI.parse(file.uri));
 				await operation.finish(OperationStatus.KILLED);
 
 				return ReturnResult.killed();
@@ -442,7 +451,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		cause: string,
 		onError: null | ((error: string) => void)
 	): Promise<OperationStatus> {
-		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			currentFile
+		);
 		const shouldCheckProject = !editorConfig.singleFileMode || !file;
 		log(WATCHER_PREFIX, `Checking: ${cause}`);
 		if (shouldCheckProject) {
@@ -457,7 +469,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		cause: string,
 		onError: null | ((error: string) => void)
 	): Promise<void> {
-		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			currentFile
+		);
 		const shouldCheckProject = !editorConfig.singleFileMode || !file;
 		return this.debounceWithKey(
 			shouldCheckProject ? PROJECT_CHECK_STR : file.uri,
@@ -471,7 +486,10 @@ export class PHPStanCheckManager implements AsyncDisposable {
 		file: WatcherNotificationFileData,
 		cause: string
 	): Promise<void> {
-		const editorConfig = await getEditorConfiguration(this._classConfig);
+		const editorConfig = await getEditorConfiguration(
+			this._classConfig,
+			URI.parse(file.uri)
+		);
 		return this.debounceWithKey(
 			editorConfig.singleFileMode ? file.uri : PROJECT_CHECK_STR,
 			async () => {

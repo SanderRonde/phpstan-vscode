@@ -14,8 +14,8 @@ import * as ws from 'ws';
 export class PHPStanProErrorManager implements Disposable {
 	private _wsClient: ws.WebSocket | null = null;
 	private _pathMapper:
-		| ((filePath: string, inverse?: boolean) => string)
-		| undefined = undefined;
+		((filePath: string, inverse?: boolean) => string) | undefined =
+		undefined;
 
 	public constructor(
 		private readonly _classConfig: ClassConfig,
