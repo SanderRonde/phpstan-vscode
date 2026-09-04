@@ -24,7 +24,7 @@ export async function getVersion(
 		: undefined;
 	const currentFile = workspaceFolders?.default
 		? null
-		: (fallbackFolder ?? null);
+		: fallbackFolder ?? null;
 	const cwd = await ConfigurationManager.getCwd(
 		classConfig,
 		true,

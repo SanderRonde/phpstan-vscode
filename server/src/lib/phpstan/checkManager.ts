@@ -22,7 +22,8 @@ interface CheckOperation {
 	hashes: Record<string, string>;
 }
 type RecursivePromiseObject =
-	PromiseObject<RecursivePromiseObject> | OperationStatus;
+	| PromiseObject<RecursivePromiseObject>
+	| OperationStatus;
 
 const PROJECT_CHECK_STR = '__project__';
 export class PHPStanCheckManager implements AsyncDisposable {

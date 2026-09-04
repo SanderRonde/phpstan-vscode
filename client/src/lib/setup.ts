@@ -45,9 +45,7 @@ interface SetupChoice extends QuickPickItem {
 }
 
 type State = {
-	-readonly [
-		K in keyof ConfigSettingsWithoutPrefix
-	]: ConfigSettingsWithoutPrefix[K];
+	-readonly [K in keyof ConfigSettingsWithoutPrefix]: ConfigSettingsWithoutPrefix[K];
 };
 
 const TITLE = 'PHPStan setup';

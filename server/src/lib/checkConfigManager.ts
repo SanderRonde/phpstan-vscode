@@ -143,8 +143,8 @@ export class ConfigurationManager {
 	): Promise<string | null> {
 		const workspaceFolders = await classConfig.workspaceFolders.get();
 		const workspaceRoot = currentFile
-			? (workspaceFolders?.getForPath(currentFile.fsPath) ??
-				workspaceFolders?.default)
+			? workspaceFolders?.getForPath(currentFile.fsPath) ??
+				workspaceFolders?.default
 			: workspaceFolders?.default;
 		const extensionConfig = await getEditorConfiguration(
 			classConfig,
