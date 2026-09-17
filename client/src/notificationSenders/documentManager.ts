@@ -1,6 +1,7 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import { debug, sanitizeFilePath } from '../notificationReceivers/debug';
 import { watcherNotification } from '../lib/notificationChannels';
+import { isSupportedLanguageId } from '../../../shared/languages';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { getEditorConfiguration } from '../lib/editorConfig';
 import type { Disposable } from 'vscode';
@@ -25,7 +26,7 @@ export class DocumentManager implements Disposable {
 		changes?: readonly vscode.TextDocumentContentChangeEvent[]
 	): boolean {
 		return (
-			e.languageId === 'php' &&
+			isSupportedLanguageId(e.languageId) &&
 			!e.isDirty &&
 			(!changes || changes.length === 0) &&
 			['file', 'vscode-vfs', 'git', 'vscode-remote'].includes(

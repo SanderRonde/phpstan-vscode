@@ -79,16 +79,16 @@ export async function getFileReport(
 			] ?? null
 		);
 	}
-	const fileContent = providerArgs.documents.getFile(documentURI)?.content;
-	if (!fileContent) {
+	const file = providerArgs.documents.getFile(documentURI);
+	if (!file?.content) {
 		return null;
 	}
 	const promise = toCheckablePromise(
 		providerArgs.phpstan.checkIfChanged(
 			{
-				content: fileContent,
+				content: file.content,
 				uri: documentURI,
-				languageId: 'php',
+				languageId: file.languageId,
 			},
 			'Hover action'
 		)
