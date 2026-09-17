@@ -20,6 +20,7 @@ import { DocumentManager } from './notificationSenders/documentManager';
 import { ZombieKiller } from './notificationReceivers/zombieKiller';
 import { ErrorManager } from './notificationReceivers/errorManager';
 import { PHPStanProManager } from './notificationReceivers/pro';
+import { SUPPORTED_LANGUAGE_IDS } from '../../shared/languages';
 import { StatusBar } from './notificationReceivers/statusBar';
 import type { ExtensionContext, OutputChannel } from 'vscode';
 import { PromisedValue } from '../../server/src/lib/types';
@@ -54,12 +55,10 @@ async function startLanguageServer(
 	};
 	const clientOptions: LanguageClientOptions = {
 		outputChannel,
-		documentSelector: [
-			{
-				scheme: 'file',
-				language: 'php',
-			},
-		],
+		documentSelector: SUPPORTED_LANGUAGE_IDS.map((language) => ({
+			scheme: 'file',
+			language,
+		})),
 		synchronize: {
 			fileEvents: workspace.createFileSystemWatcher(
 				'*.php',
