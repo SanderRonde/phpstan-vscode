@@ -29,7 +29,8 @@
 	},
 	"publisher": "SanderRonde",
 	"activationEvents": [
-		"onLanguage:php"
+		"onLanguage:php",
+		"onLanguage:blade"
 	],
 	"main": "./out/extension.js",
 	"contributes": {
