@@ -1,4 +1,8 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
+import {
+	PHP_LANGUAGE_ID,
+	shouldCheckDocument,
+} from '../../../shared/languages';
 import { assertUnreachable, basicHash } from '../../../shared/util';
 import type { PHPStanCheckManager } from './phpstan/checkManager';
 import type { PartialDocument } from './phpstan/processRunner';
@@ -40,6 +44,11 @@ class DocumentManagerFileData implements WatcherNotificationFileData {
 	}
 
 	private _checkValid(): boolean {
+		// Only plain PHP can be parsed, templating languages such as
+		// blade contain syntax the parser doesn't understand
+		if (this.languageId !== PHP_LANGUAGE_ID) {
+			return true;
+		}
 		const parser = new phpParser.Engine({});
 		try {
 			parser.parseCode(this.content, URI.parse(this.uri).fsPath);
@@ -205,7 +214,7 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 		await checkManager.checkWithDebounce(
@@ -224,7 +233,7 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 		await checkManager.checkWithDebounce(
@@ -243,7 +252,7 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 
@@ -262,7 +271,7 @@ export class DocumentManager implements AsyncDisposable {
 		if (!(await this._enabled)) {
 			return;
 		}
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 
@@ -278,7 +287,7 @@ export class DocumentManager implements AsyncDisposable {
 		checkManager: PHPStanCheckManager,
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		if (e.languageId !== 'php' || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 		await checkManager.checkWithDebounce(

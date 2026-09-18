@@ -9,6 +9,7 @@ import type { PHPStanProManager } from '../notificationReceivers/pro';
 import { commands, Commands } from '../../../shared/commands/defs';
 // eslint-disable-next-line node/no-extraneous-import
 import { autoRegisterCommand } from 'vscode-generate-package-json';
+import { isSupportedLanguageId } from '../../../shared/languages';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { getDebugData } from '../notificationReceivers/debug';
 import { getEditorConfiguration } from './editorConfig';
@@ -39,8 +40,10 @@ export function registerListeners(
 
 				const doc = vscode.window.activeTextEditor?.document;
 				if (doc) {
-					if (doc.languageId !== 'php') {
-						showError('Only PHP files can be scanned for errors');
+					if (!isSupportedLanguageId(doc.languageId)) {
+						showError(
+							'Only PHP and Blade files can be scanned for errors'
+						);
 						return;
 					}
 
@@ -137,8 +140,10 @@ export function registerListeners(
 			async () => {
 				const doc = vscode.window.activeTextEditor?.document;
 				if (doc) {
-					if (doc.languageId !== 'php') {
-						showError('Only PHP files can be scanned for errors');
+					if (!isSupportedLanguageId(doc.languageId)) {
+						showError(
+							'Only PHP and Blade files can be scanned for errors'
+						);
 						return;
 					}
 

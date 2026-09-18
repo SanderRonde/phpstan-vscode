@@ -1,3 +1,4 @@
+import { SUPPORTED_LANGUAGE_IDS } from '../../../shared/languages';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { errorNotification } from '../lib/notificationChannels';
 import type { Disposable } from 'vscode';
@@ -91,9 +92,13 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 			})
 		);
 		this._disposables.push(
-			vscode.languages.registerCodeActionsProvider('php', this, {
-				providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
-			})
+			vscode.languages.registerCodeActionsProvider(
+				[...SUPPORTED_LANGUAGE_IDS],
+				this,
+				{
+					providedCodeActionKinds: [vscode.CodeActionKind.QuickFix],
+				}
+			)
 		);
 	}
 

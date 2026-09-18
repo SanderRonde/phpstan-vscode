@@ -10,6 +10,7 @@ import { configResolveRequest, findFilesRequest } from '../lib/requestChannels';
 import type { FindFilesRequestType } from '../../../shared/requestChannels';
 import { configErrorNotification } from '../lib/notificationChannels';
 import type { PromisedValue } from '../../../server/src/lib/types';
+import { SUPPORTED_LANGUAGE_IDS } from '../../../shared/languages';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { Commands } from '../../../shared/commands/defs';
 import { findFiles } from '../lib/files';
@@ -22,7 +23,10 @@ export class ConfigResolveLanguageStatus implements Disposable {
 	private _disposables: Disposable[] = [];
 	private _languageStatus = languages.createLanguageStatusItem(
 		'phpstan.languageStatusItem',
-		[{ language: 'php' }, { pattern: '**/*.neon' }]
+		[
+			...SUPPORTED_LANGUAGE_IDS.map((language) => ({ language })),
+			{ pattern: '**/*.neon' },
+		]
 	);
 	private _outstandingTokens = new Set<CancellationTokenSource>();
 	private _currentError: {
