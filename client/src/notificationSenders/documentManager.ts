@@ -84,6 +84,10 @@ export class DocumentManager implements Disposable {
 	}
 
 	private async _onDocumentSave(e: vscode.TextDocument): Promise<void> {
+		if (!isSupportedLanguageId(e.languageId)) {
+			return;
+		}
+
 		const fileContents = e.getText();
 		const fileContentsHash = createHash('sha256')
 			.update(fileContents)

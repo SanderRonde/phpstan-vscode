@@ -1,7 +1,7 @@
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import {
-	isSupportedLanguageId,
 	PHP_LANGUAGE_ID,
+	shouldCheckDocument,
 } from '../../../shared/languages';
 import { assertUnreachable, basicHash } from '../../../shared/util';
 import type { PHPStanCheckManager } from './phpstan/checkManager';
@@ -214,7 +214,7 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		if (!isSupportedLanguageId(e.languageId) || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 		await checkManager.checkWithDebounce(
@@ -233,7 +233,7 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		if (!isSupportedLanguageId(e.languageId) || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 		await checkManager.checkWithDebounce(
@@ -252,7 +252,7 @@ export class DocumentManager implements AsyncDisposable {
 			return;
 		}
 
-		if (!isSupportedLanguageId(e.languageId) || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 
@@ -271,7 +271,7 @@ export class DocumentManager implements AsyncDisposable {
 		if (!(await this._enabled)) {
 			return;
 		}
-		if (!isSupportedLanguageId(e.languageId) || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 
@@ -287,7 +287,7 @@ export class DocumentManager implements AsyncDisposable {
 		checkManager: PHPStanCheckManager,
 		e: WatcherNotificationFileData
 	): Promise<void> {
-		if (!isSupportedLanguageId(e.languageId) || e.uri.endsWith('.git')) {
+		if (!shouldCheckDocument(e.languageId, e.uri)) {
 			return;
 		}
 		await checkManager.checkWithDebounce(

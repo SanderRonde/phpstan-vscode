@@ -2,6 +2,10 @@
 
 All notable changes to the "phpstan-vscode" extension will be documented in this file.
 
+## Unreleased
+
+-   Activate and check Blade templates (`.blade.php`) so Bladestan errors are shown when saving those files (fixes #157)
+
 ## 4.0.18
 
 -   Support for multi-workspace projects (thanks to `eexit` for the PR)

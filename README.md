@@ -5,6 +5,7 @@
 -   Automatically runs PHPStan of your code and highlights errors as you type.
 -   Performs project-wide analysis and displays all errors in the `Diagnostics` tab.
 -   Shows the values of variables according to PHPStan at the point of hovering when using `phpstan.showTypeOnHover` setting.
+-   Activates on Blade templates (`.blade.php`) so tools like [Bladestan](https://github.com/bladestan/bladestan) can report errors when those files are saved.
 
 https://user-images.githubusercontent.com/5385012/188924277-c9392477-9bd6-40b1-9ed7-eb892da1fe0f.mp4
 

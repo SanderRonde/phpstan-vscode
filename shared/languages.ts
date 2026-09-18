@@ -11,3 +11,7 @@ export const SUPPORTED_LANGUAGE_IDS = [
 export function isSupportedLanguageId(languageId: string): boolean {
 	return (SUPPORTED_LANGUAGE_IDS as readonly string[]).includes(languageId);
 }
+
+export function shouldCheckDocument(languageId: string, uri: string): boolean {
+	return isSupportedLanguageId(languageId) && !uri.endsWith('.git');
+}
