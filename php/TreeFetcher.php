@@ -3,6 +3,7 @@
 use PhpParser\Node;
 use PhpParser\Node\Expr\ArrowFunction;
 use PhpParser\Node\Expr\Assign;
+use PhpParser\Node\Expr\Closure;
 use PhpParser\Node\Expr\PropertyFetch;
 use PhpParser\Node\Expr\Variable;
 use PhpParser\Node\FunctionLike;
@@ -12,6 +13,7 @@ use PHPStan\Collectors\Collector;
 use PHPStan\Node\CollectedDataNode;
 use PHPStan\Node\InForeachNode;
 use PHPStan\Reflection\ParametersAcceptor;
+use PHPStan\Reflection\Php\PhpFunctionFromParserNodeReflection;
 use PHPStan\Reflection\Php\PhpMethodFromParserNodeReflection;
 use PHPStan\Rules\Rule;
 use PHPStan\Type\ArrayType;
@@ -208,15 +210,47 @@ class PHPStanVSCodeTreeFetcherCollector implements Collector {
 
 		$function = $scope->getFunction();
 		assert($function !== null);
-		if (!($function instanceof PhpMethodFromParserNodeReflection)) {
+		if (
+			!($function instanceof PhpFunctionFromParserNodeReflection) &&
+			!($function instanceof PhpMethodFromParserNodeReflection)
+		) {
 			return [];
 		}
 
-		$reflectionClass = new ReflectionClass(PhpMethodFromParserNodeReflection ::class);
-		$reflectionMethod = $reflectionClass->getMethod('getFunctionLike');
-		$reflectionMethod->setAccessible(true);
-		$fnLike = $reflectionMethod->invoke($function);
+		$fnLike = $this->getParserFunctionLike($function);
+		if ($fnLike === null) {
+			return [];
+		}
 		return $this->onFunction($fnLike, $function);
+	}
+
+	/**
+	 * @param PhpFunctionFromParserNodeReflection|PhpMethodFromParserNodeReflection $function
+	 */
+	private function getParserFunctionLike($function): ?FunctionLike
+	{
+		try {
+			$reflectionClass = new ReflectionClass($function);
+			if ($reflectionClass->hasMethod('getFunctionLike')) {
+				$reflectionMethod = $reflectionClass->getMethod('getFunctionLike');
+				$reflectionMethod->setAccessible(true);
+				$fnLike = $reflectionMethod->invoke($function);
+				if ($fnLike instanceof FunctionLike) {
+					return $fnLike;
+				}
+			}
+			if ($reflectionClass->hasProperty('functionLike')) {
+				$property = $reflectionClass->getProperty('functionLike');
+				$property->setAccessible(true);
+				$fnLike = $property->getValue($function);
+				if ($fnLike instanceof FunctionLike) {
+					return $fnLike;
+				}
+			}
+		} catch (\Throwable $e) {
+			return null;
+		}
+		return null;
 	}
 
 	/**
@@ -334,7 +368,7 @@ class PHPStanVSCodeTreeFetcherCollector implements Collector {
 	}
 
 	/** @var list<CollectedData> */
-	protected function onFunction(FunctionLike $node, PhpMethodFromParserNodeReflection $type): array {
+	protected function onFunction(FunctionLike $node, PhpFunctionFromParserNodeReflection $type): array {
 		/** @var list<CollectedData> $data */
 		$data = [];
 
@@ -392,7 +426,8 @@ class PHPStanVSCodeTreeFetcherCollector implements Collector {
 					if ($nodeWithType) {
 						$data[] = $nodeWithType;
 					}
-				} else if ($valueVar && $valueVar instanceof Variable) {
+				}
+				if ($valueVar && $valueVar instanceof Variable) {
 					$nodeWithType = $this->processNodeWithType($valueVar, $exprType->getItemType());
 					if ($nodeWithType) {
 						$data[] = $nodeWithType;

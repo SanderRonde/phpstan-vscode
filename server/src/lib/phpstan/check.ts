@@ -2,7 +2,7 @@ import type {
 	StatusBarProgress,
 	WatcherNotificationFileData,
 } from '../../../../shared/notificationChannels';
-import { OperationStatus } from '../../../../shared/statusBar';
+import { mergeCheckErrors } from '../../../../shared/mergeCheckErrors';
 import { ConfigurationManager } from '../checkConfigManager';
 import type { AsyncDisposable, ClassConfig } from '../types';
 import { errorNotification } from '../notificationChannels';
@@ -268,43 +268,17 @@ class PHPStanCheckErrorManager {
 		result: ReturnResult<ReportedErrors>,
 		configFile: string,
 		isPartial: boolean
-	): ReportedErrors | null {
-		if (result.status === OperationStatus.ERROR) {
-			return {
-				fileSpecificErrors: {},
-				notFileSpecificErrors: [],
-			};
-		} else if (!result.success()) {
+	): { publish: ReportedErrors; store: ReportedErrors } | null {
+		if (!result.success()) {
 			return null;
 		}
 
-		const reportedErrors = result.value;
-
-		const errors: ReportedErrors = {
-			fileSpecificErrors: {
-				...reportedErrors.fileSpecificErrors,
-			},
-			notFileSpecificErrors: [...reportedErrors.notFileSpecificErrors],
-		};
-
-		/**
-		 * Merge errors from different config files.
-		 * Replace the current config file's scan with the currently reported errors.
-		 * When the current scan is partial, merge the errors with the last scan.
-		 */
-		for (const [
-			lastErrorConfigFile,
-			lastErrors,
-		] of PHPStanCheckErrorManager._lastErrors) {
-			errors.fileSpecificErrors = {
-				...(lastErrorConfigFile !== configFile || isPartial
-					? lastErrors.fileSpecificErrors
-					: {}),
-				...errors.fileSpecificErrors,
-			};
-		}
-
-		return errors;
+		return mergeCheckErrors(
+			result.value,
+			configFile,
+			isPartial,
+			PHPStanCheckErrorManager._lastErrors
+		);
 	}
 
 	public async handleResult(
@@ -318,8 +292,8 @@ class PHPStanCheckErrorManager {
 			return;
 		}
 
-		PHPStanCheckErrorManager._lastErrors.set(configFile, errors);
-		await this._showErrors(errors);
+		PHPStanCheckErrorManager._lastErrors.set(configFile, errors.store);
+		await this._showErrors(errors.publish);
 	}
 }
 

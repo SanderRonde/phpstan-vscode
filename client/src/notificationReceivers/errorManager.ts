@@ -33,6 +33,8 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		this._disposables.push(
 			client.onNotification(errorNotification, (params) => {
 				this.clearErrors();
+				this._errors.notFileSpecificErrors =
+					params.diagnostics.notFileSpecificErrors;
 				for (const uri in params.diagnostics.fileSpecificErrors) {
 					this._errors.fileSpecificErrors.set(
 						uri,
@@ -42,6 +44,24 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 						uri,
 						params.diagnostics.fileSpecificErrors[uri]
 					);
+				}
+
+				const editor = vscode.window.activeTextEditor;
+				if (editor && this._errors.notFileSpecificErrors.length) {
+					this._showErrors(editor.document.uri.toString(), [
+						...(this._errors.fileSpecificErrors.get(
+							editor.document.uri.toString()
+						) ?? []),
+						...this._errors.notFileSpecificErrors.map(
+							(message) => ({
+								message,
+								lineNumber: null,
+								ignorable: false,
+								identifier: null,
+								tip: null,
+							})
+						),
+					]);
 				}
 			})
 		);
@@ -82,11 +102,12 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 		);
 		this._disposables.push(
 			vscode.workspace.onDidOpenTextDocument((e) => {
-				if (this._errors.fileSpecificErrors.has(e.fileName)) {
+				const uri = e.uri.toString();
+				if (this._errors.fileSpecificErrors.has(uri)) {
 					// Refresh, we might have some info on the chars
 					this._showErrors(
-						e.fileName,
-						this._errors.fileSpecificErrors.get(e.fileName)!
+						uri,
+						this._errors.fileSpecificErrors.get(uri)!
 					);
 				}
 			})
@@ -166,8 +187,15 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 				);
 			}
 
+			if (lineNumber < 0 || lineNumber >= file.lineCount) {
+				return this._createDiagnostic(
+					new vscode.Range(0, 0, 0, 0),
+					error
+				);
+			}
+
 			// Get text range
-			const fullLineText = file.getText().split('\n')[lineNumber];
+			const fullLineText = file.lineAt(lineNumber).text;
 
 			const { startChar, endChar } = (() => {
 				const match = /^(\s*).*(\s*)$/.exec(fullLineText);
@@ -308,7 +336,8 @@ export class ErrorManager implements Disposable, vscode.CodeActionProvider {
 	}
 
 	public dispose(): void {
-		this._diagnosticsCollection.dispose();
+		this._disposables.forEach((d) => void d.dispose());
+		this._disposables = [];
 	}
 }
 
@@ -331,40 +360,41 @@ class ErrorCodeAction extends vscode.CodeAction {
 			? `@phpstan-ignore ${this._error.identifier}`
 			: '@phpstan-ignore-next-line';
 
-		const previousLineRange = new vscode.Range(
-			lineNumber - 1,
-			0,
-			lineNumber - 1,
-			this._document.lineAt(lineNumber - 1).text.length
-		);
-		const previousLineText = this._document.getText(previousLineRange);
+		if (lineNumber > 0) {
+			const previousLineRange = new vscode.Range(
+				lineNumber - 1,
+				0,
+				lineNumber - 1,
+				this._document.lineAt(lineNumber - 1).text.length
+			);
+			const previousLineText = this._document.getText(previousLineRange);
 
-		const singlelineDocblockMatch = /^(\s*)\/\*\*+\s*(.*)\s*\*\/(\s*)/.exec(
-			previousLineText
-		);
-		if (singlelineDocblockMatch) {
-			const [, indent, content, trailingWhitespace] =
-				singlelineDocblockMatch;
-			const replacement =
-				`${indent}/**\n` +
-				`${indent} * ${content}\n` +
-				`${indent} * ${ignoreCommentContent}\n` +
-				`${indent} */${trailingWhitespace}`;
-			this._replace(previousLineRange, replacement);
-			return;
-		}
+			const singlelineDocblockMatch =
+				/^(\s*)\/\*\*+\s*(.*)\s*\*\/(\s*)/.exec(previousLineText);
+			if (singlelineDocblockMatch) {
+				const [, indent, content, trailingWhitespace] =
+					singlelineDocblockMatch;
+				const replacement =
+					`${indent}/**\n` +
+					`${indent} * ${content}\n` +
+					`${indent} * ${ignoreCommentContent}\n` +
+					`${indent} */${trailingWhitespace}`;
+				this._replace(previousLineRange, replacement);
+				return;
+			}
 
-		const multilineDocblockMatch = /^(\s*)(\*+)\/(\s*)/.exec(
-			previousLineText
-		);
-		if (multilineDocblockMatch) {
-			const [, indent, closingStars, trailingWhitespace] =
-				multilineDocblockMatch;
-			const replacement =
-				`${indent}* ${ignoreCommentContent}\n` +
-				`${indent}${closingStars}/${trailingWhitespace}`;
-			this._replace(previousLineRange, replacement);
-			return;
+			const multilineDocblockMatch = /^(\s*)(\*+)\/(\s*)/.exec(
+				previousLineText
+			);
+			if (multilineDocblockMatch) {
+				const [, indent, closingStars, trailingWhitespace] =
+					multilineDocblockMatch;
+				const replacement =
+					`${indent}* ${ignoreCommentContent}\n` +
+					`${indent}${closingStars}/${trailingWhitespace}`;
+				this._replace(previousLineRange, replacement);
+				return;
+			}
 		}
 
 		const errorRange = new vscode.Range(

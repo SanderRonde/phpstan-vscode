@@ -1,5 +1,10 @@
+import {
+	docker,
+	getConfigFile,
+	getPathMapper,
+	shellQuote,
+} from '../../../shared/util';
 import { getDockerEnvironment, getEditorConfiguration } from './editorConfig';
-import { docker, getConfigFile, getPathMapper } from '../../../shared/util';
 import type { ConfigResolver } from './configResolver';
 import { showErrorOnce } from './errorUtil';
 import type { ClassConfig } from './types';
@@ -63,7 +68,7 @@ export class ConfigurationManager {
 						dockerContainerName,
 						'sh',
 						'-c',
-						`[ -${isDir ? 'd' : 'f'} ${filePath} ]`,
+						`[ -${isDir ? 'd' : 'f'} ${shellQuote(filePath)} ]`,
 					],
 					await getDockerEnvironment(classConfig, currentFile)
 				)
@@ -261,7 +266,7 @@ export class ConfigurationManager {
 					extensionConfig.dockerContainerName,
 					'sh',
 					'-c',
-					`${ConfigurationManager.escapeFilePath(binPath)} ${args.join(' ')} & echo docker-pid:$! && wait $!`,
+					`${shellQuote(binPath)} ${args.map(shellQuote).join(' ')} & echo docker-pid:$! && wait $!`,
 				],
 			};
 		}

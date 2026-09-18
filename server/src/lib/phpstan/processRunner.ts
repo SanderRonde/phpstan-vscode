@@ -1,4 +1,8 @@
 import {
+	extractJsonPayload,
+	sanitizePhpstanOutputChunk,
+} from '../../../../shared/phpstanOutput';
+import {
 	EXTENSION_ID,
 	PROCESS_TIMEOUT,
 	SPAWN_ARGS,
@@ -68,42 +72,13 @@ export class PHPStanRunner implements AsyncDisposable {
 	): () => string {
 		let data: string = '';
 		proc[channel]?.on('data', (dataPart: string | Buffer) => {
-			const str = dataPart.toString('utf-8');
-
-			const pidMatch = /docker-pid:(\d+)/.exec(str);
-			if (pidMatch) {
-				const pid = parseInt(pidMatch[1], 10);
-				log(prefix, `PHPStan docker PID: ${pid}`);
-				proc.dockerPid = pid;
-				return;
-			}
-
-			const progressMatch = onProgress
-				? [...str.matchAll(/(\d+)\/(\d+)\s+\[.*?\]\s+(\d+)%/g)]
-				: [];
-			if (progressMatch.length) {
-				const [, done, total, percentage] =
-					progressMatch[progressMatch.length - 1];
-				onProgress!({
-					done: parseInt(done, 10),
-					total: parseInt(total, 10),
-					percentage: parseInt(percentage, 10),
-				});
-				return;
-			}
-
-			if (/Note: Using configuration file/.test(str)) {
-				// Ignore this line
-				return;
-			}
-
-			// Ignore control characters in output
-			// eslint-disable-next-line no-control-regex
-			const ansiRegex = /\x1b\[(\d+)/g;
-			if (ansiRegex.test(str)) {
-				return;
-			}
-			data += str;
+			data += sanitizePhpstanOutputChunk(dataPart.toString('utf-8'), {
+				onDockerPid: (pid) => {
+					log(prefix, `PHPStan docker PID: ${pid}`);
+					proc.dockerPid = pid;
+				},
+				onProgress,
+			});
 		});
 		return () => data;
 	}
@@ -355,7 +330,7 @@ export class PHPStanRunner implements AsyncDisposable {
 				// takes priority over any stderr content (PHPStan may print notices
 				// such as coding-agent instructions to stderr even with
 				// --no-interaction --error-format=json).
-				const stdout = getData();
+				const stdout = extractJsonPayload(getData()) ?? getData();
 				if (stdout) {
 					try {
 						const parsed = JSON.parse(stdout) as R;

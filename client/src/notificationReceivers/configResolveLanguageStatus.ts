@@ -5,6 +5,7 @@ import {
 	CancellationTokenSource,
 	type ExtensionContext,
 	LanguageStatusSeverity,
+	commands,
 } from 'vscode';
 import { configResolveRequest, findFilesRequest } from '../lib/requestChannels';
 import type { FindFilesRequestType } from '../../../shared/requestChannels';
@@ -173,10 +174,7 @@ export class ConfigResolveLanguageStatus implements Disposable {
 		}
 
 		if (choice.action === 'setup') {
-			await window.showInformationMessage(
-				'PHPStan setup wizard is not yet implemented. Please configure PHPStan manually.',
-				{ modal: false }
-			);
+			await commands.executeCommand(Commands.LAUNCH_SETUP);
 		} else if (choice.action === 'dismiss') {
 			await this.dismissCurrentError();
 		}

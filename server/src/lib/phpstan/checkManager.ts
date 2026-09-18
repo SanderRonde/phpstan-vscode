@@ -64,12 +64,32 @@ export class PHPStanCheckManager implements AsyncDisposable {
 					resolve,
 				] as ((value: unknown) => void)[],
 				// eslint-disable-next-line @typescript-eslint/no-misused-promises
-				timeout: setTimeout(async () => {
+				timeout: setTimeout(() => {
 					const promiseResolvers =
 						this._queuedCalls.get(identifier)!.promiseResolvers;
 					this._queuedCalls.delete(identifier);
-					const result = await callback();
-					promiseResolvers.forEach((resolve) => resolve(result));
+					void Promise.resolve()
+						.then(() => callback())
+						.then(
+							(result) => {
+								promiseResolvers.forEach((resolve) =>
+									resolve(result)
+								);
+							},
+							(error) => {
+								log(
+									MANAGER_PREFIX,
+									`Debounced check failed: ${
+										error instanceof Error
+											? error.message
+											: String(error)
+									}`
+								);
+								promiseResolvers.forEach((resolve) =>
+									resolve(undefined as V)
+								);
+							}
+						);
 				}, CHECK_DEBOUNCE),
 			});
 		});
@@ -97,7 +117,7 @@ export class PHPStanCheckManager implements AsyncDisposable {
 						void executeCommand(
 							this._classConfig.connection,
 							'workbench.action.openSettings',
-							'phpstan.projectCheckTimeout'
+							'phpstan.projectTimeout'
 						);
 					},
 				},
@@ -521,8 +541,16 @@ export class PHPStanCheckManager implements AsyncDisposable {
 	}
 
 	public async dispose(): Promise<void> {
+		for (const queued of this._queuedCalls.values()) {
+			clearTimeout(queued.timeout);
+			queued.promiseResolvers.forEach((resolve) => resolve(undefined));
+		}
+		this._queuedCalls.clear();
 		await Promise.all([
 			...this._disposables.map((disposable) => disposable.dispose()),
+			...[...this._operations.values()].map((operation) =>
+				operation.check.dispose()
+			),
 		]);
 		this._operations.clear();
 	}

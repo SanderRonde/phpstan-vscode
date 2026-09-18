@@ -346,7 +346,7 @@ export class DocumentManager implements AsyncDisposable {
 				null
 			);
 			if (status !== OperationStatus.SUCCESS) {
-				return;
+				continue;
 			}
 		}
 	}
