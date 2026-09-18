@@ -6,7 +6,7 @@ export function replaceVariables(
 	workspaceFolders: WorkspaceFolders | null
 ): string {
 	return str.replace(
-		/\${workspaceFolder(?::(\w+))?}/g,
+		/\${workspaceFolder(?::([^}]+))?}/g,
 		(_fullMatch, workspaceName: string | undefined) => {
 			if (workspaceName) {
 				if (!workspaceFolders) {

@@ -93,7 +93,7 @@ export class StatusBar implements Disposable {
 		}
 
 		if (this._hideTimeout) {
-			clearInterval(this._hideTimeout);
+			clearTimeout(this._hideTimeout);
 		}
 		this._textManager.setText(
 			`PHPStan checking... ${TextManager.LOADING_SPIN}`
@@ -121,7 +121,13 @@ export class StatusBar implements Disposable {
 			'Hiding status bar, last operation result =',
 			result
 		);
-		if (result === OperationStatus.KILLED) {
+		if (result === OperationStatus.CANCELLED) {
+			this._fallbackOrHide();
+			if (this._runningOperation?.id === operationId) {
+				this._runningOperation = null;
+			}
+			return;
+		} else if (result === OperationStatus.KILLED) {
 			this._textManager.setText(
 				'PHPStan process killed (timeout)',
 				this._fallback?.command
@@ -136,13 +142,9 @@ export class StatusBar implements Disposable {
 				'PHPStan checking errored (see log)',
 				this._fallback?.command
 			);
-		} else if (result !== OperationStatus.CANCELLED) {
+		} else {
 			assertUnreachable(result);
 		}
-		this._textManager.setText(
-			'PHPStan checking done',
-			this._fallback?.command
-		);
 		this._textManager.setTooltips(undefined);
 		this._hideTimeout = setTimeout(
 			() => {

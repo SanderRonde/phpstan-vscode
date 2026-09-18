@@ -5,9 +5,8 @@ import { isSupportedLanguageId } from '../../../shared/languages';
 import type { LanguageClient } from 'vscode-languageclient/node';
 import { getEditorConfiguration } from '../lib/editorConfig';
 import type { Disposable } from 'vscode';
-import { createHash } from 'crypto';
-import * as fs from 'fs/promises';
 import * as vscode from 'vscode';
+import * as path from 'path';
 type PartialDocument = Pick<
 	vscode.TextDocument,
 	'uri' | 'getText' | 'isDirty' | 'languageId'
@@ -35,20 +34,39 @@ export class DocumentManager implements Disposable {
 		);
 	}
 
-	private _isConfigFile(e: PartialDocument): boolean {
-		if (e.isDirty) {
-			return false;
-		}
+	private _isConfigFilePath(fsPath: string): boolean {
 		const configFiles = getEditorConfiguration()
 			.get('phpstan.configFile')
 			.split(',')
-			.map((e) => e.trim());
+			.map((item) => item.trim())
+			.filter(Boolean);
+		const normalizedFsPath = path.normalize(fsPath);
 		for (const configFile of configFiles) {
-			if (e.uri.fsPath.includes(configFile)) {
+			const normalizedSetting = path.normalize(configFile);
+			if (
+				path.basename(normalizedFsPath) !==
+				path.basename(normalizedSetting)
+			) {
+				continue;
+			}
+			const isBareFilename =
+				!configFile.includes('/') && !configFile.includes('\\');
+			if (
+				isBareFilename ||
+				normalizedFsPath === normalizedSetting ||
+				normalizedFsPath.endsWith(path.sep + normalizedSetting)
+			) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	private _isConfigFile(e: PartialDocument): boolean {
+		if (e.isDirty) {
+			return false;
+		}
+		return this._isConfigFilePath(e.uri.fsPath);
 	}
 
 	private _toSendData(e: PartialDocument): WatcherNotificationFileData {
@@ -84,37 +102,27 @@ export class DocumentManager implements Disposable {
 	}
 
 	private async _onDocumentSave(e: vscode.TextDocument): Promise<void> {
+		if (this._isConfigFilePath(e.uri.fsPath)) {
+			debug('configChange', {
+				filePath: sanitizeFilePath(e.uri.fsPath),
+			});
+			await this._client.sendNotification(watcherNotification, {
+				operation: 'onConfigChange',
+				file: this._toSendData(e),
+			});
+		}
+
 		if (!isSupportedLanguageId(e.languageId)) {
 			return;
 		}
 
-		const fileContents = e.getText();
-		const fileContentsHash = createHash('sha256')
-			.update(fileContents)
-			.digest('hex');
-		const onDiskContents = await fs.readFile(e.uri.fsPath, 'utf-8');
-		const onDiskContentsHash = createHash('sha256')
-			.update(onDiskContents)
-			.digest('hex');
-		if (fileContentsHash !== onDiskContentsHash) {
-			debug('documentSave', {
-				filePath: sanitizeFilePath(e.uri.fsPath),
-			});
-			await this._client.sendNotification(watcherNotification, {
-				operation: 'save',
-				file: this._toSendData(e),
-			});
-			const postSaveContents = await fs.readFile(e.uri.fsPath, 'utf-8');
-			const postSaveContentsHash = createHash('sha256')
-				.update(postSaveContents)
-				.digest('hex');
-			debug('documentSave', {
-				filePath: sanitizeFilePath(e.uri.fsPath),
-				postSaveContentsHash,
-				fileContentsHash,
-				onDiskContentsHash,
-			});
-		}
+		debug('documentSave', {
+			filePath: sanitizeFilePath(e.uri.fsPath),
+		});
+		await this._client.sendNotification(watcherNotification, {
+			operation: 'save',
+			file: this._toSendData(e),
+		});
 	}
 
 	private async _onDocumentActive(e: vscode.TextDocument): Promise<void> {

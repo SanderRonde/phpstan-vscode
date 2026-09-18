@@ -28,6 +28,7 @@ import type { DocumentManager } from './lib/documentManager';
 import { listenClearCache } from './lib/phpstan/clearCache';
 import { getEditorConfiguration } from './lib/editorConfig';
 import type { PHPStanVersion } from './start/getVersion';
+import { isPathEqualOrInside } from '../../shared/util';
 import { ConfigResolver } from './lib/configResolver';
 import { initRequest } from './lib/requestChannels';
 import { getVersion } from './start/getVersion';
@@ -75,12 +76,19 @@ async function main(): Promise<void> {
 					if (!path.isAbsolute(filePath)) {
 						return undefined;
 					}
+					let best: { uri: URI; length: number } | undefined;
 					for (const folder of folders) {
-						if (filePath.startsWith(folder.uri.fsPath)) {
-							return folder.uri;
+						if (isPathEqualOrInside(filePath, folder.uri.fsPath)) {
+							const length = folder.uri.fsPath.length;
+							if (!best || length > best.length) {
+								best = {
+									uri: folder.uri,
+									length,
+								};
+							}
 						}
 					}
-					return undefined;
+					return best?.uri;
 				},
 			};
 

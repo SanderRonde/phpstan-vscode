@@ -1,5 +1,6 @@
 import type { ConfigResolveRequestType } from '../../../shared/requestChannels';
 import { configResolveRequest, findFilesRequest } from './requestChannels';
+import { compareConfigDirOrder } from '../../../shared/util';
 import type { Disposable } from 'vscode-languageserver';
 import { ParsedConfigFile } from '../../../shared/neon';
 import { getEditorConfiguration } from './editorConfig';
@@ -121,44 +122,13 @@ export class ConfigResolver implements Disposable {
 		const filePathDir = path.dirname(filePath.fsPath);
 
 		return configs.map((configGroup) => {
-			// Create path info for each config in group
-			const configsWithPathInfo = configGroup.map((config) => ({
-				config,
-				configDir: path.dirname(config.uri.fsPath),
-				// Get relative path from file to config (going up)
-				relativeToFile: path.relative(
+			return [...configGroup].sort((a, b) =>
+				compareConfigDirOrder(
 					filePathDir,
-					path.dirname(config.uri.fsPath)
-				),
-			}));
-
-			return configsWithPathInfo
-				.sort((a, b) => {
-					// If config is in same dir as file or above (starts with ..), sort by path depth
-					const aIsAboveOrSame = !a.relativeToFile.startsWith('..');
-					const bIsAboveOrSame = !b.relativeToFile.startsWith('..');
-
-					if (aIsAboveOrSame && !bIsAboveOrSame) {
-						return -1;
-					}
-					if (!aIsAboveOrSame && bIsAboveOrSame) {
-						return 1;
-					}
-
-					// Both above/same or both below
-					if (aIsAboveOrSame) {
-						// Sort by path depth (shorter = higher up = first)
-						return (
-							a.relativeToFile.length - b.relativeToFile.length
-						);
-					} else {
-						// Sort by path depth (shorter = closer = first)
-						return (
-							a.relativeToFile.length - b.relativeToFile.length
-						);
-					}
-				})
-				.map((info) => info.config);
+					path.dirname(a.uri.fsPath),
+					path.dirname(b.uri.fsPath)
+				)
+			);
 		});
 	}
 
@@ -199,22 +169,34 @@ export class ConfigResolver implements Disposable {
 	 */
 	public async getAllConfigs(): Promise<Config[]> {
 		const coveredPaths = new Set<string>();
-
+		const seenConfigUris = new Set<string>();
 		const allConfigs: Config[] = [];
 		const configGroups = await this._findConfigs(null);
 		for (const configGroup of configGroups) {
 			for (const config of configGroup) {
-				for (const relativeIncludedPath of config.file.paths) {
-					const absoluteIncludedPath = path.join(
-						path.dirname(config.uri.fsPath),
-						relativeIncludedPath
-					);
-					if (coveredPaths.has(absoluteIncludedPath)) {
-						continue;
-					}
-					coveredPaths.add(absoluteIncludedPath);
-					allConfigs.push(config);
+				const configKey = config.uri.toString();
+				if (seenConfigUris.has(configKey)) {
+					continue;
 				}
+				const absoluteIncludedPaths = config.file.paths.map(
+					(relativeIncludedPath) =>
+						path.join(
+							path.dirname(config.uri.fsPath),
+							relativeIncludedPath
+						)
+				);
+				if (
+					absoluteIncludedPaths.some((includedPath) =>
+						coveredPaths.has(includedPath)
+					)
+				) {
+					continue;
+				}
+				for (const includedPath of absoluteIncludedPaths) {
+					coveredPaths.add(includedPath);
+				}
+				seenConfigUris.add(configKey);
+				allConfigs.push(config);
 			}
 		}
 		return allConfigs;

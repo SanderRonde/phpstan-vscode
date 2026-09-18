@@ -153,45 +153,75 @@ export class ParsedConfigFile {
 			return true;
 		}
 
-		function fnmatch(pattern: string, string: string): boolean {
-			// Escape special regex characters
-			let regexPattern = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
-
-			// Convert shell wildcard characters to regex equivalents
-			regexPattern = regexPattern
-				.replace(/\*/g, '.*')
-				.replace(/\?/g, '.');
-
-			// Add start and end anchors
-			regexPattern = '^' + regexPattern;
-
-			// Create and test the regular expression
-			const regex = new RegExp(regexPattern);
-			return regex.test(string);
-		}
-
 		const configFileDir = path.dirname(this.filePath);
-		const safeFnmatch = (pattern: string, string: string): boolean => {
-			try {
-				return fnmatch(pattern, string);
-			} catch (e) {
-				// The file/folder does not exist
-				return false;
-			}
-		};
-
 		for (const excludePath of this.excludePaths) {
-			if (safeFnmatch(path.join(configFileDir, excludePath), filePath)) {
+			if (
+				matchesNeonPath(path.join(configFileDir, excludePath), filePath)
+			) {
 				return false;
 			}
 		}
 
 		for (const includePath of this.paths) {
-			if (safeFnmatch(path.join(configFileDir, includePath), filePath)) {
+			if (
+				matchesNeonPath(path.join(configFileDir, includePath), filePath)
+			) {
 				return true;
 			}
 		}
 
+		return false;
+	}
+}
+
+/**
+ * Match a PHPStan `paths` / `excludePaths` entry against a file.
+ * Directory entries without wildcards include all descendants. Globs are
+ * anchored and `*` does not cross path separators (`**` does).
+ */
+export function matchesNeonPath(pattern: string, filePath: string): boolean {
+	const normalizedPattern = path.normalize(pattern).replace(/\\/g, '/');
+	const normalizedFile = path.normalize(filePath).replace(/\\/g, '/');
+
+	if (!/[*?]/.test(normalizedPattern)) {
+		if (normalizedFile === normalizedPattern) {
+			return true;
+		}
+		const prefix = normalizedPattern.endsWith('/')
+			? normalizedPattern
+			: `${normalizedPattern}/`;
+		return normalizedFile.startsWith(prefix);
+	}
+
+	return neonGlobMatch(normalizedPattern, normalizedFile);
+}
+
+function neonGlobMatch(pattern: string, filePath: string): boolean {
+	let regex = '^';
+	for (let i = 0; i < pattern.length; i++) {
+		const char = pattern[i];
+		if (char === '*') {
+			if (pattern[i + 1] === '*') {
+				if (pattern[i + 2] === '/') {
+					regex += '(?:.*/)?';
+					i += 2;
+				} else {
+					regex += '.*';
+					i += 1;
+				}
+			} else {
+				regex += '[^/]*';
+			}
+		} else if (char === '?') {
+			regex += '[^/]';
+		} else {
+			regex += char.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+		}
+	}
+	regex += '$';
+	try {
+		return new RegExp(regex).test(filePath);
+	} catch {
 		return false;
 	}
 }

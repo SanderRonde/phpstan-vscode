@@ -237,6 +237,67 @@ export async function docker(
 	});
 }
 
+/**
+ * POSIX-style quoting for `sh -c` argument lists (docker exec).
+ */
+export function shellQuote(value: string): string {
+	return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * True when `filePath` is `rootPath` or a descendant. Uses a separator
+ * boundary so `/workspace` does not match `/workspace-other`.
+ */
+export function isPathEqualOrInside(
+	filePath: string,
+	rootPath: string
+): boolean {
+	const file = path.normalize(filePath);
+	const root = path.normalize(rootPath);
+	const compareFile =
+		process.platform === 'win32' ? file.toLowerCase() : file;
+	const compareRoot =
+		process.platform === 'win32' ? root.toLowerCase() : root;
+	if (compareFile === compareRoot) {
+		return true;
+	}
+	const prefix = compareRoot.endsWith(path.sep)
+		? compareRoot
+		: compareRoot + path.sep;
+	return compareFile.startsWith(prefix);
+}
+
+/**
+ * Order neon configs relative to a file: same directory, then parent
+ * directories (closest first), then children/siblings (closest first).
+ */
+export function compareConfigDirOrder(
+	fileDir: string,
+	aDir: string,
+	bDir: string
+): number {
+	const rank = (dir: string): { group: number; depth: number } => {
+		const relative = path.relative(fileDir, dir);
+		if (relative === '' || relative === '.') {
+			return { group: 0, depth: 0 };
+		}
+		const parts = relative.split(path.sep).filter((part) => part.length);
+		const isAncestor =
+			parts.length > 0 && parts.every((part) => part === '..');
+		if (isAncestor) {
+			return { group: 1, depth: parts.length };
+		}
+		return { group: 2, depth: parts.length };
+	};
+
+	const aRank = rank(aDir);
+	const bRank = rank(bDir);
+	if (aRank.group !== bRank.group) {
+		return aRank.group - bRank.group;
+	}
+	return aRank.depth - bRank.depth;
+}
+
 export function getPathMapper(
 	pathMapping: Record<string, string>,
 	workspaceRoot?: string
@@ -246,20 +307,28 @@ export function getPathMapper(
 			return filePath;
 		}
 		const expandedFilePath = filePath.replace(/^~/, os.homedir());
-		// eslint-disable-next-line prefer-const
-		for (let [fromPath, toPath] of Object.entries(pathMapping)) {
-			if (!path.isAbsolute(fromPath) && workspaceRoot) {
-				fromPath = path.join(workspaceRoot, fromPath);
-			}
+		const mappings = Object.entries(pathMapping)
+			.map(([fromPath, toPath]) => {
+				let resolvedFrom = fromPath;
+				if (!path.isAbsolute(resolvedFrom) && workspaceRoot) {
+					resolvedFrom = path.join(workspaceRoot, resolvedFrom);
+				}
+				const [from, to] = inverse
+					? [toPath, resolvedFrom]
+					: [resolvedFrom, toPath];
+				return {
+					from: from.replace(/^~/, os.homedir()),
+					to: to.replace(/^~/, os.homedir()),
+				};
+			})
+			.sort((a, b) => b.from.length - a.from.length);
 
-			const [from, to] = inverse
-				? [toPath, fromPath]
-				: [fromPath, toPath];
-			const expandedFromPath = from.replace(/^~/, os.homedir());
-			if (expandedFilePath.startsWith(expandedFromPath)) {
-				return expandedFilePath
-					.replace(expandedFromPath, to.replace(/^~/, os.homedir()))
-					.replace(/\\/g, '/');
+		for (const mapping of mappings) {
+			if (isPathEqualOrInside(expandedFilePath, mapping.from)) {
+				return `${mapping.to}${expandedFilePath.slice(mapping.from.length)}`.replace(
+					/\\/g,
+					'/'
+				);
 			}
 		}
 		return filePath;

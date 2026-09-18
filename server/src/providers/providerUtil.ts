@@ -192,10 +192,36 @@ export class ProviderCheckHooks {
 		configTarget: ConfigTarget,
 		filePath: string
 	): ConfigTarget {
+		const joinPath = (left: string, right: string): string =>
+			configTarget.target === 'docker'
+				? path.posix.join(left, right)
+				: path.join(left, right);
 		return {
 			...configTarget,
-			path: path.join(configTarget.path, filePath),
+			path: joinPath(configTarget.path, filePath),
 		};
+	}
+
+	private _replaceArg(
+		args: string[],
+		short: string,
+		long: string,
+		value: string
+	): string[] {
+		const next: string[] = [];
+		for (let i = 0; i < args.length; i++) {
+			const arg = args[i];
+			if (arg === short || arg === long) {
+				i++;
+				continue;
+			}
+			if (arg.startsWith(`${long}=`)) {
+				continue;
+			}
+			next.push(arg);
+		}
+		next.push(short, value);
+		return next;
 	}
 
 	private async _getFileReport(
@@ -424,8 +450,10 @@ export class ProviderCheckHooks {
 			userAutoloadFile
 		);
 
-		args.push(
+		args = this._replaceArg(
+			args,
 			'-a',
+			'--autoload-file',
 			ConfigurationManager.escapeFilePath(autoloadFilePath.path)
 		);
 		if (checkConfig.configFile) {
@@ -446,7 +474,7 @@ export class ProviderCheckHooks {
 					)
 				).path
 			);
-			args.push('-c', configFile);
+			args = this._replaceArg(args, '-c', '--configuration', configFile);
 		}
 		return args;
 	}
@@ -457,7 +485,9 @@ export class ProviderCheckHooks {
 		}
 
 		const report = await this._getFileReport(classConfig);
-		this._lastReport = report;
+		if (report) {
+			this._lastReport = report;
+		}
 	}
 }
 

@@ -4,6 +4,7 @@ import {
 	pathExists,
 	docker,
 	getPathMapper,
+	shellQuote,
 } from '../../../shared/util';
 import type { WatcherNotificationFileData } from '../../../shared/notificationChannels';
 import { replaceHomeDir, replaceVariables } from '../../../shared/variables';
@@ -220,6 +221,10 @@ abstract class SetupSteps {
 		return this._workspaceFolders?.default?.fsPath;
 	}
 
+	protected _getRootDir(): string {
+		return this._state.rootDir || '.';
+	}
+
 	protected async _rootDirStep(
 		input: MultiStepInput,
 		next: InputStep,
@@ -285,7 +290,7 @@ abstract class SetupSteps {
 				);
 				const configFile = await getConfigFile(
 					filePath,
-					makeAbsolute(this._state.rootDir, this._getCwd()),
+					makeAbsolute(this._getRootDir(), this._getCwd()),
 					pathExists
 				);
 				if (configFile) {
@@ -294,7 +299,7 @@ abstract class SetupSteps {
 					}
 					return undefined;
 				}
-				return `File does not exist container at \`${filePath}\``;
+				return `File does not exist at \`${filePath}\``;
 			},
 			value: this._state.configFile,
 			ignoreFocusOut: true,
@@ -335,7 +340,7 @@ abstract class SetupSteps {
 			validate: async (value) => {
 				const filePath = makeAbsolute(
 					path.join(
-						this._state.rootDir,
+						this._getRootDir(),
 						replaceHomeDir(
 							replaceVariables(value, this._workspaceFolders)
 						)
@@ -352,7 +357,7 @@ abstract class SetupSteps {
 			value:
 				this._state.binPath ??
 				path.join(
-					makeAbsolute(this._state.rootDir, this._getCwd()),
+					makeAbsolute(this._getRootDir(), this._getCwd()),
 					'vendor/bin/phpstan'
 				),
 			ignoreFocusOut: true,
@@ -386,6 +391,7 @@ abstract class SetupSteps {
 		input: MultiStepInput,
 		next: InputStep
 	): Promise<InputStep | undefined> {
+		const checkCurrentFileLabel = 'Check only current file';
 		const singleFileModeText =
 			"Lighter on the CPU, only use this is if your device can't handle full-project checks";
 		this._state.singleFileMode =
@@ -401,13 +407,13 @@ abstract class SetupSteps {
 								'Ensures cache is preserved, project-wide errors are shown and improves accuracy',
 						},
 						{
-							label: 'Check only current file',
+							label: checkCurrentFileLabel,
 							description: singleFileModeText,
 						},
 					],
 					ignoreFocusOut: true,
 				})
-			).label === singleFileModeText;
+			).label === checkCurrentFileLabel;
 
 		return next;
 	}
@@ -467,7 +473,7 @@ abstract class SetupSteps {
 					options.map((uri) => ({
 						label: path.relative(
 							makeAbsolute(
-								this._state.rootDir,
+								this._getRootDir(),
 								this._workspaceFolders?.default?.fsPath
 							),
 							uri.fsPath
@@ -563,6 +569,7 @@ class AutomaticSetupSteps extends SetupSteps {
 	public run(next: () => Promise<void>): Promise<InputStep> {
 		// Unset this as it's not relevant for commandline mode
 		this._state.dockerContainerName = '';
+		this._state.rootDir = this._state.rootDir || './';
 
 		return Promise.resolve((input: MultiStepInput) =>
 			this._configFilePatternStep(input, (input) =>
@@ -611,7 +618,7 @@ class DockerSetupSteps extends SetupSteps {
 					this._state.dockerContainerName,
 					'sh',
 					'-c',
-					`[ -f ${path} ]`,
+					`[ -f ${shellQuote(path)} ]`,
 				],
 				getEditorConfiguration().get('docker.environment')
 			)
@@ -696,7 +703,7 @@ class DockerSetupSteps extends SetupSteps {
 			validate: async (value) => {
 				const filePath = makeAbsolute(
 					path.join(
-						this._state.rootDir,
+						this._getRootDir(),
 						replaceHomeDir(
 							replaceVariables(value, this._workspaceFolders)
 						)
@@ -716,7 +723,7 @@ class DockerSetupSteps extends SetupSteps {
 			value:
 				this._state.binPath ??
 				path.join(
-					makeAbsolute(this._state.rootDir, this._getCwd()),
+					makeAbsolute(this._getRootDir(), this._getCwd()),
 					'vendor/bin/phpstan'
 				),
 			ignoreFocusOut: true,

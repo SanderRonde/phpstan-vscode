@@ -28,7 +28,7 @@ export class ZombieKiller implements Disposable {
 				processNotification,
 				({ pid, children, timeout }) => {
 					const currentPids = this._context.workspaceState.get<
-						Record<number, RootProcessDescriptor>
+						Record<number, RootProcessDescriptor | number>
 					>(ZombieKiller.STORAGE_KEY, {});
 					if (!currentPids[pid]) {
 						log(
@@ -50,92 +50,95 @@ export class ZombieKiller implements Disposable {
 		});
 	}
 
-	private _killProc(pid: number, binStr?: string): void {
+	private _killPid(pid: number): void {
+		try {
+			process.kill(pid, 'SIGINT');
+		} catch {
+			try {
+				process.kill(pid, 'SIGKILL');
+			} catch {
+				// Already gone
+			}
+		}
+	}
+
+	private _killProcTree(pid: number): void {
+		this._killPid(pid);
 		psTree(pid, (err, children) => {
-			if (err || children.length === 0) {
-				// No longer exists or something went wrong
+			if (err) {
 				return;
 			}
-
 			children.forEach((proc) => {
-				if (binStr && proc.COMMAND !== binStr) {
-					return;
-				}
-
-				try {
-					process.kill(Number(proc.PID), 'SIGINT');
-				} catch (e) {
-					process.kill(Number(proc.PID), 'SIGKILL');
-				}
+				this._killPid(Number(proc.PID));
 			});
 		});
+	}
+
+	private _asDescriptor(
+		pid: number,
+		value: RootProcessDescriptor | number | undefined
+	): RootProcessDescriptor | null {
+		if (typeof value === 'number') {
+			return {
+				pid,
+				timeout: value,
+				binStr: undefined,
+				children: [],
+			};
+		}
+		if (value && typeof value === 'object') {
+			return {
+				pid: value.pid ?? pid,
+				timeout: value.timeout,
+				binStr: value.binStr,
+				children: value.children ?? [],
+			};
+		}
+		return null;
 	}
 
 	private async _kill(killTimeoutless: boolean = false): Promise<void> {
 		const processes = this._context.workspaceState.get(
 			ZombieKiller.STORAGE_KEY,
 			{}
-		) as Record<number, RootProcessDescriptor>;
+		) as Record<number, RootProcessDescriptor | number>;
 		if (Object.keys(processes).length === 0) {
 			return;
 		}
 
-		const toKill: { descriptor: ProcessDescriptor; pid: string }[] = [];
-		Object.entries(processes).forEach(([pid, descriptor]) => {
+		const toKill = new Set<number>();
+		const pidsToRemove = new Set<string>();
+		Object.entries(processes).forEach(([pid, value]) => {
+			const descriptor = this._asDescriptor(Number(pid), value);
+			if (!descriptor) {
+				return;
+			}
 			if (
 				killTimeoutless ||
-				(Date.now() > descriptor.timeout && descriptor.timeout !== 0)
+				(descriptor.timeout !== 0 && Date.now() > descriptor.timeout)
 			) {
-				toKill.push({
-					descriptor,
-					pid,
-				});
+				pidsToRemove.add(pid);
+				toKill.add(descriptor.pid);
 				if (descriptor.children) {
 					descriptor.children.forEach((child) => {
-						toKill.push({
-							descriptor: child,
-							pid,
-						});
+						toKill.add(child.pid);
 					});
 				}
 			}
 		});
 
-		const programs: psTree.PS[] = [];
-		await Promise.all(
-			toKill.map(
-				async ({ pid }) =>
-					new Promise<void>((resolve) => {
-						psTree(Number(pid), (err, children) => {
-							if (!err) {
-								programs.push(...children);
-							}
-							resolve();
-						});
-					})
-			)
-		);
-
-		for (const { descriptor, pid } of toKill) {
-			const program = programs.find(
-				(p) =>
-					p.PID === pid &&
-					(descriptor.binStr === undefined ||
-						p.COMMAND === descriptor.binStr)
-			);
-			if (program) {
-				void this._killProc(parseInt(pid, 10), program.COMMAND);
-			}
+		for (const pid of toKill) {
+			this._killProcTree(pid);
 		}
 
-		const newProcesses: Record<number, number | RootProcessDescriptor> = {};
+		const newProcesses: Record<number, RootProcessDescriptor | number> = {};
 		for (const pid in processes) {
-			if (toKill.some(({ pid: pid2 }) => pid2 === pid)) {
+			if (pidsToRemove.has(pid)) {
 				continue;
 			}
-			newProcesses[pid] = processes[pid];
+			newProcesses[Number(pid)] = processes[pid];
 		}
-		void this._context.workspaceState.update(
+		await this._context.workspaceState.update(
 			ZombieKiller.STORAGE_KEY,
 			newProcesses
 		);
@@ -146,36 +149,21 @@ export class ZombieKiller implements Disposable {
 		children: number[],
 		timeout: number
 	): Promise<void> {
-		const programs = await new Promise<readonly psTree.PS[]>((resolve) => {
-			psTree(pid, (err, list) => {
-				if (err) {
-					resolve([]);
-				} else {
-					resolve(list);
-				}
-			});
-		});
-
-		const binStr = programs.find((p) => p.PID === String(pid))?.COMMAND;
-		const childBinStrs = children.map((child) => {
-			const program = programs.find((p) => p.PID === String(child));
-			return program?.COMMAND;
-		});
-
 		const targetTime = timeout === 0 ? 0 : Date.now() + timeout;
+		const current = this._context.workspaceState.get<
+			Record<number, RootProcessDescriptor | number>
+		>(ZombieKiller.STORAGE_KEY, {});
 		await this._context.workspaceState.update(ZombieKiller.STORAGE_KEY, {
-			...this._context.workspaceState.get(ZombieKiller.STORAGE_KEY, {}),
-			[pid]: binStr
-				? ({
-						timeout: targetTime,
-						binStr,
-						pid,
-						children: children.map((pid, i) => ({
-							pid: pid,
-							binStr: childBinStrs[i],
-						})),
-					} satisfies RootProcessDescriptor)
-				: targetTime,
+			...current,
+			[pid]: {
+				timeout: targetTime,
+				binStr: undefined,
+				pid,
+				children: children.map((childPid) => ({
+					pid: childPid,
+					binStr: undefined,
+				})),
+			} satisfies RootProcessDescriptor,
 		});
 	}
 
